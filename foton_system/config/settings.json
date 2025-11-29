@@ -1,0 +1,16 @@
+{
+    "caminho_pastaClientes": "C:\\Users\\Lucas\\OneDrive\\LAMP_ARQUITETURA\\CLIENTES",
+    "caminho_baseDados": "C:\\Users\\Lucas\\OneDrive\\LAMP_ARQUITETURA\\foton\\foton_system\\foton_make\\testes\\baseDados.xlsx",
+    "caminho_baseClientes": "C:\\Users\\Lucas\\OneDrive\\LAMP_ARQUITETURA\\foton\\foton_system\\foton_make\\testes\\baseClientes.xlsx",
+    "caminho_baseServicos": "C:\\Users\\Lucas\\OneDrive\\LAMP_ARQUITETURA\\foton\\foton_system\\foton_make\\testes\\baseServicos.xlsx",
+    "caminho_templates": "C:\\Users\\Lucas\\OneDrive\\LAMP_ARQUITETURA\\ADM\\KIT DOC",
+    "ignored_folders": [
+        "DOC",
+        "ARQ",
+        "HID",
+        "ELE",
+        "STR",
+        "PL",
+        "EVT"
+    ]
+}
