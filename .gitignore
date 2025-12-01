@@ -1,3 +1,5 @@
 LAMP_ARQUITETURA/
+#KIT DOC/
 *.log
 *.pyc
+debug_db.py
