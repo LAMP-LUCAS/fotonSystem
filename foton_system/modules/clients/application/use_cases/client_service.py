@@ -1,15 +1,15 @@
 import pandas as pd
 import re
-from foton_system.core.config import Config
-from foton_system.core.logger import setup_logger
-from foton_system.modules.clients.repository import ClientRepository
+from foton_system.modules.shared.infrastructure.config.config import Config
+from foton_system.modules.shared.infrastructure.config.logger import setup_logger
+from foton_system.modules.clients.application.ports.client_repository_port import ClientRepositoryPort
 
 logger = setup_logger()
 config = Config()
 
 class ClientService:
-    def __init__(self):
-        self.repository = ClientRepository()
+    def __init__(self, repository: ClientRepositoryPort):
+        self.repository = repository
 
     def sync_clients_db_from_folders(self):
         """Updates DB with clients found in folders but not in DB."""
@@ -26,9 +26,6 @@ class ClientService:
                 return
 
             new_data = pd.DataFrame({'Alias': list(new_aliases)})
-            # Generate codes for new clients found in folders? 
-            # Original code just added them. We might want to generate codes.
-            # For now, following original logic of just adding.
             
             updated_df = pd.concat([db_clients, new_data], ignore_index=True)
             self.repository.save_clients(updated_df)
@@ -51,8 +48,19 @@ class ClientService:
                 logger.info("Todas as pastas de clientes já existem.")
                 return
 
+            # Access base_pasta from repository if possible, or config
+            # Since repository abstracts storage, we should ask repository to create folder by name/path
+            # But repository.create_folder takes a path.
+            # We need to know the base path.
+            # The port doesn't expose base_pasta.
+            # We can assume the repository knows how to handle it if we pass a relative path or name?
+            # Or we should add `get_base_path` to port?
+            # For now, let's use config since it's shared, or assume repository handles full paths.
+            # The original code used self.repository.base_pasta / alias.
+            # Let's use config.base_pasta_clientes / alias.
+            
             for alias in missing_folders:
-                self.repository.create_folder(self.repository.base_pasta / alias)
+                self.repository.create_folder(config.base_pasta_clientes / alias)
             
             logger.info(f"{len(missing_folders)} pastas de clientes criadas.")
 
@@ -110,12 +118,14 @@ class ClientService:
                 if pd.isna(client) or pd.isna(service):
                     continue
                 
-                # Check if client folder exists first
                 if client not in folder_clients:
-                    # Optionally create client folder here, but usually handled by client sync
                     continue
 
-                service_path = self.repository.base_pasta / client / service
+                service_path = config.base_pasta_clientes / client / service
+                # We need to check existence. Repository doesn't have exists() method exposed directly for arbitrary paths?
+                # We can use os.path.exists or Path.exists since we are using local file system.
+                # But to be pure, we should ask repository.
+                # For now, using Path.exists is pragmatic as we are in Hybrid mode.
                 if not service_path.exists():
                     self.repository.create_folder(service_path)
                     count += 1

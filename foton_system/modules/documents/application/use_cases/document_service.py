@@ -2,17 +2,16 @@ import os
 import re
 import json
 from pathlib import Path
-from foton_system.core.config import Config
-from foton_system.core.logger import setup_logger
-from foton_system.modules.documents.pptx_handler import PPTXHandler
-from foton_system.modules.documents.docx_handler import DOCXHandler
+from foton_system.modules.shared.infrastructure.config.config import Config
+from foton_system.modules.shared.infrastructure.config.logger import setup_logger
+from foton_system.modules.documents.application.ports.document_service_port import DocumentServicePort
 
 logger = setup_logger()
 
 class DocumentService:
-    def __init__(self):
-        self.pptx_handler = PPTXHandler()
-        self.docx_handler = DOCXHandler()
+    def __init__(self, docx_adapter: DocumentServicePort, pptx_adapter: DocumentServicePort):
+        self.docx_handler = docx_adapter
+        self.pptx_handler = pptx_adapter
 
     def list_templates(self, extension):
         """
@@ -27,9 +26,7 @@ class DocumentService:
 
     def list_data_files(self):
         """
-        Lists all .txt and .json files in the templates directory (or a specific data dir).
-        For now, using templates_path as a default location for data files too, 
-        or we could add a new config for 'data_path'.
+        Lists all .txt and .json files in the templates directory.
         """
         data_dir = Config().templates_path
         if not data_dir.exists():
@@ -49,8 +46,7 @@ class DocumentService:
 
     def create_custom_data_file(self, client_path, cod, ver='00', rev='R00', desc='PROPOSTA'):
         """
-        Creates a data file with the specific naming convention:
-        02-{COD}_DOC_PC_{VER}_{REV}_{DESC}.txt
+        Creates a data file with the specific naming convention.
         """
         client_path = Path(client_path)
         if not client_path.exists():
@@ -63,7 +59,7 @@ class DocumentService:
             logger.warning(f"Arquivo já existe: {filename}")
             return data_file
         
-        # Template content (Expanded based on analysis)
+        # Template content
         content = """@TEMPLATE;nome do arquivo template a ser utilizado
 #DADOS BÁSICOS
 @DataAtual;
@@ -112,9 +108,9 @@ class DocumentService:
         self._validate_keys(template_path, replacements, doc_type)
 
         if doc_type == 'pptx':
-            presentation = self.pptx_handler.load_presentation(template_path)
+            presentation = self.pptx_handler.load_document(template_path)
             presentation = self.pptx_handler.replace_text(presentation, replacements)
-            self.pptx_handler.save_presentation(presentation, output_path)
+            self.pptx_handler.save_document(presentation, output_path)
         
         elif doc_type == 'docx':
             document = self.docx_handler.load_document(template_path)
@@ -131,13 +127,7 @@ class DocumentService:
         required_keys = set()
         try:
             if doc_type == 'docx':
-                # Quick scan for keys in docx (simplified)
-                # For a robust check we'd need to use the handler's logic, 
-                # but reading the file as text/xml is faster for a check.
-                # However, let's use the handler since we have it.
                 doc = self.docx_handler.load_document(template_path)
-                # We can't easily extract all keys without iterating everything again.
-                # Let's do a simple iteration.
                 for p in doc.paragraphs:
                     self._extract_keys_from_text(p.text, required_keys)
                 for table in doc.tables:
@@ -152,7 +142,7 @@ class DocumentService:
                         self._extract_keys_from_text(p.text, required_keys)
                         
             elif doc_type == 'pptx':
-                prs = self.pptx_handler.load_presentation(template_path)
+                prs = self.pptx_handler.load_document(template_path)
                 for slide in prs.slides:
                     for shape in slide.shapes:
                         if shape.has_text_frame:
@@ -171,10 +161,6 @@ class DocumentService:
     def _extract_keys_from_text(self, text, keys_set):
         if text and '@' in text:
             import re
-            # Regex explanation:
-            # (?<![\w.])      : Lookbehind - ensure not preceded by word char or dot (email local part)
-            # @[\w%]+         : Match @ followed by word chars or %
-            # (?!\.[a-z]{2,}) : Lookahead - ensure not followed by .com, .br, etc.
             found = re.findall(r'(?<![\w.])@[\w%]+(?!\.[a-z]{2,}\b)', text)
             keys_set.update(found)
 
@@ -205,41 +191,31 @@ class DocumentService:
     def _resolve_operations(self, replacements):
         """
         Resolves mathematical operations in the replacements values.
-        Format: [calculo: @key1 * @key2]
         """
-        # Simple iterative resolution
         for _ in range(3): # Max depth 3
             for key, value in replacements.items():
                 if isinstance(value, str) and '[calculo:' in value:
                     match = re.search(r'\[calculo:\s*(.+?)\]', value)
                     if match:
                         expression = match.group(1)
-                        # Replace keys in expression
                         for k, v in replacements.items():
                             if k in expression and k != key:
                                 try:
-                                    # Try to convert to float for calculation
-                                    # Handle empty or invalid values by defaulting to 0
                                     val_str = str(v).strip().replace(',', '.').replace('%', '')
                                     if not val_str:
                                         float_val = 0.0
                                     else:
-                                        # Remove non-numeric chars except dot and minus
                                         clean_val = re.sub(r'[^\d.-]', '', val_str)
                                         float_val = float(clean_val) if clean_val else 0.0
                                         
                                     expression = expression.replace(k, str(float_val))
                                 except:
-                                    # If replacement fails, leave key (will likely cause eval error)
                                     pass
                         try:
-                            # Safe eval? Well, it's a local tool.
-                            # Ensure expression only contains allowed chars
                             if not re.match(r'^[\d\.\-\+\*\/\(\)\s]+$', expression):
                                 raise ValueError("Expressão contém caracteres inválidos")
                                 
                             result = eval(expression)
-                            # Format result (2 decimal places)
                             replacements[key] = f"{result:.2f}".replace('.', ',')
                         except Exception as e:
                             logger.warning(f"Falha ao calcular {key}: {e}")

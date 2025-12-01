@@ -2,7 +2,7 @@ import time
 import threading
 import sys
 import winsound
-from foton_system.core.logger import setup_logger
+from foton_system.modules.shared.infrastructure.config.logger import setup_logger
 
 logger = setup_logger()
 

@@ -13,8 +13,10 @@ class Config:
         return cls._instance
 
     def _load_settings(self):
-        # Assumes settings.json is in ../config/ relative to this file's parent (core)
-        base_dir = Path(__file__).resolve().parent.parent
+        # Assumes settings.json is in ../../../../../config/ relative to this file's parent
+        # Current file: .../foton_system/modules/shared/infrastructure/config/config.py
+        # Base dir (foton_system): .../
+        base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
         config_path = base_dir / 'config' / 'settings.json'
         
         if not config_path.exists():

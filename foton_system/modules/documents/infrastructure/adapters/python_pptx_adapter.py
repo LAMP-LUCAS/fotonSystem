@@ -1,34 +1,34 @@
 import os
 from pptx import Presentation
-from pptx.dml.color import RGBColor
-from foton_system.core.logger import setup_logger
+from foton_system.modules.shared.infrastructure.config.logger import setup_logger
+from foton_system.modules.documents.application.ports.document_service_port import DocumentServicePort
 
 logger = setup_logger()
 
-class PPTXHandler:
+class PythonPPTXAdapter(DocumentServicePort):
     def __init__(self):
         pass
 
-    def load_presentation(self, path):
+    def load_document(self, path: str):
         if not os.path.exists(path):
             raise FileNotFoundError(f"Arquivo PPTX não encontrado: {path}")
         return Presentation(path)
 
-    def save_presentation(self, presentation, path):
+    def save_document(self, document, path: str):
         try:
-            presentation.save(path)
+            document.save(path)
             logger.info(f"Apresentação salva em: {path}")
         except Exception as e:
             logger.error(f"Erro ao salvar apresentação: {e}")
             raise
 
-    def replace_text(self, presentation, replacements):
+    def replace_text(self, document, replacements: dict):
         """
         Replaces keys with values in a PowerPoint presentation.
         """
         logger.info('Iniciando substituição de textos no PPTX...')
         
-        for slide in presentation.slides:
+        for slide in document.slides:
             for shape in slide.shapes:
                 if shape.has_text_frame:
                     self._replace_in_text_frame(shape.text_frame, replacements)
@@ -37,7 +37,7 @@ class PPTXHandler:
                     self._replace_in_table(shape.table, replacements)
         
         logger.info('Substituição de textos concluída.')
-        return presentation
+        return document
 
     def _replace_in_text_frame(self, text_frame, replacements):
         for paragraph in text_frame.paragraphs:
@@ -57,8 +57,6 @@ class PPTXHandler:
         for key in sorted_keys:
             if key in text:
                 # Use regex to ensure we don't replace inside words/emails
-                # Lookbehind: (?<![\w.]) checks if previous char is NOT alphanumeric/underscore/dot
-                # Lookahead: (?!\.[a-z]{2,}\b) checks if NOT followed by domain-like suffix
                 pattern = r'(?<![\w.])' + re.escape(key) + r'(?!\.[a-z]{2,}\b)'
                 new_val = str(replacements[key])
                 text = re.sub(pattern, new_val, text)

@@ -4,7 +4,8 @@ import re
 from pathlib import Path
 
 # Add project root to path
-sys.path.append(os.getcwd())
+# Add project root to path (3 levels up: scripts -> foton_system -> lamp)
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 
 from foton_system.modules.documents.docx_handler import DOCXHandler
 from foton_system.modules.documents.pptx_handler import PPTXHandler

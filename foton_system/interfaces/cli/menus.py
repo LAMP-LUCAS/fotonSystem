@@ -1,14 +1,23 @@
-from foton_system.modules.clients.services import ClientService
+import sys
+from foton_system.modules.clients.application.use_cases.client_service import ClientService
+from foton_system.modules.documents.application.use_cases.document_service import DocumentService
+from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+from foton_system.modules.documents.infrastructure.adapters.python_docx_adapter import PythonDocxAdapter
+from foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter import PythonPPTXAdapter
 from foton_system.modules.productivity.pomodoro import PomodoroTimer
-from foton_system.modules.documents.services import DocumentService
-from foton_system.core.logger import setup_logger
+from foton_system.modules.shared.infrastructure.config.logger import setup_logger
 
 logger = setup_logger()
 
 class MenuSystem:
     def __init__(self):
-        self.client_service = ClientService()
-        self.document_service = DocumentService()
+        # Dependency Injection Wiring
+        self.client_repo = ExcelClientRepository()
+        self.client_service = ClientService(self.client_repo)
+
+        self.docx_adapter = PythonDocxAdapter()
+        self.pptx_adapter = PythonPPTXAdapter()
+        self.document_service = DocumentService(self.docx_adapter, self.pptx_adapter)
 
     def display_main_menu(self):
         print("\n=== LAMP SYSTEM ===")
@@ -132,7 +141,7 @@ class MenuSystem:
             print(f"Erro ao criar cliente: {e}")
 
     def generate_document_ui(self, doc_type):
-        from foton_system.core.config import Config
+        from foton_system.modules.shared.infrastructure.config.config import Config
         from pathlib import Path
         import tkinter as tk
         from tkinter import filedialog
