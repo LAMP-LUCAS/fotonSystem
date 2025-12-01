@@ -4,3 +4,4 @@ python-pptx
 python-docx
 plyer
 pyinstaller
+colorama
