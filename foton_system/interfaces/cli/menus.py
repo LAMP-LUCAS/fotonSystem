@@ -6,6 +6,10 @@ from foton_system.modules.documents.infrastructure.adapters.python_docx_adapter 
 from foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter import PythonPPTXAdapter
 from foton_system.modules.productivity.pomodoro import PomodoroTimer
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
+from colorama import init, Fore, Style
+
+# Initialize colorama
+init(autoreset=True)
 
 logger = setup_logger()
 
@@ -19,60 +23,84 @@ class MenuSystem:
         self.pptx_adapter = PythonPPTXAdapter()
         self.document_service = DocumentService(self.docx_adapter, self.pptx_adapter)
 
+    def print_success(self, message):
+        print(f"{Fore.GREEN}{message}{Style.RESET_ALL}")
+
+    def print_error(self, message):
+        print(f"{Fore.RED}{message}{Style.RESET_ALL}")
+
+    def print_warning(self, message):
+        print(f"{Fore.YELLOW}{message}{Style.RESET_ALL}")
+
+    def print_header(self, message):
+        print(f"\n{Fore.CYAN}{Style.BRIGHT}{message}{Style.RESET_ALL}")
+
     def display_main_menu(self):
-        print("\n=== LAMP SYSTEM ===")
+        self.print_header("=== LAMP SYSTEM ===")
         print("1. Gerenciar Clientes")
         print("2. Gerenciar Serviços")
         print("3. Documentos")
         print("4. Produtividade")
+        print("5. Configurações")
         print("0. Sair")
-        return input("Escolha uma opção: ")
+        return input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
 
     def display_clients_menu(self):
-        print("\n--- Gerenciar Clientes ---")
+        self.print_header("--- Gerenciar Clientes ---")
         print("1. Sincronizar Base (Pastas -> DB)")
         print("2. Sincronizar Pastas (DB -> Pastas)")
         print("3. Criar Novo Cliente")
+        print("4. Buscar Cliente")
+        print("5. Sincronizar Cadastro (DB <-> Arquivo)")
         print("0. Voltar")
-        return input("Escolha uma opção: ")
+        return input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
 
     def display_services_menu(self):
-        print("\n--- Gerenciar Serviços ---")
+        self.print_header("--- Gerenciar Serviços ---")
         print("1. Sincronizar Base (Pastas -> DB)")
-        print("2. Sincronizar Pastas (DB -> Pastas)")
+        print("2. Sincronizar Pastas (DB -> Pastas) [Todos]")
+        print("3. Sincronizar Pastas (DB -> Pastas) [Por Cliente]")
+        print("4. Sincronizar Cadastro (DB <-> Arquivo)")
         print("0. Voltar")
-        return input("Escolha uma opção: ")
+        return input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
 
     def display_documents_menu(self):
-        print("\n--- Documentos ---")
+        self.print_header("--- Documentos ---")
         print("1. Gerar Proposta (PPTX)")
         print("2. Gerar Contrato (DOCX)")
         print("0. Voltar")
-        return input("Escolha uma opção: ")
+        return input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
 
     def display_productivity_menu(self):
-        print("\n--- Produtividade ---")
+        self.print_header("--- Produtividade ---")
         print("1. Iniciar Pomodoro")
         print("0. Voltar")
-        return input("Escolha uma opção: ")
+        return input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
 
     def run(self):
-        while True:
-            choice = self.display_main_menu()
-            
-            if choice == '1':
-                self.handle_clients()
-            elif choice == '2':
-                self.handle_services()
-            elif choice == '3':
-                self.handle_documents()
-            elif choice == '4':
-                self.handle_productivity()
-            elif choice == '0':
-                print("Saindo...")
-                sys.exit()
-            else:
-                print("Opção inválida.")
+        try:
+            while True:
+                choice = self.display_main_menu()
+                
+                if choice == '1':
+                    self.handle_clients()
+                elif choice == '2':
+                    self.handle_services()
+                elif choice == '3':
+                    self.handle_documents()
+                elif choice == '4':
+                    self.handle_productivity()
+                elif choice == '5':
+                    self.handle_settings()
+                elif choice == '0':
+                    print("Saindo...")
+                    sys.exit()
+                else:
+                    self.print_error("Opção inválida.")
+        except KeyboardInterrupt:
+            print("\n")
+            self.print_warning("Interrupção detectada. Encerrando o sistema com segurança...")
+            sys.exit()
 
     def handle_clients(self):
         while True:
@@ -83,10 +111,21 @@ class MenuSystem:
                 self.client_service.sync_client_folders_from_db()
             elif choice == '3':
                 self.create_client_ui()
+            elif choice == '4':
+                self.search_client_ui()
+            elif choice == '5':
+                self.print_header("--- Sincronizar Cadastro (Clientes) ---")
+                print("1. Exportar (DB -> Arquivo)")
+                print("2. Importar (Arquivo -> DB)")
+                sub = input("Escolha: ")
+                if sub == '1':
+                    self.client_service.export_client_data()
+                elif sub == '2':
+                    self.client_service.import_client_data()
             elif choice == '0':
                 break
             else:
-                print("Opção inválida.")
+                self.print_error("Opção inválida.")
 
     def handle_services(self):
         while True:
@@ -95,10 +134,23 @@ class MenuSystem:
                 self.client_service.sync_services_db_from_folders()
             elif choice == '2':
                 self.client_service.sync_service_folders_from_db()
+            elif choice == '3':
+                alias = input("Digite o Alias do Cliente: ").strip()
+                if alias:
+                    self.client_service.sync_service_folders_from_db(client_alias=alias)
+            elif choice == '4':
+                self.print_header("--- Sincronizar Cadastro (Serviços) ---")
+                print("1. Exportar (DB -> Arquivo)")
+                print("2. Importar (Arquivo -> DB)")
+                sub = input("Escolha: ")
+                if sub == '1':
+                    self.client_service.export_service_data()
+                elif sub == '2':
+                    self.client_service.import_service_data()
             elif choice == '0':
                 break
             else:
-                print("Opção inválida.")
+                self.print_error("Opção inválida.")
 
     def handle_documents(self):
         while True:
@@ -110,7 +162,7 @@ class MenuSystem:
             elif choice == '0':
                 break
             else:
-                print("Opção inválida.")
+                self.print_error("Opção inválida.")
 
     def handle_productivity(self):
         while True:
@@ -120,10 +172,64 @@ class MenuSystem:
             elif choice == '0':
                 break
             else:
-                print("Opção inválida.")
+                self.print_error("Opção inválida.")
+
+    def handle_settings(self):
+        from foton_system.modules.shared.infrastructure.config.config import Config
+        config = Config()
+        
+        while True:
+            choice = self.display_settings_menu(config)
+            
+            if choice == '1':
+                self.update_setting_ui(config, 'caminho_pastaClientes', "Pasta de Clientes")
+            elif choice == '2':
+                self.update_setting_ui(config, 'caminho_templates', "Pasta de Templates")
+            elif choice == '3':
+                self.update_setting_ui(config, 'caminho_baseDados', "Arquivo de Base de Dados", is_file=True)
+            elif choice == '0':
+                break
+            else:
+                self.print_error("Opção inválida.")
+
+    def display_settings_menu(self, config):
+        self.print_header("--- Configurações ---")
+        print(f"1. Pasta de Clientes: {config.get('caminho_pastaClientes')}")
+        print(f"2. Pasta de Templates: {config.get('caminho_templates')}")
+        print(f"3. Base de Dados: {config.get('caminho_baseDados')}")
+        print("0. Voltar")
+        return input(f"{Fore.YELLOW}Para alterar, digite o número da opção: {Style.RESET_ALL}")
+
+    def update_setting_ui(self, config, key, title, is_file=False):
+        import tkinter as tk
+        from tkinter import filedialog
+        
+        print(f"\nSelecione o novo local para: {title}")
+        
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        
+        if is_file:
+            path = filedialog.askopenfilename(title=f"Selecione: {title}")
+        else:
+            path = filedialog.askdirectory(title=f"Selecione: {title}")
+            
+        root.destroy()
+        
+        if path:
+            # Normalize path separators
+            import os
+            path = os.path.normpath(path)
+            
+            config.set(key, path)
+            config.save()
+            self.print_success(f"Configuração atualizada com sucesso!\nNovo valor: {path}")
+        else:
+            self.print_warning("Operação cancelada.")
 
     def create_client_ui(self):
-        print("\n--- Novo Cliente ---")
+        self.print_header("--- Novo Cliente ---")
         nome = input("Nome do Cliente: ")
         alias = input("Alias (Apelido da Pasta): ")
         telefone = input("Telefone: ")
@@ -136,9 +242,36 @@ class MenuSystem:
         
         try:
             self.client_service.create_client(data)
-            print("Cliente criado com sucesso!")
+            self.print_success("Cliente criado com sucesso!")
+        except ValueError as ve:
+            self.print_error(f"Erro de Validação: {ve}")
         except Exception as e:
-            print(f"Erro ao criar cliente: {e}")
+            self.print_error(f"Erro ao criar cliente: {e}")
+
+    def search_client_ui(self):
+        self.print_header("--- Buscar Cliente ---")
+        term = input("Digite o nome ou alias para buscar: ").strip().lower()
+        if not term:
+            return
+
+        try:
+            df = self.client_repo.get_clients_dataframe()
+            # Filter by Name or Alias (case insensitive)
+            mask = (
+                df['NomeCliente'].astype(str).str.lower().str.contains(term, na=False) | 
+                df['Alias'].astype(str).str.lower().str.contains(term, na=False)
+            )
+            results = df[mask]
+            
+            if results.empty:
+                self.print_warning("Nenhum cliente encontrado.")
+            else:
+                self.print_success(f"\n{len(results)} clientes encontrados:")
+                for _, row in results.iterrows():
+                    print(f"- {row['NomeCliente']} (Alias: {row['Alias']})")
+                    
+        except Exception as e:
+            self.print_error(f"Erro ao buscar clientes: {e}")
 
     def generate_document_ui(self, doc_type):
         from foton_system.modules.shared.infrastructure.config.config import Config
@@ -146,7 +279,7 @@ class MenuSystem:
         import tkinter as tk
         from tkinter import filedialog
 
-        print(f"\n--- Gerar Documento ({doc_type.upper()}) ---")
+        self.print_header(f"--- Gerar Documento ({doc_type.upper()}) ---")
         
         # 1. Select Client Folder via GUI
         print("Selecione a pasta do cliente na janela que abrirá...")
@@ -157,7 +290,7 @@ class MenuSystem:
         root.destroy()
 
         if not client_folder:
-            print("Nenhuma pasta selecionada.")
+            self.print_warning("Nenhuma pasta selecionada.")
             return
         
         client_path = Path(client_folder)
@@ -181,13 +314,13 @@ class MenuSystem:
                 elif choice == len(data_files) + 1:
                     selected_file = self._create_new_data_file_ui(client_path)
                 else:
-                    print("Opção inválida.")
+                    self.print_error("Opção inválida.")
                     return
             except ValueError:
-                print("Entrada inválida.")
+                self.print_error("Entrada inválida.")
                 return
         else:
-            print("\nNenhum arquivo de dados encontrado.")
+            self.print_warning("\nNenhum arquivo de dados encontrado.")
             create = input("Deseja criar um novo arquivo? (S/N): ").upper()
             if create == 'S':
                 selected_file = self._create_new_data_file_ui(client_path)
@@ -209,7 +342,7 @@ class MenuSystem:
         # 3. Select Template
         templates = self.document_service.list_templates(doc_type)
         if not templates:
-            print("Nenhum template encontrado.")
+            self.print_warning("Nenhum template encontrado.")
             return
 
         print("\nSelecione o Template:")
@@ -229,39 +362,55 @@ class MenuSystem:
             
         output_path = client_path / output_name
         
+        # Validate Keys before generation
+        missing = self.document_service.validate_template_keys(str(template_path), str(selected_file), doc_type)
+        if missing:
+            self.print_warning(f"\n[AVISO] As seguintes chaves estão no template mas não no arquivo de dados:")
+            for k in missing:
+                print(f" - {k}")
+            
+            from foton_system.modules.shared.infrastructure.config.config import Config
+            if Config().clean_missing_variables:
+                print(f"Elas serão substituídas por '{Config().missing_variable_placeholder}'.")
+            
+            confirm = input("Deseja continuar mesmo assim? (S/N): ").upper()
+            if confirm != 'S':
+                self.print_warning("Operação cancelada.")
+                return
+
         try:
             self.document_service.generate_document(str(template_path), str(selected_file), str(output_path), doc_type)
-            print(f"Documento gerado com sucesso em: {output_path}")
+            self.print_success(f"Documento gerado com sucesso em: {output_path}")
             
             # Open folder
             import os
             os.startfile(client_path)
             
         except Exception as e:
-            print(f"Erro ao gerar documento: {e}")
+            self.print_error(f"Erro ao gerar documento: {e}")
 
     def _select_from_list(self, items):
         for i, item in enumerate(items):
             print(f"{i + 1}. {item}")
         
         try:
-            choice = int(input("Digite o número da opção: "))
+            choice = int(input(f"{Fore.YELLOW}Digite o número da opção: {Style.RESET_ALL}"))
             if 1 <= choice <= len(items):
                 return items[choice - 1]
             else:
-                print("Opção inválida.")
+                self.print_error("Opção inválida.")
                 return None
         except ValueError:
-            print("Entrada inválida.")
+            self.print_error("Entrada inválida.")
             return None
 
     def _create_new_data_file_ui(self, client_path):
-        print("\n--- Criar Novo Arquivo de Dados ---")
-        print("Padrão: 02-{COD}_DOC_PC_{VER}_{REV}_{DESC}.txt")
+        self.print_header("--- Criar Novo Arquivo de Dados ---")
+        print("Padrão: 02-{COD}_DOC_PC_{VER}_{REV}_{DESC}.md")
         
         cod = input("Código do Serviço (COD) [ex: 001]: ")
         if not cod:
-            print("Código é obrigatório.")
+            self.print_error("Código é obrigatório.")
             return None
             
         ver = input("Versão (VER) [padrão: 00]: ") or "00"
@@ -271,13 +420,61 @@ class MenuSystem:
         return self.document_service.create_custom_data_file(client_path, cod, ver, rev, desc)
 
     def start_pomodoro_ui(self):
+        from foton_system.modules.shared.infrastructure.config.config import Config
+        config = Config()
+        
         try:
-            work = float(input("Tempo de trabalho (min): ") or 25)
-            short = float(input("Pausa curta (min): ") or 5)
-            long = float(input("Pausa longa (min): ") or 15)
-            cycles = int(input("Ciclos: ") or 4)
+            # Load defaults
+            default_work = config.pomodoro_work_time
+            default_short = config.pomodoro_short_break
+            default_long = config.pomodoro_long_break
+            default_cycles = config.pomodoro_cycles
             
-            timer = PomodoroTimer(work, short, long, cycles)
+            self.print_header("--- Iniciar Pomodoro ---")
+            print(f"Configuração Atual: Trabalho={default_work}m, Curta={default_short}m, Longa={default_long}m, Ciclos={default_cycles}")
+            
+            # Linking
+            client_alias = None
+            service_alias = None
+            link = input("Deseja vincular a um cliente? (S/N): ").upper()
+            if link == 'S':
+                # Reuse search or list? Let's use search for quick access or list if empty
+                # For simplicity, let's ask for name/alias search
+                term = input("Digite o nome ou alias do cliente: ").strip()
+                if term:
+                    df = self.client_repo.get_clients_dataframe()
+                    mask = (
+                        df['NomeCliente'].astype(str).str.lower().str.contains(term.lower(), na=False) | 
+                        df['Alias'].astype(str).str.lower().str.contains(term.lower(), na=False)
+                    )
+                    results = df[mask]
+                    if not results.empty:
+                        # Auto-select first or ask? Let's ask if multiple, or just take first for speed
+                        if len(results) > 1:
+                            print(f"{len(results)} clientes encontrados. Usando o primeiro: {results.iloc[0]['NomeCliente']}")
+                        client_alias = results.iloc[0]['Alias']
+                        self.print_success(f"Vinculado ao cliente: {client_alias}")
+                        
+                        service_input = input("Nome do Serviço (opcional): ").strip()
+                        if service_input:
+                            service_alias = service_input
+                    else:
+                        self.print_warning("Cliente não encontrado. Seguindo sem vínculo.")
+
+            # Custom overrides
+            change = input("Deseja alterar os tempos? (S/N): ").upper()
+            if change == 'S':
+                work = float(input(f"Tempo de trabalho (min) [{default_work}]: ") or default_work)
+                short = float(input(f"Pausa curta (min) [{default_short}]: ") or default_short)
+                long = float(input(f"Pausa longa (min) [{default_long}]: ") or default_long)
+                cycles = int(input(f"Ciclos [{default_cycles}]: ") or default_cycles)
+            else:
+                work, short, long, cycles = default_work, default_short, default_long, default_cycles
+            
+            timer = PomodoroTimer(work, short, long, cycles, client_alias, service_alias)
             timer.run()
         except ValueError:
-            print("Valores inválidos.")
+            self.print_error("Valores inválidos.")
+        except KeyboardInterrupt:
+            print("\n")
+            self.print_warning("Operação interrompida.")
