@@ -12,8 +12,6 @@ class ExcelClientRepository(ClientRepositoryPort):
     def __init__(self):
         self.base_pasta = config.base_pasta_clientes
         self.base_dados = config.base_dados
-        self.base_clientes = config.base_clientes
-        self.base_servicos = config.base_servicos
 
     def check_files(self):
         if not self.base_dados.exists():
