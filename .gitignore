@@ -1,5 +1,9 @@
 reports/
 __pycache__/
+dist/
+build/
 
 *.log
 *.pyc
+*.spec
+

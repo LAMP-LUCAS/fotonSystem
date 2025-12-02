@@ -16,7 +16,13 @@ except ImportError:
     print(Fore.RED + "Erro: Configuração não encontrada.")
     sys.exit(1)
 
-TEMPLATE_PATH = Path(r"c:/Users/Lucas/OneDrive/LAMP_ARQUITETURA/ADM/lamp/foton_system/assets/info-Template.md")
+# Handle path for both dev and frozen (PyInstaller) modes
+if getattr(sys, 'frozen', False):
+    base_path = Path(sys._MEIPASS) / "foton_system"
+else:
+    base_path = Path(__file__).resolve().parent.parent
+
+TEMPLATE_PATH = base_path / "assets" / "info-Template.md"
 
 def parse_template(path):
     """Parses the template file to extract keys for Client and Service."""
