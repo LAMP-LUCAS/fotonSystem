@@ -1,75 +1,78 @@
-# LAMP System
+# FOTON System 💡
 
-**Sistema de Automação e Gestão para Arquitetura**
-
-O LAMP é um sistema modular projetado para organizar clientes, serviços e documentos, utilizando uma arquitetura híbrida que combina a robustez de um banco de dados central com a flexibilidade de arquivos de texto distribuídos ("Centros de Verdade").
-
-## 📚 Documentação
-- **[Conceitos de Arquitetura](docs/concepts.md)**: Entenda a estrutura Hexagonal e Modular.
-- **[Modelo de Dados](docs/DataModel.md)**: Mapeamento entre Banco de Dados e Arquivos.
-
-## 🚀 Funcionalidades Principais
-
-### 1. Gestão de Clientes e Serviços
-- **Sincronização Bidirecional**: Mantenha suas pastas e banco de dados sempre alinhados.
-- **Banco de Dados Distribuído**: Exporte e importe dados de clientes e serviços via arquivos Markdown (`INFO-*.md`) diretamente nas pastas.
-- **Histórico de Alterações**: O sistema rastreia versões e revisões dos dados (ex: `R00`, `R01`).
-
-### 2. Geração de Documentos (Propostas e Contratos)
-- **Centros de Verdade**: O sistema utiliza arquivos `INFO-CLIENTE.md` e `INFO-SERVICO.md` como fonte primária de dados.
-- **Herança de Dados**: Ao gerar um documento, os dados do cliente e do serviço são carregados automaticamente, evitando repetição.
-- **Templates Flexíveis**: Suporte para templates `.docx` e `.pptx`.
-
-### 3. Produtividade
-- **Pomodoro Timer**: Cronômetro integrado com logs de sessão.
-- **Timesheet**: Registro automático de horas trabalhadas vinculadas a clientes e serviços.
-
-## 🛠️ Instalação e Configuração
-
-### Pré-requisitos
-- Python 3.10+
-- Dependências: `pip install -r requirements.txt`
-
-### Configuração (`settings.json`)
-O sistema cria automaticamente um arquivo `settings.json` na primeira execução. Você pode configurar:
-- `base_pasta_clientes`: Caminho raiz onde ficam as pastas dos clientes.
-- `base_dados`: Caminho para o arquivo Excel central (`baseDados.xlsx`).
-- `templates_path`: Caminho para a pasta de templates (`KIT DOC`).
-
-### Execução
-Execute o arquivo `run_lamp.bat` ou via terminal:
-```bash
-python foton_system/main.py
-```
-
-## 📖 Guia de Uso
-
-### 1. Clientes e Serviços
-No menu principal, acesse **Gerenciar Clientes** ou **Gerenciar Serviços**.
-- **Sincronizar Base (Pastas -> DB)**: Lê a estrutura de pastas e atualiza o Excel.
-- **Sincronizar Pastas (DB -> Pastas)**: Cria pastas para clientes/serviços cadastrados no Excel.
-- **Sincronizar Cadastro (DB <-> Arquivo)**:
-    - **Exportar**: Cria arquivos `INFO-CLIENTE.md` e `INFO-SERVICO.md` nas pastas, com todos os dados do banco.
-    - **Importar**: Lê os arquivos `INFO` e atualiza o banco de dados se houver mudanças.
-
-### 2. Gerando Documentos
-1.  Acesse **Documentos** -> **Gerar Proposta** ou **Contrato**.
-2.  Selecione o Cliente e o Serviço.
-3.  **Criar Novo Arquivo**: O sistema criará um arquivo `.md` enxuto (ex: `02-COD_DOC_PC_00_R00_PROPOSTA.md`).
-4.  Preencha apenas os dados específicos do documento (ex: `@valorProposta`). Os dados do cliente e serviço serão puxados automaticamente dos arquivos `INFO`.
-5.  Selecione o Template (`.docx` ou `.pptx`) e o documento será gerado.
-
-### 3. Produtividade
-1.  Acesse **Produtividade** -> **Iniciar Pomodoro**.
-2.  (Opcional) Vincule a sessão a um Cliente/Serviço.
-3.  Ao final, o tempo é registrado em `timesheet.csv`.
-
-## 🏗️ Estrutura de Arquivos (Centros de Verdade)
-
-O sistema prioriza a informação na seguinte ordem (último vence):
-1.  **`INFO-CLIENTE.md`** (Pasta do Cliente): Dados cadastrais.
-2.  **`INFO-SERVICO.md`** (Pasta do Serviço): Dados do projeto/obra.
-3.  **`SEU_ARQUIVO_DE_DADOS.md`** (Específico): Dados da proposta/contrato.
+> **Transforme o Caos de Arquivos em uma Máquina de Gestão.**
+> Pare de perder tempo procurando onde salvou aquele contrato ou qual é a versão final da proposta. O FOTON System organiza, sincroniza e automatiza seu escritório de arquitetura.
 
 ---
-Desenvolvido por Mundoaec.com
+
+## 🦸 Como o FOTON salva o seu dia
+
+### O Caos
+
+Você é um arquiteto talentoso. Seus projetos são incríveis, mas seu "backoffice" é uma bagunça. Você tem uma planilha Excel para controlar clientes, mas ela nunca bate com as pastas do computador. Você gera contratos copiando e colando do Word, e vira e mexe esquece de mudar o CPF do cliente anterior.
+
+### O Problema
+
+Um dia, você precisa gerar 5 propostas urgentes. Você abre a pasta do cliente "João", mas não acha os dados dele. Abre o Excel, e lá diz que o cliente é "João Silva", mas a pasta está como "J. Silva". Você corrige na mão. Ao gerar o contrato, você percebe que o valor estava errado porque copiou de um modelo antigo. **Frustração total.**
+
+### A Solução
+
+Você instala o FOTON.
+
+1. **Sincronização Mágica**: Com um clique, o FOTON lê suas pastas e arruma seu Excel. "J. Silva" e "João Silva" viram a mesma pessoa.
+2. **Centros de Verdade**: O FOTON cria um arquivo `INFO-CLIENTE.md` dentro da pasta do João. Agora, os dados moram onde o projeto mora.
+3. **Automação**: Para gerar as 5 propostas, você só digita o valor. O FOTON puxa o nome, endereço e CPF do João automaticamente e gera o PDF. Sem erro de digitação. Sem "Salvar Como".
+
+### O Retorno a Produtividade
+
+Você gastou 10 minutos no que levaria 2 horas. Seus arquivos estão organizados, seus contratos estão seguros e você tem tempo para o que importa: **Projetar.**
+
+---
+
+## 🚀 O Que o FOTON Faz Por Você?
+
+### 1. Gestão de Clientes e Serviços (O Fim do "Onde Salvei?")
+
+* **Sincronização Bidirecional**: O que está na pasta vai para o Excel, e vice-versa.
+* **Banco de Dados Distribuído**: Seus dados vivem nas pastas, em arquivos de texto simples (`INFO-*.md`). Leves, seguros e fáceis de editar.
+
+### 2. Geração de Documentos (Adeus, Ctrl+C Ctrl+V)
+
+* **Context-Aware**: O sistema sabe quem é o cliente pela pasta onde você está.
+* **Templates Inteligentes**: Use seus modelos de Word e PowerPoint. O sistema preenche as lacunas (`@nome`, `@valor`) para você.
+
+### 3. Modo Avançado (Ferramentas Administrativas)
+
+* **Refatoração de Dados**: Mudou o nome de uma variável? O sistema atualiza todos os seus arquivos de uma vez.
+* **Diagnóstico**: Um "Check-up" completo para garantir que nenhuma pasta está perdida ou sem dono.
+
+---
+
+## 📚 Documentação
+
+* **[Guia do Usuário](docs/UserGuide.md)**: O manual completo de operação.
+* **[Conceitos de Arquitetura](docs/concepts.md)**: Para os devs e curiosos (Arquitetura Hexagonal).
+* **[Pipelines do Sistema](docs/Pipelines.md)**: Entenda o fluxo dos dados.
+
+---
+
+## 🛠️ Instalação Rápida
+
+1. **Pré-requisitos**: Python 3.10+ instalado.
+2. **Instalar Dependências**:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+3. **Rodar**:
+
+    ```bash
+    python foton_system/interfaces/cli/main.py
+    ```
+
+    *Ou use o launcher unificado `FOTON.py` para ferramentas administrativas.*
+
+---
+
+**Desenvolvido para Arquitetos que querem projetar, não gerenciar arquivos.** Veja mais em [Mundo AEC](https://www.mundoaec.com)

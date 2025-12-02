@@ -1,6 +1,6 @@
 # System Pipelines
 
-This document visualizes the core workflows and data pipelines of the LAMP system using flowcharts.
+This document visualizes the core workflows and data pipelines of the FOTON System using flowcharts.
 
 ## 1. Client & Service Synchronization
 
@@ -93,35 +93,131 @@ flowchart TD
 This pipeline generates documents (Proposals, Contracts) by aggregating data from multiple levels of the hierarchy ("Centers of Truth").
 
 ```mermaid
-flowchart LR
-    subgraph Context [Centers of Truth]
-        L1[Level 1: Client Truth]
-        L2[Level 2: Service Truth]
-        L3[Level 3: Document Data]
+flowchart TD
+    subgraph Inputs [Data Sources]
+        L1[INFO-CLIENTE.md]
+        L2[INFO-SERVICO.md]
+        L3[Document Data .md]
+        TPL[Template .docx/.pptx]
     end
 
-    subgraph Process [Generation Process]
-        Start(Start) --> LoadL1[Load INFO-CLIENTE.md]
-        LoadL1 --> LoadL2[Load INFO-SERVICO.md]
-        LoadL2 --> LoadL3[Load Document.md]
-        LoadL3 --> Merge[Merge Data]
-        Merge --> Resolve[Resolve Calculations]
-        Resolve --> Validate[Validate Template Keys]
-        Validate --> Generate[Generate DOCX/PPTX]
+    subgraph Engine [Context-Aware Engine]
+        Load[Load & Parse Files]
+        
+        subgraph Merging [Context Merging Strategy]
+            direction TB
+            P1[Base: Client Data]
+            P2[Override: Service Data]
+            P3[Override: Document Data]
+            P1 --> P2 --> P3
+        end
+        
+        Math[Math Resolver]
+        Val[Validate vs Template]
+        Render[Render Document]
     end
 
-    subgraph Output
-        Doc[Final Document]
-        Log[History Log]
+    subgraph Outputs
+        File[Final Document]
+        Log[Audit Log]
     end
 
-    L1 -- @nomeCliente... --> Merge
-    L2 -- @areaTotal... --> Merge
-    L3 -- @valorProposta... --> Merge
+    L1 --> Load
+    L2 --> Load
+    L3 --> Load
+    TPL --> Val
+    TPL --> Render
+
+    Load --> P1
+    P3 --> Math
+    Math --> |Resolved Context| Val
+    Val --> |Validated Context| Render
     
-    note[Merge Priority: L3 > L2 > L1]
-    Merge -.-> note
+    Render --> File
+    Render --> Log
 
-    Generate --> Doc
-    Generate --> Log
+    style Merging fill:#155,stroke:#333,stroke-width:2px
+    style Math fill:#002,stroke:#333,stroke-width:2px
 ```
+
+## 4. Administrative Tools Pipelines
+
+These pipelines support system maintenance, data integrity, and schema evolution.
+
+### 4.1. Schema Management (Variable Evolution)
+
+This pipeline handles the discovery, definition, and synchronization of system variables.
+
+```mermaid
+flowchart TD
+    subgraph Discovery
+        Excel[Excel Columns]
+        Info[Info File Keys]
+        Schema[schema.json]
+    end
+
+    subgraph Manager [Schema Manager]
+        Analyze[Analyze Variables]
+        Report[Generate Report]
+        Edit[Edit/Rename/Merge]
+        Sync[Sync System]
+    end
+
+    subgraph Storage
+        DB[baseDados.xlsx]
+        Files[INFO-*.md]
+    end
+
+    Excel --> Analyze
+    Info --> Analyze
+    Schema <--> Analyze
+    
+    Analyze --> Report
+    Analyze --> Edit
+    Edit --> Schema
+    
+    Sync --> |Create Columns| DB
+    Sync --> |Append Keys| Files
+```
+
+### 4.2. System Diagnosis (Health Check)
+
+This pipeline performs a deep scan of the system to identify inconsistencies.
+
+```mermaid
+flowchart TD
+    Start(Start Debug) --> CheckFiles[Check Critical Files]
+    CheckFiles --> LoadDB[Load Excel Data]
+    LoadDB --> ScanFS[Scan Folders]
+    
+    ScanFS --> CheckRel{Check Relations}
+    CheckRel -- Orphan Service --> LogError[Log Error]
+    CheckRel -- Missing Folder --> LogError
+    
+    ScanFS --> CheckInfo[Check INFO Files]
+    CheckInfo -- Missing Keys --> LogWarn[Log Warning]
+    CheckInfo -- Data Mismatch --> LogWarn
+    
+    LogError --> Report[Generate Report]
+    LogWarn --> Report
+    Report --> Save[Save to reports/]
+```
+
+### 4.3. Batch Correction (Fixer)
+
+This pipeline automates the repair of distributed data files based on the defined schema.
+
+```mermaid
+flowchart 
+    Input[Schema / Template] --> Fixer[Batch Fixer]
+    Fixer --> Scan[Scan Client Folders]
+    Scan --> Read[Read INFO File]
+    Read --> Check{Missing Keys?}
+    Check -- Yes --> Append[Append Keys]
+    Check -- No --> Skip[Skip]
+    Append --> Save[Save File]
+```
+
+---
+
+**Desenvolvido para Arquitetos que querem projetar, não gerenciar arquivos.** Veja mais em [Mundo AEC](https://www.mundoaec.com)

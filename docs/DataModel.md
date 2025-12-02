@@ -1,12 +1,13 @@
 # Data Model & Centers of Truth
 
-This document defines the data model for the LAMP system, mapping the Central Database (`baseDados.xlsx`) to the Distributed Centers of Truth (`INFO-*.md` files) and the Document Generation variables.
+This document defines the data model for the [**FOTON System**](../README.md), mapping the Central Database (`baseDados.xlsx`) to the Distributed Centers of Truth (`INFO-*.md` files) and the Document Generation variables.
 
 ## Overview
 
 The system uses a **Hybrid Data Architecture**:
-1.  **Central Database (`baseDados.xlsx`)**: The system of record for structured data, used for listing, filtering, and reporting.
-2.  **Centers of Truth (`INFO-*.md`)**: Distributed master files located in Client and Service folders. These are the **primary source** for document generation.
+
+1. **Central Database (`baseDados.xlsx`)**: The system of record for structured data, used for listing, filtering, and reporting.
+2. **Centers of Truth (`INFO-*.md`)**: Distributed master files located in Client and Service folders. These are the **primary source** for document generation.
 
 ## 1. Clients (`baseClientes` <-> `INFO-CLIENTE.md`)
 
@@ -24,12 +25,14 @@ The system uses a **Hybrid Data Architecture**:
 | `@geolocalizacaoProposta` | Lat/Long coordinates | File (Extra) |
 
 ### Contract Specifics
+
 These variables allow overriding client data specifically for contracts (e.g., if the signer is different).
-*   `@nomeClienteContrato`
-*   `@cpfCnpjClienteContrato`
-*   `@enderecoClienteContrato`
-*   `@telefoneClienteContrato`
-*   `@emailClienteContrato`
+
+* `@nomeClienteContrato`
+* `@cpfCnpjClienteContrato`
+* `@enderecoClienteContrato`
+* `@telefoneClienteContrato`
+* `@emailClienteContrato`
 
 ## 2. Services (`baseServicos` <-> `INFO-SERVICO.md`)
 
@@ -50,27 +53,34 @@ These variables allow overriding client data specifically for contracts (e.g., i
 | `@valorContrato` | Final contract value | DB & File |
 
 ### Dates (Milestones)
-*   `@inProposta`: Start of Proposal
-*   `@lvProposta`: Viability Survey
-*   `@anProposta`: Proposal Analysis
-*   `@baProposta`: Viability Conclusion
-*   `@prProposta`: Preliminary Approval
-*   `@inSolucao`: Solution Start
+
+* `@inProposta`: Start of Proposal
+* `@lvProposta`: Viability Survey
+* `@anProposta`: Proposal Analysis
+* `@baProposta`: Viability Conclusion
+* `@prProposta`: Preliminary Approval
+* `@inSolucao`: Solution Start
 
 ### Cost Estimates (Calculated/Manual)
+
 These are typically defined in the `INFO-SERVICO.md` file or calculated during generation.
-*   `@projArqEng`: Architecture/Engineering Cost
-*   `@procLegais`: Legal Processes Cost
-*   `@ACEqv`: Equivalent Construction Area
-*   `@execcub`: CUB Execution Cost
-*   `@execInfra`, `@execPais`, `@execMob`: Infrastructure, Landscaping, Furniture Costs
-*   `@totalGeral`: Grand Total
+
+* `@projArqEng`: Architecture/Engineering Cost
+* `@procLegais`: Legal Processes Cost
+* `@ACEqv`: Equivalent Construction Area
+* `@execcub`: CUB Execution Cost
+* `@execInfra`, `@execPais`, `@execMob`: Infrastructure, Landscaping, Furniture Costs
+* `@totalGeral`: Grand Total
 
 ## 3. Document Generation Flow
 
 When generating a document (e.g., Proposal), the system:
-1.  **Locates Context**: Finds the parent Client and Service folders.
-2.  **Loads Client Truth**: Reads `INFO-CLIENTE.md`.
-3.  **Loads Service Truth**: Reads `INFO-SERVICO.md` (overrides Client data if collisions exist).
-4.  **Loads Document Data**: Reads the specific `.md` file for the document (overrides all).
-5.  **Generates**: Replaces variables in the `.docx` or `.pptx` template.
+
+1. **Locates Context**: Finds the parent Client and Service folders.
+2. **Loads Client Truth**: Reads `INFO-CLIENTE.md`.
+3. **Loads Service Truth**: Reads `INFO-SERVICO.md` (overrides Client data if collisions exist).
+4. **Loads Document Data**: Reads the specific `.md` file for the document (overrides all).
+5. **Generates**: Replaces variables in the `.docx` or `.pptx` template.
+
+---
+**Desenvolvido para Arquitetos que querem projetar, não gerenciar arquivos.** Veja mais em [Mundo AEC](https://www.mundoaec.com)

@@ -36,7 +36,7 @@ class MenuSystem:
         print(f"\n{Fore.CYAN}{Style.BRIGHT}{message}{Style.RESET_ALL}")
 
     def display_main_menu(self):
-        self.print_header("=== LAMP SYSTEM ===")
+        self.print_header("=== FOTON System ===")
         print("1. Gerenciar Clientes")
         print("2. Gerenciar Serviços")
         print("3. Documentos")
