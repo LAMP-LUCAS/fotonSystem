@@ -187,6 +187,8 @@ class MenuSystem:
                 self.update_setting_ui(config, 'caminho_templates', "Pasta de Templates")
             elif choice == '3':
                 self.update_setting_ui(config, 'caminho_baseDados', "Arquivo de Base de Dados", is_file=True)
+            elif choice == '4':
+                self.handle_admin_tools()
             elif choice == '0':
                 break
             else:
@@ -197,6 +199,7 @@ class MenuSystem:
         print(f"1. Pasta de Clientes: {config.get('caminho_pastaClientes')}")
         print(f"2. Pasta de Templates: {config.get('caminho_templates')}")
         print(f"3. Base de Dados: {config.get('caminho_baseDados')}")
+        print("4. Ferramentas Administrativas")
         print("0. Voltar")
         return input(f"{Fore.YELLOW}Para alterar, digite o número da opção: {Style.RESET_ALL}")
 
@@ -478,3 +481,12 @@ class MenuSystem:
         except KeyboardInterrupt:
             print("\n")
             self.print_warning("Operação interrompida.")
+
+    def handle_admin_tools(self):
+        try:
+            from foton_system.scripts.admin_launcher import main_menu
+            main_menu()
+        except ImportError:
+            self.print_error("Erro: Launcher administrativo não encontrado.")
+        except Exception as e:
+            self.print_error(f"Erro ao abrir ferramentas administrativas: {e}")
