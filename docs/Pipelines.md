@@ -65,7 +65,7 @@ flowchart TD
         Exp_CheckFile -- Found --> Exp_Merge[Merge DB Data + Existing Extras]
         Exp_CheckFile -- Not Found --> Exp_New[Create New Data]
         Exp_Merge --> Exp_Diff{Has Changes?}
-        Exp_Diff -- Yes --> Exp_IncRev[Increment Revision (Rxx)]
+        Exp_Diff -- Yes --> Exp_IncRev[Increment Revision Rxx]
         Exp_Diff -- No --> Exp_Skip[Skip Write]
         Exp_New --> Exp_Write[Write .md File]
         Exp_IncRev --> Exp_Write
