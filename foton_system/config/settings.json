@@ -1,9 +1,9 @@
 {
-    "caminho_pastaClientes": "C:\\Users\\Lucas\\OneDrive\\Área de Trabalho\\TESTE PASTAS",
-    "caminho_baseDados": "C:\\Users\\Lucas\\OneDrive\\Área de Trabalho\\TESTE-BASE\\baseDados.xlsx",
-    "caminho_baseClientes": "C:\\Users\\Lucas\\OneDrive\\Área de Trabalho\\TESTE-BASE\\baseClientes.xlsx",
-    "caminho_baseServicos": "C:\\Users\\Lucas\\OneDrive\\Área de Trabalho\\TESTE-BASE\\baseServicos.xlsx",
-    "caminho_templates": "C:\\Users\\Lucas\\OneDrive\\LAMP_ARQUITETURA\\ADM\\KIT DOC",
+    "caminho_pastaClientes": "C:\\PASTAS\\CLIENTES",
+    "caminho_baseDados": "C:\\PASTAS\\ADM\\baseDados.xlsx",
+    "caminho_baseClientes": "C:\\PASTAS\\ADM\\baseClientes.xlsx",
+    "caminho_baseServicos": "C:\\PASTAS\\ADM\\baseServicos.xlsx",
+    "caminho_templates": "C:\\PASTAS\\ADM\\KIT_DOC",
     "ignored_folders": [
         "DOC",
         "ARQ",
