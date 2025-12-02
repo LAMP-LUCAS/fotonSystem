@@ -1,0 +1,16 @@
+{
+    "variables": {
+        "TesteExcelAuto": {
+            "type": "string",
+            "storage": "excel",
+            "description": "Teste de criação automática de coluna",
+            "default": null
+        },
+        "@TesteInfoAuto": {
+            "type": "string",
+            "storage": "info_file",
+            "description": "Teste de criação automática de chave",
+            "default": null
+        }
+    }
+}
