@@ -1,62 +1,93 @@
 # Guia de Deploy e Releases
 
-Este guia descreve como gerar uma nova versão executável do [**FOTON System**](../README.md) e distribuí-la via GitHub Releases de acordo com os [requisitos de arquitetura](concepts.md) do sistema.
+Este guia descreve como gerar uma nova versão executável do [**FOTON System**](../README.md) e distribuí-la via GitHub Releases.
 
 ## 1. Preparação
 
-Certifique-se de que todas as dependências estão instaladas, incluindo o `pyinstaller`:
+Certifique-se de que todas as dependências estão instaladas:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## 2. Gerar o Executável
+**Requisito para Release:**
+Para interagir com o GitHub (criar rascunhos de release), você precisa de um **Personal Access Token (PAT)**.
 
-Utilize o script de build automatizado para compilar o sistema em um único arquivo `.exe`.
+1. Gere um token no GitHub (Settings -> Developer settings -> Personal access tokens).
+2. Dê permissão de `repo`.
+3. Defina a variável de ambiente `GITHUB_TOKEN` ou tenha o token em mãos.
+
+---
+
+## 2. Deploy Automatizado (Recomendado) 🚀
+
+O script `deploy.py` automatiza todo o processo: Build, Commit na branch `deploy` e Criação do Draft Release.
 
 1. Abra o terminal na raiz do projeto.
 2. Execute o script:
 
     ```bash
+    python foton_system/scripts/deploy.py
+    ```
+
+3. Siga as instruções interativas:
+    * **Build:** O script gera o executável `dist/foton_system_vX.X.X.exe`.
+    * **Deploy:** O script envia o executável para a branch `deploy` e cria a tag `vX.X.X`.
+    * **Release:** O script cria um Rascunho (Draft) no GitHub com o executável anexado.
+
+---
+
+## 3. Deploy Manual (Fallback) 🛠️
+
+Caso o script automatizado falhe, siga estes passos manuais:
+
+### Passo A: Build
+
+1. Gere o executável com o PyInstaller:
+
+    ```bash
     python foton_system/scripts/build.py
     ```
 
-3. Aguarde o processo. O executável será gerado na pasta `dist/` com o nome `foton_system.exe`.
+2. Verifique se o arquivo `dist/foton_system_vX.X.X.exe` foi criado.
 
-## 3. Testar
+### Passo B: Git Deploy
 
-Antes de liberar, teste o executável:
-
-1. Vá até a pasta `dist/`.
-2. Execute `foton_system.exe`.
-3. Verifique se todas as funcionalidades (menus, geração de documentos) estão operando corretamente.
-
-## 4. Criar Release no GitHub
-
-1. **Commit e Push:** Certifique-se de que todo o código está commitado e enviado para o repositório.
-2. **Tag:** Crie uma tag para a versão (ex: v1.0.0).
+1. Mude para a branch `deploy` (ou crie uma órfã se não existir).
+2. Copie o executável gerado e o `foton_system/__init__.py` para a raiz.
+3. Commit e Push:
 
     ```bash
-    git tag v1.0.0
-    git push origin v1.0.0
+    git add .
+    git commit -m "Deploy vX.X.X"
+    git tag vX.X.X
+    git push origin deploy --tags
     ```
 
-3. **GitHub:**
-    * Acesse a página do repositório no GitHub.
-    * Clique em **Releases** (barra lateral direita).
-    * Clique em **Draft a new release**.
-    * Selecione a tag que você criou (`v1.0.0`).
-    * Dê um título (ex: "Versão 1.0.0 - Lançamento Inicial").
-    * Descreva as mudanças.
-    * **Anexar Binários:** Arraste o arquivo `dist/foton_system.exe` para a área de upload.
-    * Clique em **Publish release**.
+### Passo C: GitHub Release
 
-## 5. Atualização do Cliente
+1. Vá para a página de Releases do GitHub.
+2. Clique em "Draft a new release".
+3. Escolha a tag `vX.X.X`.
+4. Anexe o arquivo `.exe` gerado.
+5. Salve como Draft ou Publique.
+
+---
+
+## 4. Publicação e Atualização
+
+### Publicar Release
+
+1. Acesse a página de [Releases do GitHub](https://github.com/LAMP-LUCAS/fotonSystem/releases).
+2. Encontre o **Draft** criado.
+3. Clique em **Edit**, revise as notas da versão e clique em **Publish release**.
+
+### Atualização do Cliente
 
 O usuário final deve:
 
-1. Acessar a página de Releases do GitHub.
-2. Baixar o `foton_system.exe` mais recente.
+1. Acessar a página de Releases.
+2. Baixar o `foton_system_vX.X.X.exe` mais recente.
 3. Substituir o arquivo antigo em sua máquina.
 
 ---
