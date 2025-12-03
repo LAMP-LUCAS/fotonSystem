@@ -6,12 +6,17 @@ from foton_system.modules.shared.infrastructure.config.logger import setup_logge
 from foton_system.modules.clients.application.ports.client_repository_port import ClientRepositoryPort
 
 logger = setup_logger()
-config = Config()
-
 class ExcelClientRepository(ClientRepositoryPort):
     def __init__(self):
-        self.base_pasta = config.base_pasta_clientes
-        self.base_dados = config.base_dados
+        pass
+
+    @property
+    def base_pasta(self):
+        return Config().base_pasta_clientes
+
+    @property
+    def base_dados(self):
+        return Config().base_dados
 
     def check_files(self):
         if not self.base_dados.exists():
