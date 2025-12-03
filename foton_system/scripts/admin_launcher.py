@@ -6,7 +6,12 @@ from colorama import init, Fore, Style
 # Initialize colorama
 init(autoreset=True)
 
-SCRIPTS_DIR = Path("foton_system/scripts")
+# Determine scripts directory
+if getattr(sys, 'frozen', False):
+    SCRIPTS_DIR = Path(sys._MEIPASS) / "foton_system" / "scripts"
+else:
+    # Assuming running from project root
+    SCRIPTS_DIR = Path("foton_system/scripts")
 
 def load_scripts():
     """Scans the scripts directory and returns a list of executable modules."""

@@ -11,8 +11,16 @@ def build():
     build_dir = base_dir / "build"
     
     # Clean previous builds
-    if dist_dir.exists(): shutil.rmtree(dist_dir)
-    if build_dir.exists(): shutil.rmtree(build_dir)
+    if dist_dir.exists():
+        try:
+            shutil.rmtree(dist_dir)
+        except Exception as e:
+            print(f"Warning: Could not remove dist dir: {e}")
+    if build_dir.exists():
+        try:
+            shutil.rmtree(build_dir)
+        except Exception as e:
+            print(f"Warning: Could not remove build dir: {e}")
     
     # Get version
     init_file = base_dir / "foton_system" / "__init__.py"
@@ -32,10 +40,13 @@ def build():
         str(main_script),
         f'--name={exe_name}',
         '--onefile',
-        '--clean',
+        # '--clean',
         '--noconfirm',
         # Add assets (source:dest)
         f'--add-data={base_dir / "foton_system" / "assets"}{os.pathsep}foton_system/assets',
+        f'--add-data={base_dir / "foton_system" / "config"}{os.pathsep}foton_system/config',
+        f'--add-data={base_dir / "foton_system" / "scripts"}{os.pathsep}foton_system/scripts',
+        f'--add-data={base_dir / "foton_system" / "resources"}{os.pathsep}foton_system/resources',
         # Hidden imports often needed for pandas/openpyxl
         '--hidden-import=pandas',
         '--hidden-import=openpyxl',
