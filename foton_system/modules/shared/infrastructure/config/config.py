@@ -13,17 +13,21 @@ class Config:
         return cls._instance
 
     def _load_settings(self):
-        # Assumes settings.json is in ../../../../../config/ relative to this file's parent
-        # Current file: .../foton_system/modules/shared/infrastructure/config/config.py
-        # Base dir (foton_system): .../
-        base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
-        self._config_path = base_dir / 'config' / 'settings.json'
+        from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
         
-        if not self._config_path.exists():
-            raise FileNotFoundError(f"Configuration file not found at {self._config_path}")
+        # Initialize environment (Self-Bootstrapping)
+        # This ensures settings.json exists and points to valid files
+        self._config_path = BootstrapService.initialize()
 
-        with open(self._config_path, 'r', encoding='utf-8') as f:
-            self._settings = json.load(f)
+        # Load settings
+        try:
+            with open(self._config_path, 'r', encoding='utf-8') as f:
+                self._settings = json.load(f)
+        except Exception as e:
+            print(f"Error loading config from {self._config_path}: {e}")
+            # If load fails, we might want to trigger a re-bootstrap or fail gracefully
+            # For now, we just print the error.
+
 
     def set(self, key, value):
         """Updates a setting value in memory."""
@@ -31,11 +35,18 @@ class Config:
 
     def save(self):
         """Persists current settings to the JSON file."""
+        # Ensure directory exists before saving
+        self._config_path.parent.mkdir(parents=True, exist_ok=True)
         with open(self._config_path, 'w', encoding='utf-8') as f:
             json.dump(self._settings, f, indent=4, ensure_ascii=False)
 
     def get(self, key, default=None):
         return self._settings.get(key, default)
+
+    @property
+    def workspace_path(self):
+        """Returns the root directory of the current workspace (where settings.json is located)."""
+        return self._config_path.parent
 
     @property
     def base_pasta_clientes(self):
