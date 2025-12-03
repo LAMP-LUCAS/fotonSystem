@@ -6,3 +6,4 @@ plyer
 pyinstaller
 colorama
 requests
+python-dotenv

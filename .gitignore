@@ -6,4 +6,6 @@ build/
 *.log
 *.pyc
 *.spec
+.env
 
+deploy_release/
