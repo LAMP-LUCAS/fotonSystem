@@ -120,14 +120,8 @@ class PomodoroTimer:
             from pathlib import Path
             import csv
             
-            # Save to root of foton_system or configured path
-            # Using base_dir from Config logic would be ideal, but Config is in shared.
-            # Let's assume a standard location relative to execution or Config.
-            # Config().base_dados.parent is likely 'foton_make/testes' or similar.
-            # Let's put it in the project root for visibility or 'productivity' folder.
-            # Let's use the parent of 'modules' which is 'foton_system'.
-            
-            base_dir = Path(__file__).resolve().parent.parent.parent
+            # Save to the same directory as the database to ensure persistence
+            base_dir = Config().base_dados.parent
             timesheet_path = base_dir / 'timesheet.csv'
             
             file_exists = timesheet_path.exists()

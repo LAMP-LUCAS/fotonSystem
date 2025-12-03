@@ -2,7 +2,7 @@ import requests
 import re
 import webbrowser
 from colorama import Fore, Style
-from foton_system.config.config import Config
+from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system import __version__
 
 class UpdateChecker:
