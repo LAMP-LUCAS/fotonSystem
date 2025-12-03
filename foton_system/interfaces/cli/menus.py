@@ -189,6 +189,14 @@ class MenuSystem:
                 self.update_setting_ui(config, 'caminho_baseDados', "Arquivo de Base de Dados", is_file=True)
             elif choice == '4':
                 self.handle_admin_tools()
+            elif choice == '5':
+                # Open Workspace Folder
+                import os
+                try:
+                    os.startfile(config.workspace_path)
+                    self.print_success(f"Abrindo pasta: {config.workspace_path}")
+                except Exception as e:
+                    self.print_error(f"Erro ao abrir pasta: {e}")
             elif choice == '0':
                 break
             else:
@@ -200,6 +208,7 @@ class MenuSystem:
         print(f"2. Pasta de Templates: {config.get('caminho_templates')}")
         print(f"3. Base de Dados: {config.get('caminho_baseDados')}")
         print("4. Ferramentas Administrativas")
+        print(f"5. Abrir Pasta do Sistema (Workspace): {config.workspace_path}")
         print("0. Voltar")
         return input(f"{Fore.YELLOW}Para alterar, digite o número da opção: {Style.RESET_ALL}")
 
