@@ -79,48 +79,70 @@ def safe_remove(path, retries=3):
                 print(Fore.YELLOW + f"Arquivo em uso. Tentando novamente em 2s... ({i+1}/{retries})")
                 time.sleep(2)
             else:
-                print(Fore.YELLOW + f"Aviso: Não foi possível remover {path}. Pode ser necessário limpar manualmente.")
-                # sys.exit(1) # Don't exit, just warn
+                # If delete fails, try to rename to move it out of the way
+                try:
+                    timestamp = int(time.time())
+                    trash_path = path.parent / f"{path.name}_trash_{timestamp}"
+                    path.rename(trash_path)
+                    print(Fore.YELLOW + f"Aviso: {path} renomeado para {trash_path} (arquivo em uso).")
+                    return
+                except Exception as rename_err:
+                    print(Fore.RED + f"Erro crítico: Não foi possível remover nem renomear {path}: {rename_err}")
+                    sys.exit(1)
         except Exception as e:
-            print(Fore.YELLOW + f"Aviso ao remover {path}: {e}")
-            # sys.exit(1)
+            print(Fore.RED + f"Erro ao remover {path}: {e}")
+            sys.exit(1)
 
-def git_deploy(version):
-    print(Fore.CYAN + f"\n=== 2. Publicando na branch 'deploy' (v{version}) ===")
+def tag_main_branch(version):
+    """Tags the current branch (main) and pushes to remote."""
+    print(Fore.CYAN + f"\n=== 2. Criando Tag v{version} na branch atual ===")
     
     # Check if git is clean
     if run_command("git status --porcelain", cwd=BASE_DIR, check=False).stdout.strip():
-        print(Fore.YELLOW + "⚠️  Seu diretório de trabalho não está limpo. Recomendado commitar antes.")
-        if input("Deseja continuar mesmo assim? (S/N): ").lower() != 's':
-            sys.exit(0)
+        print(Fore.YELLOW + "⚠️  Seu diretório de trabalho não está limpo.")
+        if input("Deseja continuar e taggear o estado atual? (S/N): ").lower() != 's':
+            return False
 
+    tag_name = f"v{version}"
+    
     # Check remote tag
     if check_remote_tag(version):
-        print(Fore.RED + f"A tag v{version} já existe no repositório remoto.")
+        print(Fore.RED + f"A tag {tag_name} já existe no repositório remoto.")
         choice = input("Deseja sobrescrever a tag existente? (S/N): ").lower()
         if choice != 's':
             print(Fore.YELLOW + "Operação cancelada pelo usuário.")
             return False
         # Delete remote tag to allow overwrite
         print(Fore.YELLOW + "Removendo tag remota antiga...")
-        run_command(f"git push --delete origin v{version}", cwd=BASE_DIR, check=False)
+        run_command(f"git push --delete origin {tag_name}", cwd=BASE_DIR, check=False)
 
+    # Tag Management Locally
+    print(Fore.YELLOW + f"Criando tag local {tag_name}...")
+    # Remove local tag if exists to avoid conflict
+    run_command(f"git tag -d {tag_name}", cwd=BASE_DIR, check=False)
+    run_command(f"git tag {tag_name}", cwd=BASE_DIR)
+
+    print(Fore.YELLOW + "Enviando tag para o GitHub...")
+    run_command(f"git push origin {tag_name}", cwd=BASE_DIR)
+    return True
+
+def git_deploy_metadata(version):
+    print(Fore.CYAN + f"\n=== 3. Atualizando branch 'deploy' (Histórico) ===")
+    
     deploy_dir = BASE_DIR / "deploy_release"
     safe_remove(deploy_dir)
-    deploy_dir.mkdir()
-
-    exe_name = f"foton_system_v{version}.exe"
-    exe_path = DIST_DIR / exe_name
-    
-    if not exe_path.exists():
-        print(Fore.RED + f"Executável não encontrado: {exe_path}")
-        print(Fore.YELLOW + "Execute o passo de Build primeiro.")
-        return False
+    deploy_dir.mkdir(exist_ok=True)
 
     # 1. Clone the repo (single branch) to temp dir
     print(Fore.YELLOW + "Clonando branch 'deploy'...")
     repo_url = f"https://github.com/{REPO_OWNER}/{REPO_NAME}.git"
     
+    # Ensure dir is empty before cloning if it wasn't removed
+    if any(deploy_dir.iterdir()):
+        print(Fore.YELLOW + "Diretório não vazio. Tentando limpar...")
+        for item in deploy_dir.iterdir():
+            safe_remove(item)
+
     clone_cmd = f"git clone --branch deploy --single-branch {repo_url} ."
     result = run_command(clone_cmd, cwd=deploy_dir, check=False)
     
@@ -146,31 +168,63 @@ def git_deploy(version):
     shutil.copy2(BASE_DIR / "foton_system" / "__init__.py", deploy_dir / "foton_system" / "__init__.py")
 
     # 4. Commit and Push
-    print(Fore.YELLOW + "Enviando para GitHub...")
+    print(Fore.YELLOW + "Enviando log para GitHub...")
     run_command("git add .", cwd=deploy_dir)
     
-    commit_msg = f"Deploy v{version} (Metadata only)"
+    commit_msg = f"Deploy Log v{version}"
     if run_command("git status --porcelain", cwd=deploy_dir, check=False).stdout.strip():
         run_command(f'git commit -m "{commit_msg}"', cwd=deploy_dir)
+        run_command("git push origin deploy", cwd=deploy_dir)
     else:
-        print(Fore.YELLOW + "Nenhuma mudança detectada para commit.")
-
-    # Tag Management
-    tag_name = f"v{version}"
-    # Remove local tag if exists to avoid conflict
-    run_command(f"git tag -d {tag_name}", cwd=deploy_dir, check=False)
-    run_command(f"git tag {tag_name}", cwd=deploy_dir)
-
-    run_command("git push origin deploy", cwd=deploy_dir)
-    run_command("git push origin --tags", cwd=deploy_dir)
+        print(Fore.YELLOW + "Nenhuma mudança no log.")
 
     # Cleanup
     print(Fore.YELLOW + "Limpando arquivos temporários...")
     safe_remove(deploy_dir)
-    return True
+
+def generate_release_body(version):
+    """Generates a rich release body with changelog."""
+    print(Fore.YELLOW + "Gerando notas de lançamento...")
+    
+    # Get Changelog
+    try:
+        # Try to find the previous tag
+        prev_tag = run_command("git describe --tags --abbrev=0 HEAD^", cwd=BASE_DIR, check=False).stdout.strip()
+        if prev_tag:
+            log_range = f"{prev_tag}..HEAD"
+        else:
+            log_range = "HEAD"
+            
+        changelog = run_command(f'git log {log_range} --pretty=format:"- %s"', cwd=BASE_DIR, check=False).stdout.strip()
+    except Exception:
+        changelog = "- Detalhes não disponíveis automaticamente."
+
+    if not changelog:
+        changelog = "- Melhorias gerais e correções de bugs."
+
+    template = f"""# 🚀 FOTON System v{version} - Potência para seus Projetos!
+
+Estamos entusiasmados em apresentar a versão **{version}** do FOTON System! 🏗️✨
+Nossa missão é transformar a gestão de arquitetura e engenharia, e esta atualização é mais um passo nessa jornada.
+
+## 🌟 O que há de novo?
+
+> *[Espaço reservado para destaques manuais]*
+
+## 🛠️ Changelog Técnico
+
+{changelog}
+
+---
+**Instalação:**
+1. Baixe o arquivo `foton_system_v{version}.exe` abaixo.
+2. Execute em sua máquina (Windows).
+
+*Feito com ❤️ para a comunidade AEC.*"""
+    return template
 
 def create_github_release(version, token):
-    print(Fore.CYAN + f"\n=== 3. Criando Rascunho de Release (v{version}) ===")
+    print(Fore.CYAN + f"\n=== 4. Criando Rascunho de Release (v{version}) ===")
     
     session = requests.Session()
     session.headers.update({
@@ -180,18 +234,22 @@ def create_github_release(version, token):
     
     api_url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}"
     
+    release_body = generate_release_body(version)
+
     # Check if release already exists
     resp = session.get(f"{api_url}/releases/tags/v{version}")
     if resp.status_code == 200:
         print(Fore.YELLOW + f"Release v{version} já existe. Editando...")
         release_url = resp.json()['url']
+        # Update body for existing release
+        session.patch(release_url, json={"body": release_body})
     else:
         # Create new draft release
         data = {
             "tag_name": f"v{version}",
-            "target_commitish": "deploy",
+            # "target_commitish": "main", # Optional: defaults to the tag's commit
             "name": f"Versão {version}",
-            "body": f"Release automatizado da versão {version}.\n\n**Instalação:**\nBaixe o arquivo `foton_system_v{version}.exe` abaixo.",
+            "body": release_body,
             "draft": True,
             "prerelease": False
         }
@@ -258,15 +316,19 @@ def main():
         if input("Executar Build? (S/N): ").lower() == 's':
             build_executable()
         
-        # 2. Git Deploy
-        deploy_success = False
-        if input("Realizar Deploy para branch 'deploy'? (S/N): ").lower() == 's':
-            deploy_success = git_deploy(version)
+        # 2. Tag Main Branch
+        tag_success = False
+        if input("Criar Tag na branch atual (Main)? (S/N): ").lower() == 's':
+            tag_success = tag_main_branch(version)
         
-        # 3. GitHub Release
+        # 3. Deploy Metadata (Log)
+        if input("Atualizar branch 'deploy' (Log)? (S/N): ").lower() == 's':
+            git_deploy_metadata(version)
+
+        # 4. GitHub Release
         if input("Criar/Atualizar Release no GitHub? (S/N): ").lower() == 's':
-            if not deploy_success:
-                print(Fore.YELLOW + "Atenção: O deploy para a branch não foi realizado nesta execução.")
+            if not tag_success:
+                print(Fore.YELLOW + "Atenção: A tag não foi criada/atualizada nesta execução.")
                 if input("Continuar com a release mesmo assim? (S/N): ").lower() != 's':
                     return
 
