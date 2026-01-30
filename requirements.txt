@@ -7,3 +7,5 @@ pyinstaller
 colorama
 requests
 python-dotenv
+mcp
+pyinstaller
