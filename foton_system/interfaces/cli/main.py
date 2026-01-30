@@ -1,12 +1,11 @@
 from foton_system.interfaces.cli.menus import MenuSystem
-from foton_system.infrastructure.update_checker import UpdateChecker
+from foton_system.modules.shared.infrastructure.services.update_service import UpdateChecker
 
 def main():
     # Check for updates
     try:
-        checker = UpdateChecker()
-        checker.prompt_update()
-    except Exception as e:
+        UpdateChecker.check_for_updates() # O serviço já faz o log do status
+    except Exception:
         pass # Don't block startup on update error
 
     menu = MenuSystem()

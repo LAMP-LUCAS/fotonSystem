@@ -1,0 +1,17 @@
+{
+    "caminho_pastaClientes": "C:\\Users\\Lucas\\Documents\\FotonProjects",
+    "caminho_templates": "C:\\Users\\Lucas\\Documents\\FotonTemplates",
+    "caminho_baseDados": "C:\\Users\\Lucas\\Documents\\FotonSystem\\baseDados.xlsx",
+    "ignored_folders": [
+        "DOC",
+        "ARQ",
+        "HID",
+        "ELE",
+        "STR",
+        "PL",
+        "EVT"
+    ],
+    "clean_missing_variables": true,
+    "missing_variable_placeholder": "---",
+    "enable_mcp": true
+}

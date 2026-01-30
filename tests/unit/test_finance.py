@@ -2,12 +2,14 @@
 import shutil
 import tempfile
 from pathlib import Path
-from foton_system.modules.finance.finance_service import FinanceService
+from foton_system.modules.finance.application.use_cases.finance_service import FinanceService
+from foton_system.modules.finance.infrastructure.repositories.csv_finance_repository import CSVFinanceRepository
 
 class TestFinanceService(unittest.TestCase):
     def setUp(self):
         self.test_dir = Path(tempfile.mkdtemp())
-        self.service = FinanceService()
+        self.repo = CSVFinanceRepository()
+        self.service = FinanceService(self.repo)
 
     def tearDown(self):
         shutil.rmtree(self.test_dir)
