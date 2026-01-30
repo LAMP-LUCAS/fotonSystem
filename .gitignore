@@ -9,3 +9,5 @@ build/
 .env
 
 deploy_release/
+
+foton_system/config/settings.json

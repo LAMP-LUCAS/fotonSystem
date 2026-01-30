@@ -1,0 +1,10 @@
+﻿{
+    "caminho_pastaClientes": "C:\\Caminho\\Para\\Clientes",
+    "caminho_baseDados": "C:\\Caminho\\Para\\baseDados.xlsx",
+    "caminho_baseClientes": "C:\\Caminho\\Para\\baseClientes.xlsx",
+    "caminho_baseServicos": "C:\\Caminho\\Para\\baseServicos.xlsx",
+    "caminho_templates": "C:\\Caminho\\Para\\Templates",
+    "ignored_folders": ["DOC", "ARQ", "HID", "ELE", "STR", "PL", "EVT"],
+    "clean_missing_variables": true,
+    "missing_variable_placeholder": "---"
+}
