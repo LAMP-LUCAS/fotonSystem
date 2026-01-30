@@ -1,4 +1,4 @@
-﻿from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP
 from pathlib import Path
 import sys
 import traceback
@@ -18,7 +18,8 @@ from foton_system.modules.shared.infrastructure.config.logger import setup_logge
 from foton_system.modules.documents.application.use_cases.document_service import DocumentService
 from foton_system.modules.documents.infrastructure.adapters.python_docx_adapter import PythonDocxAdapter
 from foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter import PythonPPTXAdapter
-from foton_system.modules.finance.finance_service import FinanceService
+from foton_system.modules.finance.application.use_cases.finance_service import FinanceService
+from foton_system.modules.finance.infrastructure.repositories.csv_finance_repository import CSVFinanceRepository
 from foton_system.modules.sync.sync_service import SyncService
 
 # Inicialização
@@ -29,7 +30,11 @@ mcp = FastMCP("Foton Architecture System")
 docx_adapter = PythonDocxAdapter()
 pptx_adapter = PythonPPTXAdapter()
 doc_service = DocumentService(docx_adapter, pptx_adapter)
-fin_service = FinanceService()
+
+# Injeção de Dependência para o Financeiro
+fin_repo = CSVFinanceRepository()
+fin_service = FinanceService(fin_repo)
+
 sync_service = SyncService()
 
 def _get_client_path(client_name: str) -> Path:

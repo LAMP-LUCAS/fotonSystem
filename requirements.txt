@@ -9,3 +9,5 @@ requests
 python-dotenv
 mcp
 pyinstaller
+winshell
+pywin32

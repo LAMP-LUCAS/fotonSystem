@@ -1,16 +1,10 @@
-{
-    "caminho_pastaClientes": "C:\\PASTAS\\CLIENTES",
-    "caminho_baseDados": "C:\\PASTAS\\ADM\\baseDados.xlsx",
-    "caminho_baseClientes": "C:\\PASTAS\\ADM\\baseClientes.xlsx",
-    "caminho_baseServicos": "C:\\PASTAS\\ADM\\baseServicos.xlsx",
-    "caminho_templates": "C:\\PASTAS\\ADM\\KIT_DOC",
-    "ignored_folders": [
-        "DOC",
-        "ARQ",
-        "HID",
-        "ELE",
-        "STR",
-        "PL",
-        "EVT"
-    ]
+﻿{
+    "caminho_pastaClientes": "C:\\Users\\Lucas\\OneDrive\\LAMP_ARQUITETURA\\CLIENTES",
+    "caminho_baseDados": "C:\\Users\\Lucas\\OneDrive\\LAMP_ARQUITETURA\\ADM\\lamp\\fotonSystem\\resources\\skeleton\\baseDados.xlsx",
+    "caminho_baseClientes": "C:\\Users\\Lucas\\OneDrive\\LAMP_ARQUITETURA\\ADM\\lamp\\fotonSystem\\resources\\skeleton\\baseClientes.xlsx",
+    "caminho_baseServicos": "C:\\Users\\Lucas\\OneDrive\\LAMP_ARQUITETURA\\ADM\\lamp\\fotonSystem\\resources\\skeleton\\baseServicos.xlsx",
+    "caminho_templates": "C:\\Users\\Lucas\\OneDrive\\LAMP_ARQUITETURA\\ADM\\KIT DOC",
+    "ignored_folders": ["DOC", "ARQ", "HID", "ELE", "STR", "PL", "EVT"],
+    "clean_missing_variables": true,
+    "missing_variable_placeholder": "---"
 }

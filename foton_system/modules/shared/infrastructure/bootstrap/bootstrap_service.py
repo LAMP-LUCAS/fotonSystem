@@ -1,130 +1,94 @@
-import os
-import sys
-import shutil
+﻿import os
 import json
+import shutil
 from pathlib import Path
-from colorama import Fore, Style
+from platform import system
 
 class BootstrapService:
-    """
-    Responsible for initializing the user's environment (Self-Bootstrapping).
-    Ensures that configuration, databases, and templates exist.
-    """
-    
     APP_NAME = "FotonSystem"
     
-    @classmethod
-    def initialize(cls):
-        """
-        Main entry point for bootstrapping.
-        Returns the path to the valid settings.json.
-        """
-        # Strategy:
-        # 1. Check for settings.json in Documents/FotonSystem (Primary Workspace)
-        # 2. Check for settings.json in AppData (Legacy/Fallback)
-        # 3. If neither, install Skeleton to Documents/FotonSystem
-        
-        docs_dir = Path(os.path.expanduser("~/Documents")) / cls.APP_NAME
-        app_data_dir = Path(os.getenv('APPDATA')) / cls.APP_NAME
-        
-        workspace_settings = docs_dir / 'settings.json'
-        appdata_settings = app_data_dir / 'settings.json'
-        
-        # 1. Check Workspace (Preferred)
-        if workspace_settings.exists() and cls._validate_paths(workspace_settings):
-            return workspace_settings
-            
-        # 2. Check AppData (Legacy)
-        if appdata_settings.exists() and cls._validate_paths(appdata_settings):
-            return appdata_settings
-            
-        # 3. Bootstrap (Install to Workspace)
-        print(Fore.CYAN + "⚠️  Ambiente não detectado.")
-        print(Fore.CYAN + f"🚀 Criando Workspace Portátil em: {docs_dir}")
-        cls._install_skeleton(docs_dir, workspace_settings)
-        
-        return workspace_settings
-
-    @classmethod
-    def _validate_paths(cls, settings_path):
-        """
-        Checks if the paths in settings.json actually exist.
-        """
-        try:
-            with open(settings_path, 'r', encoding='utf-8') as f:
-                settings = json.load(f)
-                
-            # Check key paths
-            paths_to_check = [
-                settings.get('caminho_baseDados'),
-                settings.get('caminho_templates')
-            ]
-            
-            for p in paths_to_check:
-                if not p or not Path(p).exists():
-                    return False
-            return True
-        except Exception:
-            return False
-
-    @classmethod
-    def _install_skeleton(cls, target_dir, settings_path):
-        """
-        Deploys the skeleton files to the target directory
-        and creates a new settings.json there.
-        """
-        target_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Source of Skeleton (inside the exe or source code)
-        if getattr(sys, 'frozen', False):
-            base_path = Path(sys._MEIPASS)
-            skeleton_source = base_path / 'foton_system' / 'resources' / 'skeleton'
+    @staticmethod
+    def get_user_config_dir():
+        """Retorna o caminho da pasta de configuração do usuário (Cross-Platform)."""
+        home = Path.home()
+        if system() == "Windows":
+            return home / "AppData" / "Local" / BootstrapService.APP_NAME
         else:
-            base_path = Path(__file__).resolve().parent.parent.parent.parent.parent.parent
-            skeleton_source = base_path / 'foton_system' / 'resources' / 'skeleton'
-            
-        if not skeleton_source.exists():
-            print(Fore.RED + f"❌ Erro Crítico: Kit Inicial não encontrado em {skeleton_source}")
-            return
+            # Linux/Mac
+            return home / f".{BootstrapService.APP_NAME.lower()}"
 
-        # Copy Files
-        print(Fore.YELLOW + "📂 Copiando arquivos do sistema...")
+    @staticmethod
+    def resolve_config_path():
+        """
+        Lógica de Cascata:
+        1. Verifica pasta local (Modo Portátil).
+        2. Verifica pasta do usuário (Modo Instalado).
+        3. Retorna o caminho onde DEVERIA estar (preferência pelo usuário se não existir nenhum).
+        """
+        local_path = Path.cwd() / "settings.json"
+        user_path = BootstrapService.get_user_config_dir() / "settings.json"
+
+        # 1. Prioridade: Arquivo local existente (Override)
+        if local_path.exists():
+            return local_path
         
-        # Copy Excel files
-        for item in skeleton_source.iterdir():
-            if item.is_file():
-                target = target_dir / item.name
-                if not target.exists():
-                    shutil.copy2(item, target)
-                    print(f"   - Criado: {item.name}")
-            elif item.is_dir():
-                target = target_dir / item.name
-                if not target.exists():
-                    shutil.copytree(item, target)
-                    print(f"   - Criado pasta: {item.name}")
+        # 2. Arquivo de usuário existente
+        if user_path.exists():
+            return user_path
+            
+        # 3. Default para criação: Pasta do Usuário (mais limpo)
+        # Mas se estiver rodando como script (dev), pode ser melhor local.
+        # Vamos padronizar: Se for EXE congelado -> User Path. Se for Script -> Local.
+        import sys
+        if getattr(sys, 'frozen', False):
+            return user_path
+        else:
+            return local_path
 
-        # Create settings.json pointing to this new location
-        # Use absolute paths for robustness
-        settings = {
-            "caminho_pastaClientes": str(target_dir / "CLIENTES"),
-            "caminho_baseDados": str(target_dir / "baseDados.xlsx"),
-            "caminho_baseClientes": str(target_dir / "baseClientes.xlsx"),
-            "caminho_baseServicos": str(target_dir / "baseServicos.xlsx"),
-            "caminho_templates": str(target_dir / "KIT_DOC"),
+    @staticmethod
+    def initialize():
+        """Garante que o settings.json exista no local correto."""
+        config_path = BootstrapService.resolve_config_path()
+        config_dir = config_path.parent
+        
+        # Garante que a pasta existe
+        config_dir.mkdir(parents=True, exist_ok=True)
+
+        if not config_path.exists():
+            print(f"⚙️ Criando configuração padrão em: {config_path}")
+            BootstrapService._create_default_settings(config_path)
+        
+        return config_path
+
+    @staticmethod
+    def _create_default_settings(path):
+        # Tenta copiar do template interno se estiver empacotado
+        # Caminho base do recurso (seja dev ou freeze)
+        import sys
+        if getattr(sys, 'frozen', False):
+            base_dir = Path(sys._MEIPASS)
+        else:
+            base_dir = Path(__file__).resolve().parents[4] # Adjust based on depth
+            
+        template_source = base_dir / "foton_system" / "config" / "settings.json.example"
+        
+        default_settings = {
+            "caminho_pastaClientes": str(Path.home() / "Documents" / "FotonProjects"),
+            "caminho_templates": str(Path.home() / "Documents" / "FotonTemplates"),
+            "caminho_baseDados": str(Path.home() / "Documents" / "FotonSystem" / "baseDados.xlsx"),
             "ignored_folders": ["DOC", "ARQ", "HID", "ELE", "STR", "PL", "EVT"],
             "clean_missing_variables": True,
             "missing_variable_placeholder": "---",
-             # Pomodoro defaults
-            "pomodoro_work_time": 25,
-            "pomodoro_short_break": 5,
-            "pomodoro_long_break": 15,
-            "pomodoro_cycles": 4
+            "enable_mcp": True
         }
-        
-        # Create CLIENTES folder
-        (target_dir / "CLIENTES").mkdir(exist_ok=True)
-        
-        with open(settings_path, 'w', encoding='utf-8') as f:
-            json.dump(settings, f, indent=4, ensure_ascii=False)
-            
-        print(Fore.GREEN + "✅ Workspace configurado com sucesso!")
+
+        try:
+            # Tenta carregar do example se existir
+            if template_source.exists():
+                with open(template_source, 'r', encoding='utf-8') as f:
+                    default_settings.update(json.load(f))
+        except:
+            pass
+
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(default_settings, f, indent=4)
