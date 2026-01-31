@@ -2,9 +2,10 @@
 import sys
 import shutil
 from pathlib import Path
-import winshell
-from win32com.client import Dispatch
 from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
+from foton_system.modules.shared.infrastructure.config.logger import setup_logger
+
+logger = setup_logger()
 
 class InstallService:
     def __init__(self):
@@ -25,15 +26,28 @@ class InstallService:
         
         target_exe = self.bin_dir / exe_path.name
         
-        print(f"📂 Copiando binários para: {target_exe}")
-        try:
-            shutil.copy2(exe_path, target_exe)
-            
-            # Se não for onefile (dev mode), pode precisar copiar pastas
-            # Mas assumindo o build .exe onefile que fizemos:
-        except Exception as e:
-            print(f"❌ Erro ao copiar arquivos: {e}")
-            return
+        if exe_path.resolve() == target_exe.resolve():
+            logger.info("Executável já está no destino de instalação. Pulando cópia.")
+            print("ℹ️ O sistema já está rodando a partir da pasta de instalação.")
+        else:
+            print(f"📂 Copiando binários para: {target_exe}")
+            try:
+                # Se o arquivo já existe e está rodando, a cópia vai falhar.
+                # Podemos tentar renomear o antigo se existir?
+                if target_exe.exists():
+                    try:
+                        temp_old = target_exe.with_suffix(".old")
+                        if temp_old.exists(): temp_old.unlink()
+                        target_exe.rename(temp_old)
+                    except:
+                        pass # Se não conseguir renomear, tenta copiar por cima
+                
+                shutil.copy2(exe_path, target_exe)
+            except Exception as e:
+                logger.error(f"Erro ao copiar arquivos na instalação: {e}", exc_info=True)
+                print(f"❌ Erro ao copiar arquivos: {e}")
+                print("Dica: Tente fechar outras instâncias do FotonSystem ou rode como Administrador.")
+                return
 
         # 3. Inicializar Configuração no AppData
         config_path = BootstrapService.initialize()
@@ -45,9 +59,20 @@ class InstallService:
             
         print(f"\n🎉 {self.app_name} instalado com sucesso!")
         print(f"Você já pode fechar esta janela e usar o atalho na Área de Trabalho.")
+        
+        print(f"\n{'-'*60}")
+        print(f"🤖 CONFIGURAÇÃO PARA AGENTES DE IA (MCP):")
+        print(f"Para usar o Foton com Gemini ou Claude, adicione ao seu arquivo de config:")
+        print(f"\n\"foton\": {{")
+        print(f"  \"command\": \"{target_exe}\",")
+        print(f"  \"args\": [\"--mcp\"]")
+        print(f"}}\n{'-'*60}")
 
     def _create_windows_shortcuts(self, target_path: Path):
         try:
+            import winshell
+            from win32com.client import Dispatch
+
             target_path_str = str(target_path)
             work_dir = str(target_path.parent)
             
@@ -75,4 +100,5 @@ class InstallService:
             print("✅ Atalho criado no Menu Iniciar")
             
         except Exception as e:
+            logger.error(f"Erro ao criar atalhos: {e}", exc_info=True)
             print(f"⚠️ Erro ao criar atalhos: {e}")

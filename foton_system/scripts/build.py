@@ -54,6 +54,15 @@ def build():
         '--hidden-import=pptx',
         '--hidden-import=plyer.platforms.win.notification',
         '--hidden-import=requests',
+        '--hidden-import=tkinter',
+        '--hidden-import=mcp',
+        '--hidden-import=winshell',
+        '--hidden-import=win32com',
+        '--hidden-import=pythoncom',
+        '--hidden-import=foton_system.modules.finance',
+        '--hidden-import=foton_system.modules.sync',
+        '--hidden-import=colorama',
+        '--hidden-import=plyer',
     ]
     
     PyInstaller.__main__.run(args)

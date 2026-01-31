@@ -36,6 +36,9 @@ def build():
         '--hidden-import=foton_system.modules.finance',
         '--hidden-import=foton_system.modules.sync',
         '--hidden-import=tkinter', # GUI
+        '--hidden-import=winshell',
+        '--hidden-import=win32com',
+        '--hidden-import=pythoncom',
         
         # --- Caminhos de Busca ---
         f'--paths={BASE_DIR}',

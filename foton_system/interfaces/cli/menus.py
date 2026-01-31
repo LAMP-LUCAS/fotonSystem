@@ -1,4 +1,5 @@
 ﻿import sys
+import os
 from foton_system.modules.clients.application.use_cases.client_service import ClientService
 from foton_system.modules.documents.application.use_cases.document_service import DocumentService
 from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
@@ -36,15 +37,23 @@ class MenuSystem:
         print(f"\n{Fore.CYAN}{Style.BRIGHT}{message}{Style.RESET_ALL}")
 
     def display_main_menu(self):
-        self.print_header("=== FOTON System ===")
-        print("1. Gerenciar Clientes")
-        print("2. Gerenciar Serviços")
-        print("3. Documentos")
-        print("4. Produtividade")
-        print("5. Configurações")
-        print("6. Instalar / Criar Atalhos")
-        print("0. Sair")
-        return input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print(f"\n{Fore.CYAN}╔══════════════════════════════════════════════════════════╗")
+        print(f"║{Style.BRIGHT}{' FOTON SYSTEM '.center(58)}{Style.NORMAL}{Fore.CYAN}║")
+        print(f"╠══════════════════════════════════════════════════════════╣")
+        options = [
+            ("1", "Gerenciar Clientes"),
+            ("2", "Gerenciar Serviços"),
+            ("3", "Documentos (PPTX/DOCX)"),
+            ("4", "Produtividade (Pomodoro)"),
+            ("5", "Configurações do Sistema"),
+            ("6", "Instalação / Atalhos"),
+            ("0", "Sair")
+        ]
+        for key, label in options:
+            print(f"{Fore.CYAN}║ {Fore.YELLOW}{key}. {Fore.WHITE}{label.ljust(53)}{Fore.CYAN}║")
+        print(f"╚══════════════════════════════════════════════════════════╝")
+        return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
 
     def display_clients_menu(self):
         self.print_header("--- Gerenciar Clientes ---")
@@ -116,6 +125,7 @@ class MenuSystem:
                 InstallService().install()
                 self.print_success("Instalação realizada com sucesso!")
             except Exception as e:
+                logger.error(f"Erro crítico no menu de instalação: {e}", exc_info=True)
                 self.print_error(f"Erro na instalação: {e}")
             input("Pressione Enter para voltar...")
 
