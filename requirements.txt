@@ -8,6 +8,6 @@ colorama
 requests
 python-dotenv
 mcp
-pyinstaller
 winshell
 pywin32
+watchdog

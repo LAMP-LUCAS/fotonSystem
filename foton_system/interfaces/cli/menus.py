@@ -48,6 +48,7 @@ class MenuSystem:
             ("4", "Produtividade (Pomodoro)"),
             ("5", "Configurações do Sistema"),
             ("6", "Instalação / Atalhos"),
+            ("7", "Modo Sentinela (Watcher)"),
             ("0", "Sair")
         ]
         for key, label in options:

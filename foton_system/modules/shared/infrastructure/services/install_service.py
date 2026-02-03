@@ -63,8 +63,11 @@ class InstallService:
         print(f"\n{'-'*60}")
         print(f"🤖 CONFIGURAÇÃO PARA AGENTES DE IA (MCP):")
         print(f"Para usar o Foton com Gemini ou Claude, adicione ao seu arquivo de config:")
+        # Escape backslashes for JSON compatibility
+        safe_path = str(target_exe).replace("\\", "\\\\")
+
         print(f"\n\"foton\": {{")
-        print(f"  \"command\": \"{target_exe}\",")
+        print(f"  \"command\": \"{safe_path}\",")
         print(f"  \"args\": [\"--mcp\"]")
         print(f"}}\n{'-'*60}")
 

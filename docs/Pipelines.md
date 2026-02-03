@@ -1,223 +1,209 @@
-# System Pipelines
+# 🔄 Pipelines do Sistema FOTON
 
-This document visualizes the core workflows and data pipelines of the FOTON System using flowcharts.
+> **Como a mágica acontece por trás das cortinas.**
 
-## 1. Client & Service Synchronization
+← [[README|Voltar ao Início]] | [[UserGuide|Guia do Usuário]] | [[concepts|Arquitetura]] →
 
-This pipeline ensures consistency between the Central Database (`baseDados.xlsx`) and the File System (Folders).
+Este documento explica os fluxos de dados do FOTON de forma visual e simplificada.
+
+> **Quer entender a teoria por trás?** Veja [[concepts|Conceitos de Arquitetura]]
+
+---
+
+## 1. Sincronização Cliente/Serviço
+
+### Para Humanos 🧠
+
+> **Detalhes técnicos em:** [[DataModel#Estrutura de Diretórios|Modelo de Dados]]
+
+> Você cria uma pasta no Windows → O FOTON atualiza o Excel automaticamente.
+> Você cadastra no Excel → O FOTON cria a pasta automaticamente.
+
+### Diagrama Técnico
 
 ```mermaid
-flowchart TD
-    subgraph DB_Central [Central Database]
+flowchart LR
+    subgraph FS["📁 Pastas Windows"]
+        CF[Pastas de Clientes]
+        SF[Pastas de Serviços]
+    end
+
+    subgraph DB["📊 Banco Central"]
         XLSX[baseDados.xlsx]
     end
 
-    subgraph FS [File System]
-        CF[Client Folders]
-        SF[Service Folders]
-    end
-
-    %% Sync Base [Folders -> DB]
-    subgraph Sync_Base [Sync Base Folders -> DB]
-        direction TB
-        SB_Start(Start) --> SB_ReadFS[Read Folder Structure]
-        SB_ReadFS --> SB_UpdateDB[Update Excel Rows]
-        SB_UpdateDB --> SB_End(End)
-    end
-
-    %% Sync Folders [DB -> Folders]
-    subgraph Sync_Folders [Sync Folders DB -> Folders]
-        direction TB
-        SF_Start(Start) --> SF_ReadDB[Read Excel Data]
-        SF_ReadDB --> SF_Check[Check if Folder Exists]
-        SF_Check -- No --> SF_Create[Create Folder]
-        SF_Check -- Yes --> SF_Skip[Skip]
-        SF_Create --> SF_End(End)
-        SF_Skip --> SF_End
-    end
-
-    FS --> SB_ReadFS
-    SB_UpdateDB --> XLSX
-    XLSX --> SF_ReadDB
-    SF_Create --> FS
-```
-
-## 2. Distributed Database (Centers of Truth)
-
-This pipeline manages the bi-directional synchronization between the Central Database and the Distributed "Truth Files" (`INFO-*.md`) located in client/service folders.
-
-```mermaid
-flowchart TD
-    subgraph DB [Central Database]
-        DB_Rows[Client/Service Rows]
-    end
-
-    subgraph Files [Distributed Files]
-        InfoClient[INFO-CLIENTE.md]
-        InfoService[INFO-SERVICO.md]
-    end
-
-    %% Export [DB -> Files]
-    subgraph Export [Export DB -> Files]
-        direction TB
-        Exp_Start(Start) --> Exp_ReadDB[Read DB Row]
-        Exp_ReadDB --> Exp_CheckFile[Check Existing INFO File]
-        Exp_CheckFile -- Found --> Exp_Merge[Merge DB Data + Existing Extras]
-        Exp_CheckFile -- Not Found --> Exp_New[Create New Data]
-        Exp_Merge --> Exp_Diff{Has Changes?}
-        Exp_Diff -- Yes --> Exp_IncRev[Increment Revision Rxx]
-        Exp_Diff -- No --> Exp_Skip[Skip Write]
-        Exp_New --> Exp_Write[Write .md File]
-        Exp_IncRev --> Exp_Write
-    end
-
-    %% Import [Files -> DB]
-    subgraph Import [Import Files -> DB]
-        direction TB
-        Imp_Start(Start) --> Imp_ReadFiles[Read INFO-*.md Files]
-        Imp_ReadFiles --> Imp_Compare[Compare with DB]
-        Imp_Compare --> Imp_Diff{Different?}
-        Imp_Diff -- Yes --> Imp_Append[Append New Row to DB]
-        Imp_Diff -- No --> Imp_Skip2[Skip]
-        Imp_Append --> Imp_End(End)
-    end
-
-    DB_Rows --> Exp_ReadDB
-    Exp_Write --> Files
-    Files --> Imp_ReadFiles
-    Imp_Append --> DB_Rows
-```
-
-## 3. Document Generation (Context-Aware)
-
-This pipeline generates documents (Proposals, Contracts) by aggregating data from multiple levels of the hierarchy ("Centers of Truth").
-
-```mermaid
-flowchart TD
-    subgraph Inputs [Data Sources]
-        L1[INFO-CLIENTE.md]
-        L2[INFO-SERVICO.md]
-        L3[Document Data .md]
-        TPL[Template .docx/.pptx]
-    end
-
-    subgraph Engine [Context-Aware Engine]
-        Load[Load & Parse Files]
-        
-        subgraph Merging [Context Merging Strategy]
-            direction TB
-            P1[Base: Client Data]
-            P2[Override: Service Data]
-            P3[Override: Document Data]
-            P1 --> P2 --> P3
-        end
-        
-        Math[Math Resolver]
-        Val[Validate vs Template]
-        Render[Render Document]
-    end
-
-    subgraph Outputs
-        File[Final Document]
-        Log[Audit Log]
-    end
-
-    L1 --> Load
-    L2 --> Load
-    L3 --> Load
-    TPL --> Val
-    TPL --> Render
-
-    Load --> P1
-    P3 --> Math
-    Math --> |Resolved Context| Val
-    Val --> |Validated Context| Render
-    
-    Render --> File
-    Render --> Log
-
-    style Merging fill:#155,stroke:#333,stroke-width:2px
-    style Math fill:#002,stroke:#333,stroke-width:2px
-```
-
-## 4. Administrative Tools Pipelines
-
-These pipelines support system maintenance, data integrity, and schema evolution.
-
-### 4.1. Schema Management (Variable Evolution)
-
-This pipeline handles the discovery, definition, and synchronization of system variables.
-
-```mermaid
-flowchart TD
-    subgraph Discovery
-        Excel[Excel Columns]
-        Info[Info File Keys]
-        Schema[schema.json]
-    end
-
-    subgraph Manager [Schema Manager]
-        Analyze[Analyze Variables]
-        Report[Generate Report]
-        Edit[Edit/Rename/Merge]
-        Sync[Sync System]
-    end
-
-    subgraph Storage
-        DB[baseDados.xlsx]
-        Files[INFO-*.md]
-    end
-
-    Excel --> Analyze
-    Info --> Analyze
-    Schema <--> Analyze
-    
-    Analyze --> Report
-    Analyze --> Edit
-    Edit --> Schema
-    
-    Sync --> |Create Columns| DB
-    Sync --> |Append Keys| Files
-```
-
-### 4.2. System Diagnosis (Health Check)
-
-This pipeline performs a deep scan of the system to identify inconsistencies.
-
-```mermaid
-flowchart TD
-    Start(Start Debug) --> CheckFiles[Check Critical Files]
-    CheckFiles --> LoadDB[Load Excel Data]
-    LoadDB --> ScanFS[Scan Folders]
-    
-    ScanFS --> CheckRel{Check Relations}
-    CheckRel -- Orphan Service --> LogError[Log Error]
-    CheckRel -- Missing Folder --> LogError
-    
-    ScanFS --> CheckInfo[Check INFO Files]
-    CheckInfo -- Missing Keys --> LogWarn[Log Warning]
-    CheckInfo -- Data Mismatch --> LogWarn
-    
-    LogError --> Report[Generate Report]
-    LogWarn --> Report
-    Report --> Save[Save to reports/]
-```
-
-### 4.3. Batch Correction (Fixer)
-
-This pipeline automates the repair of distributed data files based on the defined schema.
-
-```mermaid
-flowchart 
-    Input[Schema / Template] --> Fixer[Batch Fixer]
-    Fixer --> Scan[Scan Client Folders]
-    Scan --> Read[Read INFO File]
-    Read --> Check{Missing Keys?}
-    Check -- Yes --> Append[Append Keys]
-    Check -- No --> Skip[Skip]
-    Append --> Save[Save File]
+    CF -->|"Sync Base"| XLSX
+    SF -->|"Sync Base"| XLSX
+    XLSX -->|"Sync Folders"| CF
+    XLSX -->|"Sync Folders"| SF
 ```
 
 ---
 
-**Desenvolvido para Arquitetos que querem projetar, não gerenciar arquivos.** Veja mais em [Mundo AEC](https://www.mundoaec.com)
+## 2. Centros de Verdade (INFO Files)
+
+### Para Humanos 🧠
+
+> **Veja a estrutura completa:** [[DataModel|Modelo de Dados]]
+> **Aprenda a usar:** [[UserGuide#Arquivos INFO|Guia do Usuário]]
+
+> Cada cliente tem um "cartão de visita digital" chamado `INFO-CLIENTE.md`.
+> Você pode editar esse arquivo no Bloco de Notas, e o FOTON respeita.
+> Quando você altera no Excel, o sistema atualiza o arquivo. E vice-versa.
+
+### Diagrama Técnico
+
+```mermaid
+flowchart TD
+    subgraph DB["📊 Banco Central"]
+        Rows[Linhas do Excel]
+    end
+
+    subgraph Files["📝 Arquivos Distribuídos"]
+        InfoC[INFO-CLIENTE.md]
+        InfoS[INFO-SERVICO.md]
+    end
+
+    Rows -->|"Exportar"| InfoC
+    Rows -->|"Exportar"| InfoS
+    InfoC -->|"Importar"| Rows
+    InfoS -->|"Importar"| Rows
+```
+
+---
+
+## 3. Geração de Documentos
+
+### Para Humanos 🧠
+
+> **Entenda a lógica:** [[concepts#Context-Aware Engine|Conceitos de Arquitetura]]
+> **Tutorial prático:** [[UserGuide#Geração de Documentos|Guia do Usuário]]
+
+> Quando você pede uma proposta, o FOTON:
+>
+> 1. Pega os dados do cliente (nome, endereço, CPF)
+> 2. Pega os dados do serviço (tipo de projeto, área)
+> 3. Junta tudo como um sanduíche 🥪
+> 4. Substitui as variáveis no template
+> 5. Salva o documento pronto na pasta
+
+### Diagrama Técnico
+
+```mermaid
+flowchart TD
+    subgraph Inputs["📥 Fontes de Dados"]
+        L1[INFO-CLIENTE.md]
+        L2[INFO-SERVICO.md]
+        L3[Dados do Documento]
+        TPL["📄 Template"]
+    end
+
+    subgraph Engine["⚙️ Motor de Contexto"]
+        Merge["Mesclar Dados"]
+        Math["Resolver Fórmulas"]
+        Render["Renderizar"]
+    end
+
+    L1 --> Merge
+    L2 --> Merge
+    L3 --> Merge
+    Merge --> Math
+    Math --> Render
+    TPL --> Render
+    Render --> Output["📄 Documento Final"]
+```
+
+> [!TIP]
+> O dado mais específico sempre vence. Se o cliente tem `@cidade: SP` e o serviço tem `@cidade: RJ`, o documento usará `RJ`.
+
+---
+
+## 4. Ferramentas Administrativas
+
+### 4.1 Gerenciador de Schema
+
+#### Para Humanos 🧠
+
+> **Aprenda a usar:** [[UserGuide#Schema Manager|Guia do Usuário]]
+
+> Você quer renomear `@obs` para `@observacoes`?
+> O Schema Manager faz isso em TODO o sistema de uma vez: Excel, arquivos INFO, tudo!
+
+```mermaid
+flowchart LR
+    Schema[schema.json] --> Manager[Schema Manager]
+    Manager -->|"Renomear"| Excel[baseDados.xlsx]
+    Manager -->|"Renomear"| Files[INFO-*.md]
+```
+
+### 4.2 Diagnóstico do Sistema
+
+#### Para Humanos 🧠
+
+> **Entenda quando usar:** [[UserGuide#Diagnóstico|Guia do Usuário]]
+
+> O sistema está estranho? Rode o diagnóstico.
+> Ele verifica tudo e gera um relatório em `reports/`.
+
+```mermaid
+flowchart TD
+    Start["🔍 Iniciar Diagnóstico"] --> CheckFiles
+    CheckFiles["Verificar Arquivos"] --> LoadDB
+    LoadDB["Carregar Excel"] --> Scan
+    Scan["Escanear Pastas"] --> Report["📋 Gerar Relatório"]
+```
+
+### 4.3 Correção em Lote
+
+#### Para Humanos 🧠
+
+> **Tutorial:** [[UserGuide#Correção em Lote|Guia do Usuário]]
+
+> Adicionou um campo novo no template? Use a correção em lote.
+> O sistema adiciona esse campo em TODOS os arquivos INFO automaticamente.
+
+---
+
+## 📚 Documentação Relacionada
+
+- [[UserGuide|📖 Guia do Usuário]] - Como usar cada funcionalidade
+- [[DataModel|📊 Modelo de Dados]] - Estrutura de arquivos e DB
+- [[concepts|🏗️ Arquitetura]] - Clean Architecture e Hexagonal
+- [[mcp_guide|🤖 Integração IA]] - Como a IA se conecta aos pipelines
+
+---
+
+## 🎯 Resumo Visual
+
+```mermaid
+flowchart TB
+    subgraph User["👤 Usuário"]
+        Pasta["Cria Pasta"]
+        Excel["Edita Excel"]
+        Info["Edita INFO.md"]
+    end
+
+    subgraph FOTON["🤖 FOTON"]
+        Sync["Sincronização"]
+        DocGen["Gerador de Docs"]
+        Admin["Ferramentas Admin"]
+    end
+
+    subgraph Output["📤 Saídas"]
+        Doc["Propostas/Contratos"]
+        Report["Relatórios"]
+    end
+
+    Pasta --> Sync
+    Excel --> Sync
+    Info --> Sync
+    Sync --> DocGen
+    DocGen --> Doc
+    Admin --> Report
+```
+
+---
+
+**Desenvolvido para Arquitetos que querem projetar, não gerenciar arquivos.**
+
+🔗 [LAMP Arquitetura](https://github.com/LAMP-LUCAS/fotonSystem) | 🌍 [Mundo AEC](https://www.mundoaec.com)

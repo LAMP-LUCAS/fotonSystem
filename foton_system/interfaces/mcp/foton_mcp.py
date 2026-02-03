@@ -1,152 +1,211 @@
+"""
+FOTON MCP Server - Model Context Protocol Interface
+
+This module exposes FotonSystem tools to AI assistants (Claude, Cursor, etc.)
+via the MCP (Model Context Protocol).
+
+ARCHITECTURE NOTES:
+- Uses LAZY LOADING for all heavy dependencies (pandas, docx, etc.)
+- BootstrapService is initialized once at startup
+- Individual tools import their dependencies on-demand for instant startup
+"""
+
 from mcp.server.fastmcp import FastMCP
 from pathlib import Path
 import sys
-import traceback
 
-# Adiciona raiz ao path para imports funcionarem
-sys.path.append(str(Path(__file__).parents[3]))
+# --- CRITICAL: PATH PATCHING (Must be FIRST) ---
+def _ensure_import_path():
+    """Adds project root to sys.path for development mode."""
+    if getattr(sys, 'frozen', False):
+        return
+    
+    current_file = Path(__file__).resolve()
+    project_root = current_file.parents[3]
+    
+    if (project_root / "foton_system" / "__init__.py").exists():
+        root_str = str(project_root)
+        if root_str not in sys.path:
+            sys.path.insert(0, root_str)
 
-# --- BOOTSTRAP (CRÍTICO PARA MCP) ---
-from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
+_ensure_import_path()
+
+# --- LIGHTWEIGHT BOOTSTRAP (Fast startup) ---
+from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+
 try:
-    BootstrapService.initialize()
+    # Ensure directories exist but DON'T load heavy config yet
+    PathManager.ensure_directories()
 except Exception as e:
-    sys.stderr.write(f"Erro fatal no Bootstrap MCP: {e}\n")
+    sys.stderr.write(f"[MCP] Warning: Could not initialize directories: {e}\n")
 
-from foton_system.modules.shared.infrastructure.config.config import Config
-from foton_system.modules.shared.infrastructure.config.logger import setup_logger
-from foton_system.modules.documents.application.use_cases.document_service import DocumentService
-from foton_system.modules.documents.infrastructure.adapters.python_docx_adapter import PythonDocxAdapter
-from foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter import PythonPPTXAdapter
-from foton_system.modules.finance.application.use_cases.finance_service import FinanceService
-from foton_system.modules.finance.infrastructure.repositories.csv_finance_repository import CSVFinanceRepository
-from foton_system.modules.sync.sync_service import SyncService
-
-# Inicialização
-logger = setup_logger()
+# --- MCP SERVER INITIALIZATION ---
 mcp = FastMCP("Foton Architecture System")
 
-# Serviços
-docx_adapter = PythonDocxAdapter()
-pptx_adapter = PythonPPTXAdapter()
-doc_service = DocumentService(docx_adapter, pptx_adapter)
 
-# Injeção de Dependência para o Financeiro
-fin_repo = CSVFinanceRepository()
-fin_service = FinanceService(fin_repo)
+# ==============================================================================
+# HELPER FUNCTIONS (Lazy loaded dependencies)
+# ==============================================================================
 
-sync_service = SyncService()
+def _get_config():
+    """Lazy-loads the Config singleton."""
+    from foton_system.modules.shared.infrastructure.config.config import Config
+    return Config()
+
 
 def _get_client_path(client_name: str) -> Path:
-    safe_name = Path(client_name).name 
-    base = Config().base_pasta_clientes
+    """
+    Resolves and validates a client path.
+    
+    Args:
+        client_name: Name of the client folder (e.g., "730_Residencia_Silva")
+    
+    Returns:
+        Path to the client folder
+    
+    Raises:
+        ValueError: If client not found
+    """
+    safe_name = Path(client_name).name  # Prevent directory traversal
+    config = _get_config()
+    base = config.base_pasta_clientes
     
     if not base or not base.exists():
-        BootstrapService.initialize()
-        base = Config().base_pasta_clientes
-        
+        raise ValueError(f"Pasta de clientes não configurada ou não encontrada: {base}")
+    
     client_path = base / safe_name
     
     if not client_path.exists():
-        raise ValueError(f"Cliente '{safe_name}' não encontrado em {base}")
+        # Try to find partial match
+        matches = [d for d in base.iterdir() if d.is_dir() and safe_name.lower() in d.name.lower()]
+        if matches:
+            client_path = matches[0]
+        else:
+            raise ValueError(f"Cliente '{safe_name}' não encontrado em {base}")
     
     return client_path
 
-# --- FERRAMENTAS FINANCEIRAS ---
+
+# ==============================================================================
+# FINANCIAL TOOLS (POP-Audited)
+# ==============================================================================
 
 @mcp.tool()
 def registrar_financeiro(cliente: str, descricao: str, valor: float, tipo: str = "ENTRADA") -> str:
-    """Registra uma entrada ou saída no fluxo de caixa."""
+    """Registra uma entrada ou saída no fluxo de caixa (via POP Auditado)."""
     try:
-        path = _get_client_path(cliente)
-        summary = fin_service.add_entry(path, descricao, valor, tipo)
-        return f"✅ Sucesso. Novo Saldo: R$ {summary['saldo']:.2f}"
+        from foton_system.core.ops.op_finance_entry import OpFinanceEntry
+        op = OpFinanceEntry(actor="Agent_MCP")
+        result = op.execute(
+            client_name=cliente,
+            description=descricao,
+            value=valor,
+            type=tipo
+        )
+        return f"{result['message']} (Auditado)"
+    except ImportError as e:
+        return f"❌ Módulo não encontrado: {e}"
     except Exception as e:
-        return f"❌ Erro: {e}"
+        return f"❌ Erro POP: {e}"
+
 
 @mcp.tool()
 def consultar_financeiro(cliente: str) -> str:
     """Retorna o resumo financeiro."""
     try:
+        from foton_system.modules.finance.application.use_cases.finance_service import FinanceService
+        from foton_system.modules.finance.infrastructure.repositories.csv_finance_repository import CSVFinanceRepository
+        
         path = _get_client_path(cliente)
+        fin_repo = CSVFinanceRepository()
+        fin_service = FinanceService(fin_repo)
         summary = fin_service.get_summary(path)
         return f"💵 Saldo: R$ {summary['saldo']:.2f} (Entradas: {summary['total_entradas']:.2f})"
     except Exception as e:
         return f"❌ Erro: {e}"
 
-# --- FERRAMENTAS DE DOCUMENTOS ---
+
+# ==============================================================================
+# DOCUMENT TOOLS (POP-Audited)
+# ==============================================================================
 
 @mcp.tool()
 def listar_templates() -> str:
     """Lista templates disponíveis."""
     try:
-        Config().templates_path.mkdir(parents=True, exist_ok=True)
+        from foton_system.modules.documents.application.use_cases.document_service import DocumentService
+        from foton_system.modules.documents.infrastructure.adapters.python_docx_adapter import PythonDocxAdapter
+        from foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter import PythonPPTXAdapter
+        
+        config = _get_config()
+        config.templates_path.mkdir(parents=True, exist_ok=True)
+        
+        docx_adapter = PythonDocxAdapter()
+        pptx_adapter = PythonPPTXAdapter()
+        doc_service = DocumentService(docx_adapter, pptx_adapter)
+        
         pptx = doc_service.list_templates("pptx")
         docx = doc_service.list_templates("docx")
         return f"PPTX: {pptx}\nDOCX: {docx}"
     except Exception as e:
         return f"Erro: {e}"
 
+
 @mcp.tool()
 def gerar_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -> str:
-    """Gera um documento para o cliente."""
+    """Gera um documento para o cliente (via POP Auditado)."""
     try:
-        client_path = _get_client_path(cliente)
-        template_dir = Config().templates_path
-        template_file = template_dir / nome_template
-        
-        output_name = f"GERADO_{nome_template}"
-        output_path = client_path / output_name
-        
-        temp_data_file = client_path / "temp_mcp_data.json"
-        import json
-        with open(temp_data_file, 'w', encoding='utf-8') as f:
-            json.dump(dados_extras, f)
-            
-        doc_type = "pptx" if nome_template.endswith("pptx") else "docx"
-        
-        doc_service.generate_document(
-            template_path=str(template_file),
-            data_path=str(temp_data_file), 
-            output_path=str(output_path),
-            doc_type=doc_type
+        from foton_system.core.ops.op_doc_gen import OpGenerateDocument
+        op = OpGenerateDocument(actor="Agent_MCP")
+        result = op.execute(
+            client_name=cliente,
+            template_name=nome_template,
+            extra_data=dados_extras
         )
-        if temp_data_file.exists(): temp_data_file.unlink()
-        return f"✅ Documento criado em: {output_path}"
+        return f"✅ Documento Auditado: {result['output_path']}"
+    except ImportError as e:
+        return f"❌ Módulo não encontrado: {e}"
     except Exception as e:
-        return f"❌ Erro: {e}"
+        return f"❌ Erro POP: {e}"
+
+
+# ==============================================================================
+# KNOWLEDGE / RAG TOOLS
+# ==============================================================================
 
 @mcp.tool()
-def sincronizar_dashboard() -> str:
-    """Sincroniza Excel mestre."""
-    try:
-        sync_service.sync_dashboard()
-        return "✅ Dashboard Sincronizado."
-    except Exception as e:
-        return f"Erro: {e}"
-
-# --- FERRAMENTAS DE SISTEMA ---
-
-@mcp.tool()
-def atualizar_configuracao(chave: str, valor: str) -> str:
+def consultar_conhecimento(pergunta: str) -> str:
     """
-    Atualiza uma configuração do sistema.
-    Chaves: caminho_pastaClientes, caminho_templates, caminho_baseDados
+    Pesquisa na memória do escritório (Projetos passados, documentos).
+    Use isso para entender contextos, decisões anteriores ou modelos.
     """
     try:
-        config = Config()
-        if "caminho" in chave:
-            path_val = Path(valor)
-            # Permite configurar mesmo se não existir (o usuário pode criar depois)
-            # mas avisa
-            if not path_val.exists() and not path_val.parent.exists():
-                return f"⚠️ Aviso: O caminho '{valor}' parece inválido, mas foi salvo."
+        from foton_system.core.memory.vector_store import VectorStore
+        store = VectorStore()
+        results = store.query(pergunta, n_results=4)
         
-        config.set(chave, valor)
-        config.save()
-        return f"✅ Configuração '{chave}' atualizada para: {valor}"
+        documents = results.get('documents', [[]])[0]
+        metadatas = results.get('metadatas', [[]])[0]
+        
+        if not documents:
+            return "📭 Nenhum conhecimento relevante encontrado na base."
+        
+        output = []
+        for i, doc in enumerate(documents):
+            meta = metadatas[i]
+            source = meta.get('filename', 'Unknown')
+            output.append(f"--- [Fonte: {source}] ---\n{doc}\n")
+        
+        return "\n".join(output)
+    except ImportError as e:
+        return f"❌ Módulo de memória não disponível: {e}"
     except Exception as e:
-        return f"❌ Erro ao configurar: {e}"
+        return f"❌ Erro Memória: {e}"
+
+
+# ==============================================================================
+# ENTRY POINT
+# ==============================================================================
 
 if __name__ == "__main__":
     mcp.run()
