@@ -1,5 +1,6 @@
 ﻿import sys
 import os
+from typing import Optional
 from foton_system.modules.clients.application.use_cases.client_service import ClientService
 from foton_system.modules.documents.application.use_cases.document_service import DocumentService
 from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
@@ -7,6 +8,7 @@ from foton_system.modules.documents.infrastructure.adapters.python_docx_adapter 
 from foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter import PythonPPTXAdapter
 from foton_system.modules.productivity.pomodoro import PomodoroTimer
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
+from foton_system.interfaces.cli.ui_provider import UIProvider, get_ui_provider
 from colorama import init, Fore, Style
 
 # Initialize colorama
@@ -15,7 +17,17 @@ init(autoreset=True)
 logger = setup_logger()
 
 class MenuSystem:
-    def __init__(self):
+    def __init__(self, ui_provider: Optional[UIProvider] = None):
+        """
+        Initialize MenuSystem with optional UI provider.
+        
+        Args:
+            ui_provider: UIProvider instance for TUI/GUI interactions.
+                        If None, auto-detects based on environment.
+        """
+        # UI Provider (TUI or GUI)
+        self.ui = ui_provider or get_ui_provider('auto')
+        
         # Dependency Injection Wiring
         self.client_repo = ExcelClientRepository()
         self.client_service = ClientService(self.client_repo)
@@ -241,32 +253,23 @@ class MenuSystem:
         return input(f"{Fore.YELLOW}Para alterar, digite o número da opção: {Style.RESET_ALL}")
 
     def update_setting_ui(self, config, key, title, is_file=False):
-        import tkinter as tk
-        from tkinter import filedialog
-
         print(f"\nSelecione o novo local para: {title}")
 
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes('-topmost', True)
-
         if is_file:
-            path = filedialog.askopenfilename(title=f"Selecione: {title}")
+            path = self.ui.select_file(f"Selecione: {title}")
         else:
-            path = filedialog.askdirectory(title=f"Selecione: {title}")
-
-        root.destroy()
+            path = self.ui.select_directory(f"Selecione: {title}")
 
         if path:
             # Normalize path separators
-            import os
-            path = os.path.normpath(path)
+            path = os.path.normpath(str(path))
 
             config.set(key, path)
             config.save()
             self.print_success(f"Configuração atualizada com sucesso!\nNovo valor: {path}")
         else:
             self.print_warning("Operação cancelada.")
+
 
     def create_client_ui(self):
         self.print_header("--- Novo Cliente ---")
@@ -316,18 +319,12 @@ class MenuSystem:
     def generate_document_ui(self, doc_type):
         from foton_system.modules.shared.infrastructure.config.config import Config
         from pathlib import Path
-        import tkinter as tk
-        from tkinter import filedialog
 
         self.print_header(f"--- Gerar Documento ({doc_type.upper()}) ---")
 
-        # 1. Select Client Folder via GUI
-        print("Selecione a pasta do cliente na janela que abrirá...")
-        root = tk.Tk()
-        root.withdraw() # Hide main window
-        root.attributes('-topmost', True) # Bring to front
-        client_folder = filedialog.askdirectory(title="Selecione a Pasta do Cliente")
-        root.destroy()
+        # 1. Select Client Folder via UI Provider (TUI or GUI)
+        print("Selecione a pasta do cliente...")
+        client_folder = self.ui.select_directory("Selecione a Pasta do Cliente")
 
         if not client_folder:
             self.print_warning("Nenhuma pasta selecionada.")
@@ -335,6 +332,7 @@ class MenuSystem:
 
         client_path = Path(client_folder)
         print(f"Pasta selecionada: {client_path}")
+
 
         # 2. Check/Create Data File Pipeline
         data_files = self.document_service.list_client_data_files(client_path)
@@ -422,12 +420,12 @@ class MenuSystem:
             self.document_service.generate_document(str(template_path), str(selected_file), str(output_path), doc_type)   
             self.print_success(f"Documento gerado com sucesso em: {output_path}")
 
-            # Open folder
-            import os
-            os.startfile(client_path)
+            # Open folder via UI Provider
+            self.ui.open_folder(client_path)
 
         except Exception as e:
             self.print_error(f"Erro ao gerar documento: {e}")
+
 
     def _select_from_list(self, items):
         for i, item in enumerate(items):
