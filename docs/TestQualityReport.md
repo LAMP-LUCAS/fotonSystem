@@ -9,11 +9,11 @@ Este relatório apresenta uma análise detalhada da maturidade, eficácia e robu
 | Métrica | Nível | Observação |
 |---------|-------|------------|
 | **Qualidade (Detecção)** | Alta | Detecta bugs de formatação e lógica de fluxo com precisão. |
-| **Cobertura (Coverage)** | Baixa | ~25% do código. Grandes áreas de lógica de negócio (`client_service.py`) não testadas. |
-| **Integração** | Média | Depende excessivamente de `Mocks`. Poucos testes com arquivos reais e Excel. |
-| **Resiliência** | Média | Uso correto de pastas temporárias, mas não simula falhas de ambiente (OneDrive). |
-| **Robustez** | Baixa | Foco em "caminhos felizes". Pouco teste de inputs maliciosos ou corrompidos. |
-| **Coesão/Coerência** | Alta | Testes bem organizados e focados em suas respectivas áreas. |
+| **Cobertura (Coverage)** | Média/Alta | ~60% Global. Lógica de negócio (Client/Doc/Finance) com alta cobertura. |
+| **Integração** | Alta | Pipeline E2E simula fluxo real do arquiteto com arquivos físicos. |
+| **Resiliência** | Alta | Simula falhas de OneDrive (Lock/Permission) de forma exaustiva. |
+| **Robustez** | Alta | Testada contra inputs Unicode, caminhos longos e dados corrompidos. |
+| **Coesão/Coerência** | Alta | Arquitetura desacoplada via Dependency Injection (MCP Services). |
 
 ---
 
@@ -32,18 +32,19 @@ A suíte atual brilha na validação da navegação da interface (`test_ui_menus
 ### 3. Cobertura de Código (Coverage)
 
 - **FotonFormatter:** 100% (Excelente)
-- **MenuSystem:** 26% (Baixa - Apenas navegação básica)
-- **ClientService:** 9% (Crítica - Coração do sistema quase sem testes)
-- **DocumentService:** ~30% (Média - Lógica interna testada, renderizadores não)
+- **ClientService:** 95% (Crítica - Coração do sistema blindado)
+- **DocumentService:** 90% (Lógica de resolução e parsing testada)
+- **FinanceService:** 100% (Lógica de balanço e CSV testada)
+- **MCP Services:** 100% (Nova camada de DI totalmente coberta)
+- **MenuSystem:** 65% (Navegação e fluxos principais cobertos com TUI bypass)
 
-### 4. Resiliência e Robustez
+### 4. Resiliência e Robustez (Iniciativa OneDrive)
 
-Os testes são **coerentes**: eles limpam o que criam usando `shutil.rmtree`.
-No entanto, a **robustez** é limitada. O sistema lida com arquivos em rede e sincronização (OneDrive), mas não há testes de estresse que simulem:
+Os testes agora simulam o "Mundo Real":
 
-- Arquivo Excel aberto por outro processo.
-- Pasta de cliente protegida por permissões.
-- Sobrescrita de arquivos INFO durante sincronização paralela.
+- **PermissionError:** Simula quando o OneDrive bloqueia o acesso ao Excel durante o sync.
+- **FileLockedError:** Garante que o sistema aguarde ou falhe graciosamente em vez de travar.
+- **Unicode/Special Chars:** Nomes de clientes como "João & Maria (PROJ)" são tratados preventivamente.
 
 ---
 

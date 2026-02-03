@@ -101,7 +101,24 @@ def parse_args():
         help="Exibe a configuração JSON para integração com Claude/Cursor MCP"
     )
     
+    parser.add_argument(
+        "--tui",
+        action="store_const",
+        const="tui",
+        dest="ui_mode",
+        help="Força o uso da Interface de Terminal (TUI)"
+    )
+
+    parser.add_argument(
+        "--gui",
+        action="store_const",
+        const="gui",
+        dest="ui_mode",
+        help="Força o uso da Interface Gráfica (GUI)"
+    )
+
     return parser.parse_args()
+
 
 
 def show_system_info():
@@ -210,8 +227,16 @@ def main():
     # Launch the menu system
     try:
         from foton_system.interfaces.cli.menus import MenuSystem
-        menu = MenuSystem()
+        from foton_system.interfaces.cli.ui_provider import get_ui_provider
+        from foton_system.modules.shared.infrastructure.config.config import Config
+        
+        # Determine UI Mode (Priority: CLI Flag > Config > Auto)
+        ui_mode = args.ui_mode or Config().ui_mode or 'auto'
+        ui = get_ui_provider(ui_mode)
+        
+        menu = MenuSystem(ui_provider=ui)
         menu.run()
+
     except KeyboardInterrupt:
         print("\n👋 Até logo!")
         sys.exit(0)
