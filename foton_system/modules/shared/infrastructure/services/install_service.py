@@ -23,6 +23,7 @@ class InstallService:
         # 2. Copiar arquivos da aplicação
         exe_path = sys.executable if getattr(sys, 'frozen', False) else sys.argv[0]
         exe_path = Path(exe_path).resolve()
+        source_dir = exe_path.parent
         
         target_exe = self.bin_dir / exe_path.name
         
@@ -30,24 +31,43 @@ class InstallService:
             logger.info("Executável já está no destino de instalação. Pulando cópia.")
             print("ℹ️ O sistema já está rodando a partir da pasta de instalação.")
         else:
-            print(f"📂 Copiando binários para: {target_exe}")
+            print(f"📂 Preparando binários em: {self.bin_dir}")
             try:
-                # Se o arquivo já existe e está rodando, a cópia vai falhar.
-                # Podemos tentar renomear o antigo se existir?
+                # 2.1 Copiar o Executável
                 if target_exe.exists():
                     try:
                         temp_old = target_exe.with_suffix(".old")
                         if temp_old.exists(): temp_old.unlink()
                         target_exe.rename(temp_old)
                     except:
-                        pass # Se não conseguir renomear, tenta copiar por cima
+                        pass
                 
                 shutil.copy2(exe_path, target_exe)
+                print(f"✅ Executável copiado.")
+
+                # 2.2 Copiar Pasta _internal (Essencial para builds --onedir)
+                source_internal = source_dir / "_internal"
+                target_internal = self.bin_dir / "_internal"
+                
+                if source_internal.exists():
+                    print(f"📦 Copiando dependências (_internal)... isso pode levar alguns segundos...")
+                    if target_internal.exists():
+                        try:
+                            # Tenta remover versão antiga se as bibliotecas mudaram
+                            shutil.rmtree(target_internal)
+                        except Exception as e:
+                            logger.warn(f"Não foi possível remover _internal antigo: {e}")
+                    
+                    # Copia a pasta inteira
+                    shutil.copytree(source_internal, target_internal, dirs_exist_ok=True)
+                    print(f"✅ Dependências copiadas.")
+
             except Exception as e:
                 logger.error(f"Erro ao copiar arquivos na instalação: {e}", exc_info=True)
                 print(f"❌ Erro ao copiar arquivos: {e}")
                 print("Dica: Tente fechar outras instâncias do FotonSystem ou rode como Administrador.")
                 return
+
 
         # 3. Inicializar Configuração no AppData
         config_path = BootstrapService.initialize()
