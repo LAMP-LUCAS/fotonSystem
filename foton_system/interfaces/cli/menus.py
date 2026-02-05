@@ -36,6 +36,9 @@ class MenuSystem:
         self.pptx_adapter = PythonPPTXAdapter()
         self.document_service = DocumentService(self.docx_adapter, self.pptx_adapter)
 
+        # Ensure database exists to prevent pipeline errors
+        self._ensure_database_exists()
+
     def print_success(self, message):
         print(f"{Fore.GREEN}{message}{Style.RESET_ALL}")
 
@@ -47,6 +50,48 @@ class MenuSystem:
 
     def print_header(self, message):
         print(f"\n{Fore.CYAN}{Style.BRIGHT}{message}{Style.RESET_ALL}")
+
+    def _ensure_database_exists(self):
+        """Checks if the database file exists, and creates it if missing."""
+        from foton_system.modules.shared.infrastructure.config.config import Config
+        import pandas as pd
+        
+        try:
+            config = Config()
+            db_path = config.get('caminho_baseDados')
+            
+            if not db_path:
+                return
+
+            # Ensure directory exists
+            db_dir = os.path.dirname(db_path)
+            if db_dir and not os.path.exists(db_dir):
+                os.makedirs(db_dir, exist_ok=True)
+
+            if not os.path.exists(db_path):
+                self.print_warning(f"Base de dados não encontrada em: {db_path}")
+                self.print_warning("Inicializando nova base de dados com estrutura completa...")
+                
+                # Create Excel with proper structure (multiple sheets)
+                with pd.ExcelWriter(db_path, engine='openpyxl') as writer:
+                    # Sheet: baseClientes
+                    df_clientes = pd.DataFrame(columns=[
+                        'ID', 'NomeCliente', 'Alias', 'TelefoneCliente', 'Email',
+                        'CPF_CNPJ', 'Endereco', 'CidadeProposta', 'EstadoCivil', 'Profissao'
+                    ])
+                    df_clientes.to_excel(writer, sheet_name='baseClientes', index=False)
+                    
+                    # Sheet: baseServicos
+                    df_servicos = pd.DataFrame(columns=[
+                        'ID', 'AliasCliente', 'Alias', 'CodServico', 'Modalidade', 'Ano',
+                        'Demanda', 'AreaTotal', 'AreaCoberta', 'AreaDescoberta',
+                        'Detalhes', 'Estilo', 'Ambientes', 'ValorProposta', 'ValorContrato'
+                    ])
+                    df_servicos.to_excel(writer, sheet_name='baseServicos', index=False)
+                
+                self.print_success("Base de dados criada com sucesso!")
+        except Exception as e:
+            logger.error(f"Erro ao verificar/criar base de dados: {e}", exc_info=True)
 
     def display_main_menu(self):
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -60,11 +105,12 @@ class MenuSystem:
             ("4", "Produtividade (Pomodoro)"),
             ("5", "Configurações do Sistema"),
             ("6", "Instalação / Atalhos"),
-            ("7", "Modo Sentinela (Watcher)"),
+            ("7", "Implantação (Gerenciar Base de Dados)"),
+            ("8", "Modo Sentinela (Watcher)"),
             ("0", "Sair")
         ]
         for key, label in options:
-            print(f"{Fore.CYAN}║ {Fore.YELLOW}{key}. {Fore.WHITE}{label.ljust(53)}{Fore.CYAN}║")
+            print(f"{Fore.CYAN}║ {Fore.YELLOW}{key}. {Fore.WHITE}{label.ljust(51)}{Fore.CYAN}║")
         print(f"╚══════════════════════════════════════════════════════════╝")
         return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
 
@@ -117,6 +163,10 @@ class MenuSystem:
                     self.handle_settings()
                 elif choice == '6':
                     self.handle_installation()
+                elif choice == '7':
+                    self.handle_deployment()
+                elif choice == '8':
+                    self.handle_watcher()
                 elif choice == '0':
                     print("Saindo...")
                     sys.exit()
@@ -525,3 +575,39 @@ class MenuSystem:
             self.print_error("Erro: Launcher administrativo não encontrado.")
         except Exception as e:
             self.print_error(f"Erro ao abrir ferramentas administrativas: {e}")
+    def handle_deployment(self):
+        """Menu para gerenciar a base de dados e implantação."""
+        try:
+            from foton_system.scripts.deployment_manager import DeploymentManager
+            manager = DeploymentManager()
+            manager.interactive_menu()
+        except ImportError:
+            self.print_error("Erro: Gerenciador de Deployment não encontrado.")
+        except Exception as e:
+            logger.error(f"Erro no menu de deployment: {e}", exc_info=True)
+            self.print_error(f"Erro ao abrir gerenciador de deployment: {e}")
+
+    def handle_watcher(self):
+        """Menu para gerenciar o modo Sentinela (Watcher)."""
+        self.print_header("--- Modo Sentinela (Watcher) ---")
+        print("Monitora mudanças nas pastas de clientes e sincroniza automaticamente.")
+        print("\n1. Ativar Watcher")
+        print("2. Desativar Watcher")
+        print("0. Voltar")
+        
+        choice = input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
+        
+        if choice == '1':
+            self.print_info("Iniciando Watcher...")
+            try:
+                from foton_system.core.watcher.service import WatcherService
+                watcher = WatcherService()
+                watcher.start()
+                self.print_success("Watcher ativado com sucesso!")
+            except Exception as e:
+                logger.error(f"Erro ao ativar Watcher: {e}", exc_info=True)
+                self.print_error(f"Erro ao ativar Watcher: {e}")
+        elif choice == '2':
+            self.print_warning("Watcher desativado.")
+        elif choice != '0':
+            self.print_error("Opção inválida.")

@@ -8,11 +8,14 @@ O FOTON System organiza, sincroniza e automatiza seu escritório de arquitetura,
 
 ## 📚 Navegação Rápida (Obsidian Vault)
 
+### 🎯 **[👉 COMECE AQUI: DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** ← Mapa completo de tudo!
+
 ### 🎯 Para Começar
 
-- [[UserGuide|📖 Guia do Usuário]] - Manual completo com "Um Dia na Vida"
-- [[deployment_guide|🚀 Guia de Instalação]] - Como instalar e configurar
-- [[mcp_guide|🤖 Integração com IA (MCP)]] - Controle por voz/texto
+- [[UserGuide|📖 Guia do Usuário]] - Manual completo (Modo Visual & Turbo TUI)
+- [[deployment_guide|🚀 Guia de Instalação]] - Instale o Executável (.exe)
+- [[DEPLOYMENT_USER_GUIDE|💾 Implantação e Backup]] - Ferramenta nova! Base de dados inteligente
+- [[mcp_guide|🤖 Integração com IA]] - Controle por voz/texto (Claude/Cursor)
 
 ### 🧠 Entendendo o Sistema
 
@@ -86,46 +89,37 @@ Você gastou 10 minutos no que levaria 2 horas. Seus arquivos estão organizados
 
 ## 🛠️ Instalação Rápida
 
-Veja o [[deployment_guide|Guia de Instalação Completo]] ou siga os passos abaixo:
+### Opção A: Executável (Recomendado)
 
-1. **Pré-requisitos**: Python 3.10+ instalado.
-2. **Instalar Dependências**:
+Baixe o instalador na aba **Releases** do GitHub e rode. Pronto!
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+### Opção B: Via Python (Devs)
 
-3. **Rodar**:
+```bash
+pip install -r requirements.txt
+python foton_system/interfaces/cli/main.py --tui  # Modo Turbo (Terminal)
+python foton_system/interfaces/cli/main.py --gui  # Modo Visual (Janelas)
+```
 
-    ```bash
-    python foton_system/interfaces/cli/main.py
-    ```
-
-    Ou use:
-
-    ```bash
-    foton --info  # Ver caminhos do sistema
-    foton --mcp-config  # Configurar IA
-    ```
+Use `foton --info` para ver onde seus dados estão salvos.
 
 ---
 
 ## 🗺️ Mapa de Conceitos
 
 ```mermaid
-graph LR
+graph TD
     README[📄 README] --> UserGuide[📖 User Guide]
     README --> Pipelines[🔄 Pipelines]
     README --> deployment[🚀 Deploy Guide]
     
+    UserGuide --> TUI[📟 TUI Guide]
     UserGuide --> mcp[🤖 MCP Guide]
-    UserGuide --> DataModel[📊 Data Model]
     
     Pipelines --> concepts[🏗️ Concepts]
-    concepts --> AI_Report[🤖 AI Integration]
+    concepts --> MCPServices[⚡ MCP Services Layer]
     
     deployment --> workplan[📅 Work Plan]
-    workplan --> sprint[📋 Sprint Plan]
 ```
 
 ---

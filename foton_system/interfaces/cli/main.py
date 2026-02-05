@@ -100,6 +100,12 @@ def parse_args():
         action="store_true",
         help="Exibe a configuração JSON para integração com Claude/Cursor MCP"
     )
+
+    parser.add_argument(
+        "--mcp",
+        action="store_true",
+        help="Inicia o servidor MCP (Model Context Protocol) para IA"
+    )
     
     parser.add_argument(
         "--tui",
@@ -142,19 +148,26 @@ def show_mcp_config():
     
     # Determine the correct path to the MCP script
     if PathManager.is_frozen():
-        # In frozen mode, point to the EXE itself (if bundled)
-        mcp_path = str(PathManager.get_install_dir() / "foton_mcp.exe")
+        # In frozen mode, point to the EXE itself with the --mcp flag
+        exe_path = str(PathManager.get_install_dir() / "foton_system_v1.0.0.exe")
+        # Ensure we point to the actual running exe if possible
+        if getattr(sys, 'frozen', False):
+            exe_path = sys.executable
+            
+        mcp_cmd = exe_path
+        mcp_args = ["--mcp"]
     else:
         # In dev mode, point to the Python script
         mcp_script = PathManager._find_project_root() / "foton_system" / "interfaces" / "mcp" / "foton_mcp.py"
-        mcp_path = str(mcp_script)
+        mcp_cmd = "python"
+        mcp_args = [str(mcp_script)]
     
     # Build the config object
     config = {
         "mcpServers": {
             "foton": {
-                "command": "python",
-                "args": [mcp_path]
+                "command": mcp_cmd,
+                "args": mcp_args
             }
         }
     }
@@ -188,6 +201,20 @@ def main():
     # Handle --mcp-config flag (lightweight, no bootstrap needed)
     if args.mcp_config:
         show_mcp_config()
+        sys.exit(0)
+
+    # Handle --mcp flag (Launch MCP Server)
+    if args.mcp:
+        try:
+            from foton_system.interfaces.mcp.foton_mcp import mcp
+            print("🤖 Iniciando Servidor Foton MCP...")
+            mcp.run()
+        except ImportError as e:
+            print(f"❌ Erro ao importar MCP: {e}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"❌ Erro fatal no MCP: {e}")
+            sys.exit(1)
         sys.exit(0)
     
     # Handle --reset-config flag

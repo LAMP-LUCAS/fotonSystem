@@ -14,15 +14,20 @@ Bem-vindo ao FOTON! Este guia foi feito para você dominar o sistema em menos de
 
 ### Instalação
 
-Execute o instalador `FotonSystem_Setup.exe` e siga as instruções. Não precisa de permissão de administrador!
+Baixe e instale o `foton_system_vX.X.X.exe`. Pronto! O sistema já vem com tudo que precisa.
 
 ### Primeiro Acesso
 
-Abra o terminal (ou o atalho que foi criado) e digite:
+Abrindo o terminal ou clicando no ícone do **FotonSystem**:
 
 ```powershell
 foton
 ```
+
+Você pode escolher entre duas interfaces:
+
+1. **Modo Visual (GUI)**: Janelas padrão do Windows (Padrão).
+2. **Modo Turbo (TUI)**: Navegação ultra-rápida via teclado. ([[TUI_GUIDE|Aprenda aqui]])
 
 Na primeira execução, o sistema cria automaticamente suas pastas de trabalho:
 
@@ -50,7 +55,7 @@ Vamos simular um dia típico no escritório:
 ### 🌤️ Tarde: Hora de Enviar Proposta
 
 1. Vá em **Documentos** > **Gerar Proposta (PPTX)**
-2. Escolha o cliente
+2. Escolha o cliente (Navegue pelas pastas ou digite o número na TUI)
 3. Selecione o template "Proposta Comercial"
 4. **Mágica:** O sistema puxa nome, endereço e dados do cliente automaticamente!
 5. Pronto! Arquivo gerado na pasta do cliente.
@@ -104,6 +109,18 @@ Quando você gera uma proposta, o sistema:
 2. Lê o `INFO-SERVICO.md` se for um serviço específico
 3. Mescla tudo e substitui no template
 4. Salva o documento final na pasta
+
+---
+
+## 📟 Modo Turbo (Terminal / TUI)
+
+> **Quer velocidade máxima?**
+
+Se você prefere não tirar a mão do teclado ou está acessando remotamente, o FOTON tem um modo especial.
+
+- **Ativar:** Inicie com `foton --tui` ou mude nas Configurações.
+- **Como usar:** Navegue usando números (`1`, `2`, `3`) em vez do mouse.
+- **Guia Completo:** [[TUI_GUIDE|Leia o manual do Modo Turbo]]
 
 ---
 

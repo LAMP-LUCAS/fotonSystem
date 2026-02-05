@@ -35,20 +35,38 @@ O sistema gera o JSON pronto para copiar:
 
 ### Passo 2: Colar no Assistente
 
-#### Claude Desktop
+O comando `foton --mcp-config` detecta automaticamente se você está usando o código-fonte ou o executável instalado e gera o JSON correto.
+
+**Se estiver usando o executável:**
+
+```json
+"foton": {
+  "command": "C:\\Users\\...\\foton_system_v1.0.0.exe",
+  "args": ["--mcp"]
+}
+```
+
+**Se estiver desenvolvendo (Python):**
+
+```json
+"foton": {
+  "command": "python",
+  "args": ["C:\\...\\foton_mcp.py"]
+}
+```
+
+#### Para Claude Desktop
 
 1. Abra `%APPDATA%\Claude\claude_desktop_config.json`
-2. Cole o JSON gerado
-3. Reinicie o Claude
+2. Cole o JSON gerado pelo comando.
+3. Reinicie o Claude.
 
-> [!TIP]
-> Procure pelo ícone de martelo (🔨) no Claude. Se aparecer, a conexão funcionou!
-
-#### Cursor IDE
+#### Para Cursor IDE
 
 1. Vá em **Settings** > **Features** > **MCP**
 2. Clique em **+ Add New MCP Server**
-3. Cole o comando: `python "caminho/para/foton_mcp.py"`
+3. Type: `command`
+4. Cole o comando e argumentos fornecidos pelo `foton --mcp-config`.
 
 ---
 

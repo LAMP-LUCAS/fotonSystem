@@ -2,7 +2,32 @@
 
 Este guia descreve como gerar uma nova versão executável do [**FOTON System**](../README.md) e distribuí-la via GitHub Releases.
 
-## 1. Preparação
+## 1. Guia de Instalação (Usuário Final) 👷
+
+### Passo 1: Download
+
+Acesse a aba **[Releases](https://github.com/LAMP-LUCAS/fotonSystem/releases)** do GitHub e baixe o arquivo mais recente:
+
+- `foton_system_vX.X.X.exe`
+
+### Passo 2: Instalação / Atualização
+
+1. Execute o arquivo baixado.
+2. O sistema abrirá o menu principal.
+3. Para uma instalação limpa (recomendado):
+   - Selecione a opção **6 (Configurações / Instalação)**.
+   - Siga as etapas para copiar os arquivos para o seu computador.
+4. Pronto! Um atalho será criado na sua Área de Trabalho.
+
+> **Nota:** Se você já tem uma versão anterior, o instalador irá atualizar os arquivos automaticamente.
+
+---
+
+## 2. Guia de Deploy (Desenvolvedores) 👩‍💻
+
+Esta seção descreve como **gerar** uma nova versão do sistema.
+
+### Preparação do Ambiente
 
 Certifique-se de que todas as dependências estão instaladas:
 
@@ -31,9 +56,9 @@ O script `deploy.py` automatiza todo o processo: Build, Commit na branch `deploy
     ```
 
 3. Siga as instruções interativas:
-    * **Build:** O script gera o executável `dist/foton_system_vX.X.X.exe`.
-    * **Deploy:** O script envia o executável para a branch `deploy` e cria a tag `vX.X.X`.
-    * **Release:** O script cria um Rascunho (Draft) no GitHub com o executável anexado.
+    - **Build:** O script gera o executável `dist/foton_system_vX.X.X.exe`.
+    - **Deploy:** O script envia o executável para a branch `deploy` e cria a tag `vX.X.X`.
+    - **Release:** O script cria um Rascunho (Draft) no GitHub com o executável anexado.
 
 ---
 
