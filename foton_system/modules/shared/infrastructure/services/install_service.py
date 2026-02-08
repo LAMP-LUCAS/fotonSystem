@@ -36,11 +36,14 @@ class InstallService:
                 # 2.1 Copiar o Executável
                 if target_exe.exists():
                     try:
-                        temp_old = target_exe.with_suffix(".old")
-                        if temp_old.exists(): temp_old.unlink()
+                        # Tentativa robusta: renomear o arquivo em uso
+                        temp_old = target_exe.with_suffix(f".old_{int(time.time())}")
                         target_exe.rename(temp_old)
-                    except:
-                        pass
+                        # Tenta deletar o arquivo renomeado (opcional)
+                        try: temp_old.unlink()
+                        except: pass
+                    except Exception as e:
+                        logger.debug(f"Não foi possível renomear exe antigo: {e}")
                 
                 shutil.copy2(exe_path, target_exe)
                 print(f"✅ Executável copiado.")
@@ -50,22 +53,32 @@ class InstallService:
                 target_internal = self.bin_dir / "_internal"
                 
                 if source_internal.exists():
-                    print(f"📦 Copiando dependências (_internal)... isso pode levar alguns segundos...")
+                    print(f"📦 Atualizando dependências (_internal)... isso pode levar alguns segundos...")
+                    
                     if target_internal.exists():
                         try:
-                            # Tenta remover versão antiga se as bibliotecas mudaram
+                            # Tenta remover de forma limpa primeiro
                             shutil.rmtree(target_internal)
-                        except Exception as e:
-                            logger.warn(f"Não foi possível remover _internal antigo: {e}")
+                        except Exception:
+                            # Se falhar (Acesso Negado), renomeia a pasta antiga para sair do caminho
+                            try:
+                                timestamp = int(time.time())
+                                trash_internal = target_internal.parent / f"_internal_old_{timestamp}"
+                                target_internal.rename(trash_internal)
+                                logger.info(f"Pasta _internal bloqueada. Renomeada para {trash_internal.name}")
+                            except Exception as rename_err:
+                                logger.error(f"Falha crítica ao mover _internal antigo: {rename_err}")
+                                # Se não conseguir nem renomear, tentaremos o copytree com override
+                                pass
                     
-                    # Copia a pasta inteira
+                    # Copia a pasta inteira (dirs_exist_ok garante que podemos mesclar se necessário)
                     shutil.copytree(source_internal, target_internal, dirs_exist_ok=True)
-                    print(f"✅ Dependências copiadas.")
+                    print(f"✅ Dependências atualizadas.")
 
             except Exception as e:
                 logger.error(f"Erro ao copiar arquivos na instalação: {e}", exc_info=True)
-                print(f"❌ Erro ao copiar arquivos: {e}")
-                print("Dica: Tente fechar outras instâncias do FotonSystem ou rode como Administrador.")
+                print(f"❌ Erro ao instalar binários: {e}")
+                print("Dica: Verifique se não há outra instância do FotonSystem aberta.")
                 return
 
 

@@ -1,23 +1,80 @@
 import pandas as pd
+import time
 from pathlib import Path
 from datetime import datetime, timedelta
+from typing import Optional
 from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
 from foton_system.modules.clients.application.ports.client_repository_port import ClientRepositoryPort
+from foton_system.modules.shared.domain.exceptions import (
+    DatabaseLockError,
+    DatabaseConnectionError
+)
 
 logger = setup_logger()
 
+
+def retry_with_backoff(max_retries: int = 3, base_delay: float = 0.5):
+    """
+    Decorator that retries a function with exponential backoff.
+    Useful for file operations that may fail due to temporary locks.
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except PermissionError as e:
+                    last_exception = e
+                    delay = base_delay * (2 ** attempt)
+                    logger.warning(f"Tentativa {attempt + 1}/{max_retries} falhou (arquivo bloqueado). Aguardando {delay:.1f}s...")
+                    time.sleep(delay)
+                except Exception as e:
+                    raise
+            # All retries failed
+            raise DatabaseLockError(str(args[0].base_dados if hasattr(args[0], 'base_dados') else 'unknown'))
+        return wrapper
+    return decorator
+
+
 class ExcelClientRepository(ClientRepositoryPort):
-    def __init__(self):
-        pass
+    """
+    Excel-based implementation of ClientRepositoryPort.
+    
+    Features:
+    - In-memory caching for read operations
+    - Retry with exponential backoff for write operations
+    - Smart backup strategy
+    """
+    
+    def __init__(self, config: Optional[Config] = None):
+        """
+        Initialize repository with optional config injection.
+        
+        Args:
+            config: Configuration object. If None, uses default Config singleton.
+        """
+        self._config = config or Config()
+        
+        # Cache for read operations
+        self._clients_cache: Optional[pd.DataFrame] = None
+        self._services_cache: Optional[pd.DataFrame] = None
+        self._cache_valid = False
+
+    def _invalidate_cache(self):
+        """Invalidates the cache, forcing next read to reload from disk."""
+        self._cache_valid = False
+        self._clients_cache = None
+        self._services_cache = None
 
     @property
     def base_pasta(self):
-        return Config().base_pasta_clientes
+        return self._config.base_pasta_clientes
 
     @property
     def base_dados(self):
-        return Config().base_dados
+        return self._config.base_dados
 
     def check_files(self):
         if not self.base_dados.exists():
@@ -212,17 +269,29 @@ class ExcelClientRepository(ClientRepositoryPort):
             logger.info(f"Limpeza de backups: {deleted_count} arquivos deletados")
 
     def get_clients_dataframe(self) -> pd.DataFrame:
+        """Get clients DataFrame, using cache if valid."""
+        if self._cache_valid and self._clients_cache is not None:
+            return self._clients_cache.copy()
+        
         try:
             self._ensure_database_exists()
-            return pd.read_excel(self.base_dados, sheet_name='baseClientes')
+            self._clients_cache = pd.read_excel(self.base_dados, sheet_name='baseClientes')
+            self._cache_valid = True
+            return self._clients_cache.copy()
         except Exception as e:
             logger.error(f"Erro ao ler base de clientes: {e}")
             raise
 
     def get_services_dataframe(self) -> pd.DataFrame:
+        """Get services DataFrame, using cache if valid."""
+        if self._cache_valid and self._services_cache is not None:
+            return self._services_cache.copy()
+        
         try:
             self._ensure_database_exists()
-            return pd.read_excel(self.base_dados, sheet_name='baseServicos')
+            self._services_cache = pd.read_excel(self.base_dados, sheet_name='baseServicos')
+            self._cache_valid = True
+            return self._services_cache.copy()
         except Exception as e:
             logger.error(f"Erro ao ler base de serviços: {e}")
             raise
@@ -236,6 +305,7 @@ class ExcelClientRepository(ClientRepositoryPort):
             return {pasta.name for pasta in client_path.iterdir() if pasta.is_dir()}
         return set()
 
+    @retry_with_backoff(max_retries=3, base_delay=0.5)
     def save_clients(self, df: pd.DataFrame):
         try:
             self._ensure_database_exists()
@@ -261,13 +331,19 @@ class ExcelClientRepository(ClientRepositoryPort):
                 with pd.ExcelWriter(self.base_dados, mode='a', engine="openpyxl", if_sheet_exists='replace') as writer:
                     df.to_excel(writer, sheet_name='baseClientes', index=False)
             
+            # Invalidate cache after write
+            self._invalidate_cache()
+            
             # Backup inteligente (não enche o HD)
             self._create_smart_backup()
             logger.info(f"Base de clientes salva")
+        except DatabaseLockError:
+            raise
         except Exception as e:
             logger.error(f"Erro ao salvar base de clientes: {e}")
             raise
 
+    @retry_with_backoff(max_retries=3, base_delay=0.5)
     def save_services(self, df: pd.DataFrame):
         try:
             self._ensure_database_exists()
@@ -292,9 +368,14 @@ class ExcelClientRepository(ClientRepositoryPort):
                 with pd.ExcelWriter(self.base_dados, mode='a', engine="openpyxl", if_sheet_exists='replace') as writer:
                     df.to_excel(writer, sheet_name='baseServicos', index=False)
             
+            # Invalidate cache after write
+            self._invalidate_cache()
+            
             # Backup inteligente (não enche o HD)
             self._create_smart_backup()
             logger.info(f"Base de serviços salva")
+        except DatabaseLockError:
+            raise
         except Exception as e:
             logger.error(f"Erro ao salvar base de serviços: {e}")
             raise
