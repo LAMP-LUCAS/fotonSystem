@@ -1,19 +1,44 @@
 from watchdog.events import FileSystemEventHandler
 from pathlib import Path
 import time
-import logging
-from foton_system.core.ops.op_index_knowledge import OpIndexKnowledge
+from foton_system.modules.shared.infrastructure.config.logger import setup_logger
+
+logger = setup_logger()
+
 
 class FotonFileSystemEventHandler(FileSystemEventHandler):
     """
     Handles file system events to trigger proactive agent actions.
     Mainly: Re-indexing memory when documentation changes.
+    
+    Note: VectorStore dependencies are loaded lazily to prevent crashes
+    if chromadb/sentence-transformers are not installed.
     """
     
     def __init__(self):
         self.last_triggered = {}
         self.debounce_seconds = 2.0
-        self.op_indexer = OpIndexKnowledge(actor="Watcher_Service")
+        self._op_indexer = None
+        self._rag_available = None  # Cached availability check
+
+    def _is_rag_available(self) -> bool:
+        """Check if RAG/VectorStore dependencies are available."""
+        if self._rag_available is not None:
+            return self._rag_available
+        
+        try:
+            from foton_system.core.ops.op_index_knowledge import OpIndexKnowledge
+            self._op_indexer = OpIndexKnowledge(actor="Watcher_Service")
+            self._rag_available = True
+            logger.info("Watcher: RAG/VectorStore disponível.")
+        except ImportError as e:
+            self._rag_available = False
+            logger.warning(f"Watcher: RAG indisponível (dependência faltando: {e}). Modo degradado ativado.")
+        except Exception as e:
+            self._rag_available = False
+            logger.warning(f"Watcher: RAG indisponível ({e}). Modo degradado ativado.")
+        
+        return self._rag_available
 
     def _should_process(self, event) -> bool:
         if event.is_directory:
@@ -45,21 +70,21 @@ class FotonFileSystemEventHandler(FileSystemEventHandler):
             self._trigger_index(event.src_path)
 
     def _trigger_index(self, file_path):
+        # Check RAG availability first (lazy check)
+        if not self._is_rag_available():
+            print(f"ℹ️ Watcher: Arquivo detectado, mas RAG está desativado (modo degradado).")
+            logger.debug(f"File change ignored (RAG unavailable): {file_path}")
+            return
+        
         try:
-            # We trigger the Op targeting explicitly THIS file's parent or the file itself
-            # The Op currently takes a target_path (folder). 
-            # Ideally we pass the specific file to avoid re-scanning the whole folder.
-            # For MVP: We scan the parent folder of the file.
-            
             target_folder = Path(file_path).parent
             print(f"🧠 Updating Memory for context: {target_folder.name}...")
             
-            # Run Op
-            # Note: In a real heavy system, this should be queued.
-            # Here we run it in the watcher thread (blocker) but safe for small edits.
-            res = self.op_indexer.execute(target_path=str(target_folder))
+            res = self._op_indexer.execute(target_path=str(target_folder))
             
             print(f"✅ Memory Updated! (Processed {res.get('chunks_created', 0)} chunks)")
             
         except Exception as e:
+            logger.error(f"Watcher Error during indexing: {e}", exc_info=True)
             print(f"❌ Watcher Error: {e}")
+

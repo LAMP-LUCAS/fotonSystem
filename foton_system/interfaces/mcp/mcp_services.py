@@ -302,9 +302,24 @@ class MCPServiceFactory:
         """Get or create knowledge service."""
         if self._knowledge_service is None:
             try:
+                import sys
+                sys.stderr.write("[MCP] Loading VectorStore (RAG)...\\n")
+                sys.stderr.flush()
+                
                 from foton_system.core.memory.vector_store import VectorStore
                 store = VectorStore()
                 self._knowledge_service = MCPKnowledgeService(store)
-            except ImportError:
+                
+                sys.stderr.write("[MCP] VectorStore loaded successfully.\\n")
+                sys.stderr.flush()
+            except ImportError as e:
+                import sys
+                sys.stderr.write(f"[MCP] RAG unavailable (missing dependency): {e}\\n")
+                sys.stderr.flush()
+                self._knowledge_service = MCPKnowledgeService(None)
+            except Exception as e:
+                import sys
+                sys.stderr.write(f"[MCP] RAG unavailable (error): {e}\\n")
+                sys.stderr.flush()
                 self._knowledge_service = MCPKnowledgeService(None)
         return self._knowledge_service

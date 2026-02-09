@@ -13,6 +13,7 @@ ARCHITECTURE NOTES:
 from mcp.server.fastmcp import FastMCP
 from pathlib import Path
 import sys
+import time
 
 # --- CRITICAL: PATH PATCHING (Must be FIRST) ---
 def _ensure_import_path():
@@ -41,6 +42,10 @@ except Exception as e:
 # --- MCP SERVER INITIALIZATION ---
 mcp = FastMCP("Foton Architecture System")
 
+# Log startup for debugging in Gemini CLI
+sys.stderr.write(f"[MCP] Foton server starting...\n")
+sys.stderr.flush()
+
 
 # ==============================================================================
 # SERVICE FACTORY (Lazy Loaded)
@@ -55,6 +60,16 @@ def _get_factory():
         from foton_system.interfaces.mcp.mcp_services import MCPServiceFactory
         _factory = MCPServiceFactory.get_instance()
     return _factory
+
+
+# ==============================================================================
+# HEALTH CHECK (Instant Response for Connectivity Testing)
+# ==============================================================================
+
+@mcp.tool()
+def ping() -> str:
+    """Verifica se o servidor MCP está respondendo. Resposta instantânea."""
+    return f"🟢 FOTON MCP Online (timestamp: {int(time.time())})"
 
 
 # ==============================================================================
