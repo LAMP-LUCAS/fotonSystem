@@ -87,3 +87,8 @@ class Config:
     @property
     def pomodoro_cycles(self):
         return self.get('pomodoro_cycles', 4)
+
+    @property
+    def ui_mode(self):
+        return self.get('ui_mode', 'gui')
+

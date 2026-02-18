@@ -23,6 +23,7 @@ class InstallService:
         # 2. Copiar arquivos da aplicação
         exe_path = sys.executable if getattr(sys, 'frozen', False) else sys.argv[0]
         exe_path = Path(exe_path).resolve()
+        source_dir = exe_path.parent
         
         target_exe = self.bin_dir / exe_path.name
         
@@ -30,6 +31,7 @@ class InstallService:
             logger.info("Executável já está no destino de instalação. Pulando cópia.")
             print("ℹ️ O sistema já está rodando a partir da pasta de instalação.")
         else:
+<<<<<<< HEAD
             print(f"📂 Copiando binários para: {target_exe}")
             try:
                 # Se o arquivo já existe e está rodando, a cópia vai falhar.
@@ -48,6 +50,58 @@ class InstallService:
                 print(f"❌ Erro ao copiar arquivos: {e}")
                 print("Dica: Tente fechar outras instâncias do FotonSystem ou rode como Administrador.")
                 return
+=======
+            print(f"📂 Preparando binários em: {self.bin_dir}")
+            try:
+                # 2.1 Copiar o Executável
+                if target_exe.exists():
+                    try:
+                        # Tentativa robusta: renomear o arquivo em uso
+                        temp_old = target_exe.with_suffix(f".old_{int(time.time())}")
+                        target_exe.rename(temp_old)
+                        # Tenta deletar o arquivo renomeado (opcional)
+                        try: temp_old.unlink()
+                        except: pass
+                    except Exception as e:
+                        logger.debug(f"Não foi possível renomear exe antigo: {e}")
+                
+                shutil.copy2(exe_path, target_exe)
+                print(f"✅ Executável copiado.")
+
+                # 2.2 Copiar Pasta _internal (Essencial para builds --onedir)
+                source_internal = source_dir / "_internal"
+                target_internal = self.bin_dir / "_internal"
+                
+                if source_internal.exists():
+                    print(f"📦 Atualizando dependências (_internal)... isso pode levar alguns segundos...")
+                    
+                    if target_internal.exists():
+                        try:
+                            # Tenta remover de forma limpa primeiro
+                            shutil.rmtree(target_internal)
+                        except Exception:
+                            # Se falhar (Acesso Negado), renomeia a pasta antiga para sair do caminho
+                            try:
+                                timestamp = int(time.time())
+                                trash_internal = target_internal.parent / f"_internal_old_{timestamp}"
+                                target_internal.rename(trash_internal)
+                                logger.info(f"Pasta _internal bloqueada. Renomeada para {trash_internal.name}")
+                            except Exception as rename_err:
+                                logger.error(f"Falha crítica ao mover _internal antigo: {rename_err}")
+                                # Se não conseguir nem renomear, tentaremos o copytree com override
+                                pass
+                    
+                    # Copia a pasta inteira (dirs_exist_ok garante que podemos mesclar se necessário)
+                    shutil.copytree(source_internal, target_internal, dirs_exist_ok=True)
+                    print(f"✅ Dependências atualizadas.")
+
+            except Exception as e:
+                logger.error(f"Erro ao copiar arquivos na instalação: {e}", exc_info=True)
+                print(f"❌ Erro ao instalar binários: {e}")
+                print("Dica: Verifique se não há outra instância do FotonSystem aberta.")
+                return
+
+>>>>>>> bd7b97aaa2f383cac97855c4cb7eca8ddf31252a
 
         # 3. Inicializar Configuração no AppData
         config_path = BootstrapService.initialize()
@@ -63,8 +117,16 @@ class InstallService:
         print(f"\n{'-'*60}")
         print(f"🤖 CONFIGURAÇÃO PARA AGENTES DE IA (MCP):")
         print(f"Para usar o Foton com Gemini ou Claude, adicione ao seu arquivo de config:")
+<<<<<<< HEAD
         print(f"\n\"foton\": {{")
         print(f"  \"command\": \"{target_exe}\",")
+=======
+        # Escape backslashes for JSON compatibility
+        safe_path = str(target_exe).replace("\\", "\\\\")
+
+        print(f"\n\"foton\": {{")
+        print(f"  \"command\": \"{safe_path}\",")
+>>>>>>> bd7b97aaa2f383cac97855c4cb7eca8ddf31252a
         print(f"  \"args\": [\"--mcp\"]")
         print(f"}}\n{'-'*60}")
 

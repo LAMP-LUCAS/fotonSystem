@@ -1,7 +1,33 @@
 # FOTON System 💡
 
 > **Transforme o Caos de Arquivos em uma Máquina de Gestão.**
-> Pare de perder tempo procurando onde salvou aquele contrato ou qual é a versão final da proposta. O FOTON System organiza, sincroniza e automatiza seu escritório de arquitetura.
+
+O FOTON System organiza, sincroniza e automatiza seu escritório de arquitetura, eliminando o tempo perdido procurando arquivos e gerando documentos.
+
+---
+
+## 📚 Navegação Rápida (Obsidian Vault)
+
+### 🎯 **[👉 COMECE AQUI: DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** ← Mapa completo de tudo!
+
+### 🎯 Para Começar
+
+- [[UserGuide|📖 Guia do Usuário]] - Manual completo (Modo Visual & Turbo TUI)
+- [[deployment_guide|🚀 Guia de Instalação]] - Instale o Executável (.exe)
+- [[DEPLOYMENT_USER_GUIDE|💾 Implantação e Backup]] - Ferramenta nova! Base de dados inteligente
+- [[mcp_guide|🤖 Integração com IA]] - Controle por voz/texto (Claude/Cursor)
+
+### 🧠 Entendendo o Sistema
+
+- [[Pipelines|🔄 Como a Mágica Acontece]] - Fluxo de dados simplificado
+- [[concepts|🏗️ Arquitetura do Sistema]] - Conceitos técnicos (Hexagonal)
+- [[DataModel|📊 Modelo de Dados]] - Estrutura de arquivos e DB
+
+### 👨‍💻 Para Desenvolvedores
+
+- [[AI_INTEGRATION_REPORT|🤖 Relatório de IA]] - Como a IA se integra
+- [[AGENTIC_SPRINT_PLAN|📋 Planejamento Agentic]] - Sprints e roadmap
+- [[workplan|📅 Plano de Trabalho]] - Tarefas e milestones
 
 ---
 
@@ -17,11 +43,11 @@ Um dia, você precisa gerar 5 propostas urgentes. Você abre a pasta do cliente 
 
 ### A Solução
 
-Você instala o FOTON.
+Você instala o FOTON. (Veja [[deployment_guide|como instalar]])
 
-1. **Sincronização Mágica**: Com um clique, o FOTON lê suas pastas e arruma seu Excel. "J. Silva" e "João Silva" viram a mesma pessoa.
-2. **Centros de Verdade**: O FOTON cria um arquivo `INFO-CLIENTE.md` dentro da pasta do João. Agora, os dados moram onde o projeto mora.
-3. **Automação**: Para gerar as 5 propostas, você só digita o valor. O FOTON puxa o nome, endereço e CPF do João automaticamente e gera o PDF. Sem erro de digitação. Sem "Salvar Como".
+1. **Sincronização Mágica**: Com um clique, o FOTON lê suas pastas e arruma seu Excel. "J. Silva" e "João Silva" viram a mesma pessoa. ([[Pipelines#Sincronização|Como funciona]])
+2. **Centros de Verdade**: O FOTON cria um arquivo `INFO-CLIENTE.md` dentro da pasta do João. Agora, os dados moram onde o projeto mora. ([[DataModel|Entenda a estrutura]])
+3. **Automação**: Para gerar as 5 propostas, você só digita o valor. O FOTON puxa o nome, endereço e CPF do João automaticamente e gera o PDF. Sem erro de digitação. ([[UserGuide#Geração de Documentos|Veja como]])
 
 ### O Retorno a Produtividade
 
@@ -31,48 +57,83 @@ Você gastou 10 minutos no que levaria 2 horas. Seus arquivos estão organizados
 
 ## 🚀 O Que o FOTON Faz Por Você?
 
-### 1. Gestão de Clientes e Serviços (O Fim do "Onde Salvei?")
+### 1. Gestão de Clientes e Serviços
 
-* **Sincronização Bidirecional**: O que está na pasta vai para o Excel, e vice-versa.
-* **Banco de Dados Distribuído**: Seus dados vivem nas pastas, em arquivos de texto simples (`INFO-*.md`). Leves, seguros e fáceis de editar.
+> "O Fim do 'Onde Salvei?'"
 
-### 2. Geração de Documentos (Adeus, Ctrl+C Ctrl+V)
+- **Sincronização Bidirecional**: O que está na pasta vai para o Excel, e vice-versa. ([[Pipelines#Sincronização|Veja o fluxo]])
+- **Banco de Dados Distribuído**: Seus dados vivem nas pastas, em arquivos de texto simples (`INFO-*.md`). Leves, seguros e fáceis de editar. ([[DataModel#Centros de Verdade|Saiba mais]])
 
-* **Context-Aware**: O sistema sabe quem é o cliente pela pasta onde você está.
-* **Templates Inteligentes**: Use seus modelos de Word e PowerPoint. O sistema preenche as lacunas (`@nome`, `@valor`) para você.
+### 2. Geração de Documentos
 
-### 3. Modo Avançado (Ferramentas Administrativas)
+> "Adeus, Ctrl+C Ctrl+V"
 
-* **Refatoração de Dados**: Mudou o nome de uma variável? O sistema atualiza todos os seus arquivos de uma vez.
-* **Diagnóstico**: Um "Check-up" completo para garantir que nenhuma pasta está perdida ou sem dono.
+- **Context-Aware**: O sistema sabe quem é o cliente pela pasta onde você está. ([[concepts#Context-Aware Engine|Entenda a lógica]])
+- **Templates Inteligentes**: Use seus modelos de Word e PowerPoint. O sistema preenche as lacunas (`@nome`, `@valor`) para você. ([[UserGuide#Geração de Documentos|Tutorial completo]])
 
----
+### 3. Integração com IA
 
-## 📚 Documentação
+> "Seu assistente que nunca esquece nada"
 
-* **[Guia do Usuário](docs/UserGuide.md)**: O manual completo de operação.
-* **[Conceitos de Arquitetura](docs/concepts.md)**: Para os devs e curiosos (Arquitetura Hexagonal).
-* **[Pipelines do Sistema](docs/Pipelines.md)**: Entenda o fluxo dos dados.
+- **Controle por Voz/Texto**: Use Claude ou Cursor para gerenciar o escritório em linguagem natural. ([[mcp_guide|Configure em 2 minutos]])
+- **Memória Vetorial (RAG)**: Pergunte "O que sabemos sobre projetos residenciais?" e a IA busca em todos os seus documentos. ([[AI_INTEGRATION_REPORT|Como funciona]])
+
+### 4. Modo Avançado (Ferramentas Administrativas)
+
+> "Para quando você precisa de super poderes"
+
+- **Refatoração de Dados**: Mudou o nome de uma variável? O sistema atualiza todos os seus arquivos de uma vez. ([[UserGuide#Schema Manager|Veja como]])
+- **Diagnóstico**: Um "Check-up" completo para garantir que nenhuma pasta está perdida ou sem dono. ([[UserGuide#Diagnóstico|Entenda]])
 
 ---
 
 ## 🛠️ Instalação Rápida
 
-1. **Pré-requisitos**: Python 3.10+ instalado.
-2. **Instalar Dependências**:
+### Opção A: Executável (Recomendado)
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+Baixe o instalador na aba **Releases** do GitHub e rode. Pronto!
 
-3. **Rodar**:
+### Opção B: Via Python (Devs)
 
-    ```bash
-    python foton_system/interfaces/cli/main.py
-    ```
+```bash
+pip install -r requirements.txt
+python foton_system/interfaces/cli/main.py --tui  # Modo Turbo (Terminal)
+python foton_system/interfaces/cli/main.py --gui  # Modo Visual (Janelas)
+```
 
-    *Ou use o launcher unificado `FOTON.py` para ferramentas administrativas.*
+Use `foton --info` para ver onde seus dados estão salvos.
 
 ---
 
-**Desenvolvido para Arquitetos que querem projetar, não gerenciar arquivos.** Veja mais em [Mundo AEC](https://www.mundoaec.com)
+## 🗺️ Mapa de Conceitos
+
+```mermaid
+graph TD
+    README[📄 README] --> UserGuide[📖 User Guide]
+    README --> Pipelines[🔄 Pipelines]
+    README --> deployment[🚀 Deploy Guide]
+    
+    UserGuide --> TUI[📟 TUI Guide]
+    UserGuide --> mcp[🤖 MCP Guide]
+    
+    Pipelines --> concepts[🏗️ Concepts]
+    concepts --> MCPServices[⚡ MCP Services Layer]
+    
+    deployment --> workplan[📅 Work Plan]
+```
+
+---
+
+## 📖 Leia Também
+
+- [[concepts|Conceitos de Arquitetura]] - Entenda a Arquitetura Hexagonal
+- [[Pipelines|Pipelines do Sistema]] - Visualize o fluxo de dados
+- [[DataModel|Modelo de Dados]] - Como os dados estão organizados
+- [[AI_INTEGRATION_REPORT|IA no FOTON]] - Como a inteligência artificial ajuda
+- [[workplan|Plano de Trabalho]] - Roadmap e funcionalidades planejadas
+
+---
+
+**Desenvolvido para Arquitetos que querem projetar, não gerenciar arquivos.**
+
+🔗 [LAMP Arquitetura](https://github.com/LAMP-LUCAS/fotonSystem) | 🌍 [Mundo AEC](https://www.mundoaec.com)
