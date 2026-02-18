@@ -1,9 +1,6 @@
 ﻿import sys
 import os
-<<<<<<< HEAD
-=======
 from typing import Optional
->>>>>>> bd7b97aaa2f383cac97855c4cb7eca8ddf31252a
 from foton_system.modules.clients.application.use_cases.client_service import ClientService
 from foton_system.modules.documents.application.use_cases.document_service import DocumentService
 from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
@@ -108,19 +105,12 @@ class MenuSystem:
             ("4", "Produtividade (Pomodoro)"),
             ("5", "Configurações do Sistema"),
             ("6", "Instalação / Atalhos"),
-<<<<<<< HEAD
-            ("0", "Sair")
-        ]
-        for key, label in options:
-            print(f"{Fore.CYAN}║ {Fore.YELLOW}{key}. {Fore.WHITE}{label.ljust(53)}{Fore.CYAN}║")
-=======
             ("7", "Implantação (Gerenciar Base de Dados)"),
             ("8", "Modo Sentinela (Watcher)"),
             ("0", "Sair")
         ]
         for key, label in options:
             print(f"{Fore.CYAN}║ {Fore.YELLOW}{key}. {Fore.WHITE}{label.ljust(51)}{Fore.CYAN}║")
->>>>>>> bd7b97aaa2f383cac97855c4cb7eca8ddf31252a
         print(f"╚══════════════════════════════════════════════════════════╝")
         return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
 

@@ -31,26 +31,6 @@ class InstallService:
             logger.info("Executável já está no destino de instalação. Pulando cópia.")
             print("ℹ️ O sistema já está rodando a partir da pasta de instalação.")
         else:
-<<<<<<< HEAD
-            print(f"📂 Copiando binários para: {target_exe}")
-            try:
-                # Se o arquivo já existe e está rodando, a cópia vai falhar.
-                # Podemos tentar renomear o antigo se existir?
-                if target_exe.exists():
-                    try:
-                        temp_old = target_exe.with_suffix(".old")
-                        if temp_old.exists(): temp_old.unlink()
-                        target_exe.rename(temp_old)
-                    except:
-                        pass # Se não conseguir renomear, tenta copiar por cima
-                
-                shutil.copy2(exe_path, target_exe)
-            except Exception as e:
-                logger.error(f"Erro ao copiar arquivos na instalação: {e}", exc_info=True)
-                print(f"❌ Erro ao copiar arquivos: {e}")
-                print("Dica: Tente fechar outras instâncias do FotonSystem ou rode como Administrador.")
-                return
-=======
             print(f"📂 Preparando binários em: {self.bin_dir}")
             try:
                 # 2.1 Copiar o Executável
@@ -101,8 +81,6 @@ class InstallService:
                 print("Dica: Verifique se não há outra instância do FotonSystem aberta.")
                 return
 
->>>>>>> bd7b97aaa2f383cac97855c4cb7eca8ddf31252a
-
         # 3. Inicializar Configuração no AppData
         config_path = BootstrapService.initialize()
         print(f"✅ Configuração vinculada em: {config_path}")
@@ -117,16 +95,11 @@ class InstallService:
         print(f"\n{'-'*60}")
         print(f"🤖 CONFIGURAÇÃO PARA AGENTES DE IA (MCP):")
         print(f"Para usar o Foton com Gemini ou Claude, adicione ao seu arquivo de config:")
-<<<<<<< HEAD
-        print(f"\n\"foton\": {{")
-        print(f"  \"command\": \"{target_exe}\",")
-=======
         # Escape backslashes for JSON compatibility
         safe_path = str(target_exe).replace("\\", "\\\\")
 
         print(f"\n\"foton\": {{")
         print(f"  \"command\": \"{safe_path}\",")
->>>>>>> bd7b97aaa2f383cac97855c4cb7eca8ddf31252a
         print(f"  \"args\": [\"--mcp\"]")
         print(f"}}\n{'-'*60}")
 
