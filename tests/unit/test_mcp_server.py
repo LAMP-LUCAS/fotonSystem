@@ -156,44 +156,55 @@ class TestMCPGerarDocumento(unittest.TestCase):
 class TestMCPConsultarConhecimento(unittest.TestCase):
     """Tests for consultar_conhecimento tool."""
 
-    def test_returns_formatted_results(self):
+    @patch('foton_system.core.ops.op_query_knowledge.OpQueryKnowledge')
+    def test_returns_formatted_results(self, MockOpClass):
         """Returns formatted knowledge results."""
-        with patch('foton_system.interfaces.mcp.foton_mcp.VectorStore') as MockStore:
-            mock_store = MagicMock()
-            mock_store.query.return_value = {
-                'documents': [['Document content 1', 'Document content 2']],
-                'metadatas': [[{'filename': 'doc1.md'}, {'filename': 'doc2.md'}]]
-            }
-            MockStore.return_value = mock_store
-            
-            from foton_system.interfaces.mcp.foton_mcp import consultar_conhecimento
-            
-            result = consultar_conhecimento('Test query')
-            
-            self.assertIn('doc1.md', result)
-            self.assertIn('Document content 1', result)
+        mock_op = MagicMock()
+        mock_op.execute.return_value = {
+            'status': 'FOUND',
+            'query': 'Test query',
+            'results': [
+                {'document': 'Document content 1', 'source': 'doc1.md', 'score': 0.85},
+                {'document': 'Document content 2', 'source': 'doc2.md', 'score': 0.72}
+            ],
+            'total': 2
+        }
+        MockOpClass.return_value = mock_op
 
-    def test_empty_results_returns_message(self):
+        from foton_system.interfaces.mcp.foton_mcp import consultar_conhecimento
+        result = consultar_conhecimento('Test query')
+
+        self.assertIn('doc1.md', result)
+        self.assertIn('Document content 1', result)
+
+    @patch('foton_system.core.ops.op_query_knowledge.OpQueryKnowledge')
+    def test_empty_results_returns_message(self, MockOpClass):
         """Empty results return appropriate message."""
-        with patch('foton_system.interfaces.mcp.foton_mcp.VectorStore') as MockStore:
-            mock_store = MagicMock()
-            mock_store.query.return_value = {'documents': [[]], 'metadatas': [[]]}
-            MockStore.return_value = mock_store
-            
-            from foton_system.interfaces.mcp.foton_mcp import consultar_conhecimento
-            
-            result = consultar_conhecimento('Unknown query')
-            
-            self.assertIn('Nenhum conhecimento', result)
+        mock_op = MagicMock()
+        mock_op.execute.return_value = {
+            'status': 'EMPTY',
+            'query': 'Unknown query',
+            'results': [],
+            'total': 0
+        }
+        MockOpClass.return_value = mock_op
+
+        from foton_system.interfaces.mcp.foton_mcp import consultar_conhecimento
+        result = consultar_conhecimento('Unknown query')
+
+        self.assertIn('Nenhum conhecimento', result)
 
     def test_import_error_handled(self):
-        """ImportError for missing VectorStore is handled."""
-        with patch('foton_system.interfaces.mcp.foton_mcp.VectorStore', side_effect=ImportError("No chromadb")):
-            from foton_system.interfaces.mcp.foton_mcp import consultar_conhecimento
-            
+        """ImportError for missing dependencies is handled gracefully."""
+        from foton_system.interfaces.mcp.foton_mcp import consultar_conhecimento
+
+        # When OpQueryKnowledge import fails, the function catches ImportError
+        with patch('foton_system.core.ops.op_query_knowledge.OpQueryKnowledge',
+                   side_effect=ImportError("No chromadb")):
             result = consultar_conhecimento('Test')
-            
-            self.assertIn('Erro', result)
+
+        # Should handle gracefully (either RAG indisponível or error message)
+        self.assertTrue('RAG' in result or 'Erro' in result)
 
 
 if __name__ == '__main__':

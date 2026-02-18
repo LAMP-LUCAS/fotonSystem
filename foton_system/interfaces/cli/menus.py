@@ -137,6 +137,7 @@ class MenuSystem:
         self.print_header("--- Documentos ---")
         print("1. Gerar Proposta (PPTX)")
         print("2. Gerar Contrato (DOCX)")
+        print("3. Validar Template (Pré-voo)")
         print("0. Voltar")
         return input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
 
@@ -249,6 +250,8 @@ class MenuSystem:
                 self.generate_document_ui('pptx')
             elif choice == '2':
                 self.generate_document_ui('docx')
+            elif choice == '3':
+                self.validate_template_ui()
             elif choice == '0':
                 break
             else:
@@ -587,18 +590,93 @@ class MenuSystem:
             logger.error(f"Erro no menu de deployment: {e}", exc_info=True)
             self.print_error(f"Erro ao abrir gerenciador de deployment: {e}")
 
+    def validate_template_ui(self):
+        """Interface de validação pré-voo de templates."""
+        from foton_system.modules.shared.infrastructure.config.config import Config
+        from pathlib import Path
+
+        self.print_header("--- Validar Template (Pré-voo) ---")
+
+        # 1. Selecionar pasta do cliente
+        print("Selecione a pasta do cliente...")
+        client_folder = self.ui.select_directory("Selecione a Pasta do Cliente")
+        if not client_folder:
+            self.print_warning("Nenhuma pasta selecionada.")
+            return
+
+        client_path = Path(client_folder)
+        print(f"Pasta selecionada: {client_path}")
+
+        # 2. Selecionar arquivo de dados
+        data_files = self.document_service.list_client_data_files(client_path)
+        if not data_files:
+            self.print_warning("Nenhum arquivo de dados encontrado.")
+            return
+
+        print("\nArquivos de dados encontrados:")
+        selected_file = None
+        for i, f in enumerate(data_files):
+            print(f"{i + 1}. {f.name}")
+
+        try:
+            choice = int(input("Escolha o arquivo de dados: "))
+            if 1 <= choice <= len(data_files):
+                selected_file = data_files[choice - 1]
+            else:
+                self.print_error("Opção inválida.")
+                return
+        except ValueError:
+            self.print_error("Entrada inválida.")
+            return
+
+        # 3. Selecionar template
+        print("\nSelecione o tipo de documento:")
+        print("1. PPTX (Proposta)")
+        print("2. DOCX (Contrato)")
+        doc_choice = input("Escolha: ")
+        doc_type = 'pptx' if doc_choice == '1' else 'docx'
+
+        templates = self.document_service.list_templates(doc_type)
+        if not templates:
+            self.print_warning("Nenhum template encontrado.")
+            return
+
+        print("\nSelecione o Template:")
+        template_name = self._select_from_list(templates)
+        if not template_name:
+            return
+
+        template_path = Config().templates_path / template_name
+
+        # 4. Executar validação
+        missing = self.document_service.validate_template_keys(str(template_path), str(selected_file), doc_type)
+
+        if not missing:
+            self.print_success(f"\n✅ PRÉ-VOO OK! Template '{template_name}' está completo.")
+            self.print_success(f"   Todos os campos do template estão presentes em '{selected_file.name}'.")
+        else:
+            self.print_warning(f"\n⚠️ PRÉ-VOO: {len(missing)} variáveis faltando:")
+            for k in missing:
+                print(f"   ❌ {k}")
+            print(f"\n📄 Template: {template_name}")
+            print(f"📋 Dados: {selected_file.name}")
+
+        input("\nPressione Enter para voltar...")
+
     def handle_watcher(self):
-        """Menu para gerenciar o modo Sentinela (Watcher)."""
+        """Menu para gerenciar o modo Sentinela (Watcher) e base de conhecimento."""
         self.print_header("--- Modo Sentinela (Watcher) ---")
         print("Monitora mudanças nas pastas de clientes e sincroniza automaticamente.")
         print("\n1. Ativar Watcher")
         print("2. Desativar Watcher")
+        print("3. Indexar Base de Conhecimento (RAG)")
+        print("4. Consultar Conhecimento")
         print("0. Voltar")
-        
+
         choice = input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
-        
+
         if choice == '1':
-            self.print_info("Iniciando Watcher...")
+            self.print_warning("Iniciando Watcher...")
             try:
                 from foton_system.core.watcher.service import WatcherService
                 watcher = WatcherService()
@@ -609,5 +687,67 @@ class MenuSystem:
                 self.print_error(f"Erro ao ativar Watcher: {e}")
         elif choice == '2':
             self.print_warning("Watcher desativado.")
+        elif choice == '3':
+            self._index_knowledge_ui()
+        elif choice == '4':
+            self._query_knowledge_ui()
         elif choice != '0':
             self.print_error("Opção inválida.")
+
+    def _index_knowledge_ui(self):
+        """Interface para indexação da base de conhecimento."""
+        self.print_header("--- Indexar Base de Conhecimento ---")
+        print("Isso irá escanear todos os documentos (.md, .txt) e indexá-los")
+        print("para busca semântica (RAG).\n")
+
+        confirm = input("Deseja prosseguir? (S/N): ").upper()
+        if confirm != 'S':
+            self.print_warning("Operação cancelada.")
+            return
+
+        try:
+            from foton_system.core.ops.op_index_knowledge import OpIndexKnowledge
+            op = OpIndexKnowledge(actor="CLI_User")
+            print("\n🧠 Indexando... (isso pode demorar na primeira vez)")
+            result = op.execute()
+            self.print_success(
+                f"\n✅ Base de Conhecimento Atualizada!\n"
+                f"   Arquivos processados: {result.get('files_scanned', 0)}\n"
+                f"   Chunks criados: {result.get('chunks_created', 0)}"
+            )
+        except ImportError:
+            self.print_error("RAG indisponível: instale 'chromadb' e 'sentence-transformers'.")
+        except Exception as e:
+            logger.error(f"Erro ao indexar: {e}", exc_info=True)
+            self.print_error(f"Erro ao indexar: {e}")
+
+        input("Pressione Enter para voltar...")
+
+    def _query_knowledge_ui(self):
+        """Interface para consultar a base de conhecimento."""
+        self.print_header("--- Consultar Conhecimento ---")
+        query = input("Digite sua pergunta: ").strip()
+        if not query:
+            self.print_warning("Nenhuma pergunta fornecida.")
+            return
+
+        try:
+            from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
+            op = OpQueryKnowledge(actor="CLI_User")
+            result = op.execute(query=query)
+
+            if result['status'] == 'EMPTY':
+                self.print_warning("📭 Nenhum resultado encontrado na base.")
+            else:
+                self.print_success(f"\n🔍 {result['total']} resultados para: \"{query}\"\n")
+                for i, r in enumerate(result['results'], 1):
+                    print(f"--- [{i}] Fonte: {r['source']} (Similaridade: {r['score']:.0%}) ---")
+                    print(f"{r['document'][:500]}")
+                    print()
+        except ImportError:
+            self.print_error("RAG indisponível: instale 'chromadb' e 'sentence-transformers'.")
+        except Exception as e:
+            logger.error(f"Erro na consulta: {e}", exc_info=True)
+            self.print_error(f"Erro: {e}")
+
+        input("Pressione Enter para voltar...")

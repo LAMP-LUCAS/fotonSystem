@@ -11,3 +11,5 @@ mcp
 winshell
 pywin32
 watchdog
+chromadb
+sentence-transformers

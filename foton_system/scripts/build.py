@@ -101,6 +101,10 @@ def build():
     exe_name = f"foton_system_v{version}"
     icon_path = base_dir / "foton_system" / "assets" / "foton.ico"
     
+    # Write version.txt for Inno Setup dynamic version
+    version_file = base_dir / "version.txt"
+    version_file.write_text(version, encoding='utf-8')
+    
     print(f"📦 Building version: {version}")
     print(f"📄 Entry point: {main_script}")
     print(f"🎨 Icon: {icon_path}")
@@ -148,6 +152,24 @@ def build():
         '--hidden-import=watchdog.observers',
         '--hidden-import=watchdog.events',
         '--hidden-import=json',
+        
+        # RAG dependencies (graceful degradation if not installed)
+        '--hidden-import=chromadb',
+        '--hidden-import=chromadb.config',
+        '--hidden-import=chromadb.api',
+        '--hidden-import=chromadb.api.models',
+        '--hidden-import=sentence_transformers',
+        '--hidden-import=torch',
+        '--hidden-import=transformers',
+        '--hidden-import=tokenizers',
+        '--hidden-import=tqdm',
+        '--hidden-import=huggingface_hub',
+        
+        # Knowledge operations
+        '--hidden-import=foton_system.core.ops.op_query_knowledge',
+        '--hidden-import=foton_system.core.ops.op_index_knowledge',
+        '--hidden-import=foton_system.core.memory',
+        '--hidden-import=foton_system.core.memory.vector_store',
     ]
     
     # Run PyInstaller
