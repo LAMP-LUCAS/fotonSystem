@@ -1,4 +1,6 @@
 ﻿import sys
+import os
+from typing import Optional
 from foton_system.modules.clients.application.use_cases.client_service import ClientService
 from foton_system.modules.documents.application.use_cases.document_service import DocumentService
 from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
@@ -6,6 +8,7 @@ from foton_system.modules.documents.infrastructure.adapters.python_docx_adapter 
 from foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter import PythonPPTXAdapter
 from foton_system.modules.productivity.pomodoro import PomodoroTimer
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
+from foton_system.interfaces.cli.ui_provider import UIProvider, get_ui_provider
 from colorama import init, Fore, Style
 
 # Initialize colorama
@@ -14,7 +17,17 @@ init(autoreset=True)
 logger = setup_logger()
 
 class MenuSystem:
-    def __init__(self):
+    def __init__(self, ui_provider: Optional[UIProvider] = None):
+        """
+        Initialize MenuSystem with optional UI provider.
+        
+        Args:
+            ui_provider: UIProvider instance for TUI/GUI interactions.
+                        If None, auto-detects based on environment.
+        """
+        # UI Provider (TUI or GUI)
+        self.ui = ui_provider or get_ui_provider('auto')
+        
         # Dependency Injection Wiring
         self.client_repo = ExcelClientRepository()
         self.client_service = ClientService(self.client_repo)
@@ -22,6 +35,9 @@ class MenuSystem:
         self.docx_adapter = PythonDocxAdapter()
         self.pptx_adapter = PythonPPTXAdapter()
         self.document_service = DocumentService(self.docx_adapter, self.pptx_adapter)
+
+        # Ensure database exists to prevent pipeline errors
+        self._ensure_database_exists()
 
     def print_success(self, message):
         print(f"{Fore.GREEN}{message}{Style.RESET_ALL}")
@@ -35,16 +51,68 @@ class MenuSystem:
     def print_header(self, message):
         print(f"\n{Fore.CYAN}{Style.BRIGHT}{message}{Style.RESET_ALL}")
 
+    def _ensure_database_exists(self):
+        """Checks if the database file exists, and creates it if missing."""
+        from foton_system.modules.shared.infrastructure.config.config import Config
+        import pandas as pd
+        
+        try:
+            config = Config()
+            db_path = config.get('caminho_baseDados')
+            
+            if not db_path:
+                return
+
+            # Ensure directory exists
+            db_dir = os.path.dirname(db_path)
+            if db_dir and not os.path.exists(db_dir):
+                os.makedirs(db_dir, exist_ok=True)
+
+            if not os.path.exists(db_path):
+                self.print_warning(f"Base de dados não encontrada em: {db_path}")
+                self.print_warning("Inicializando nova base de dados com estrutura completa...")
+                
+                # Create Excel with proper structure (multiple sheets)
+                with pd.ExcelWriter(db_path, engine='openpyxl') as writer:
+                    # Sheet: baseClientes
+                    df_clientes = pd.DataFrame(columns=[
+                        'ID', 'NomeCliente', 'Alias', 'TelefoneCliente', 'Email',
+                        'CPF_CNPJ', 'Endereco', 'CidadeProposta', 'EstadoCivil', 'Profissao'
+                    ])
+                    df_clientes.to_excel(writer, sheet_name='baseClientes', index=False)
+                    
+                    # Sheet: baseServicos
+                    df_servicos = pd.DataFrame(columns=[
+                        'ID', 'AliasCliente', 'Alias', 'CodServico', 'Modalidade', 'Ano',
+                        'Demanda', 'AreaTotal', 'AreaCoberta', 'AreaDescoberta',
+                        'Detalhes', 'Estilo', 'Ambientes', 'ValorProposta', 'ValorContrato'
+                    ])
+                    df_servicos.to_excel(writer, sheet_name='baseServicos', index=False)
+                
+                self.print_success("Base de dados criada com sucesso!")
+        except Exception as e:
+            logger.error(f"Erro ao verificar/criar base de dados: {e}", exc_info=True)
+
     def display_main_menu(self):
-        self.print_header("=== FOTON System ===")
-        print("1. Gerenciar Clientes")
-        print("2. Gerenciar Serviços")
-        print("3. Documentos")
-        print("4. Produtividade")
-        print("5. Configurações")
-        print("6. Instalar / Criar Atalhos")
-        print("0. Sair")
-        return input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print(f"\n{Fore.CYAN}╔══════════════════════════════════════════════════════════╗")
+        print(f"║{Style.BRIGHT}{' FOTON SYSTEM '.center(58)}{Style.NORMAL}{Fore.CYAN}║")
+        print(f"╠══════════════════════════════════════════════════════════╣")
+        options = [
+            ("1", "Gerenciar Clientes"),
+            ("2", "Gerenciar Serviços"),
+            ("3", "Documentos (PPTX/DOCX)"),
+            ("4", "Produtividade (Pomodoro)"),
+            ("5", "Configurações do Sistema"),
+            ("6", "Instalação / Atalhos"),
+            ("7", "Implantação (Gerenciar Base de Dados)"),
+            ("8", "Modo Sentinela (Watcher)"),
+            ("0", "Sair")
+        ]
+        for key, label in options:
+            print(f"{Fore.CYAN}║ {Fore.YELLOW}{key}. {Fore.WHITE}{label.ljust(51)}{Fore.CYAN}║")
+        print(f"╚══════════════════════════════════════════════════════════╝")
+        return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
 
     def display_clients_menu(self):
         self.print_header("--- Gerenciar Clientes ---")
@@ -69,6 +137,7 @@ class MenuSystem:
         self.print_header("--- Documentos ---")
         print("1. Gerar Proposta (PPTX)")
         print("2. Gerar Contrato (DOCX)")
+        print("3. Validar Template (Pré-voo)")
         print("0. Voltar")
         return input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
 
@@ -95,6 +164,10 @@ class MenuSystem:
                     self.handle_settings()
                 elif choice == '6':
                     self.handle_installation()
+                elif choice == '7':
+                    self.handle_deployment()
+                elif choice == '8':
+                    self.handle_watcher()
                 elif choice == '0':
                     print("Saindo...")
                     sys.exit()
@@ -116,6 +189,7 @@ class MenuSystem:
                 InstallService().install()
                 self.print_success("Instalação realizada com sucesso!")
             except Exception as e:
+                logger.error(f"Erro crítico no menu de instalação: {e}", exc_info=True)
                 self.print_error(f"Erro na instalação: {e}")
             input("Pressione Enter para voltar...")
 
@@ -176,6 +250,8 @@ class MenuSystem:
                 self.generate_document_ui('pptx')
             elif choice == '2':
                 self.generate_document_ui('docx')
+            elif choice == '3':
+                self.validate_template_ui()
             elif choice == '0':
                 break
             else:
@@ -230,32 +306,23 @@ class MenuSystem:
         return input(f"{Fore.YELLOW}Para alterar, digite o número da opção: {Style.RESET_ALL}")
 
     def update_setting_ui(self, config, key, title, is_file=False):
-        import tkinter as tk
-        from tkinter import filedialog
-
         print(f"\nSelecione o novo local para: {title}")
 
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes('-topmost', True)
-
         if is_file:
-            path = filedialog.askopenfilename(title=f"Selecione: {title}")
+            path = self.ui.select_file(f"Selecione: {title}")
         else:
-            path = filedialog.askdirectory(title=f"Selecione: {title}")
-
-        root.destroy()
+            path = self.ui.select_directory(f"Selecione: {title}")
 
         if path:
             # Normalize path separators
-            import os
-            path = os.path.normpath(path)
+            path = os.path.normpath(str(path))
 
             config.set(key, path)
             config.save()
             self.print_success(f"Configuração atualizada com sucesso!\nNovo valor: {path}")
         else:
             self.print_warning("Operação cancelada.")
+
 
     def create_client_ui(self):
         self.print_header("--- Novo Cliente ---")
@@ -305,18 +372,12 @@ class MenuSystem:
     def generate_document_ui(self, doc_type):
         from foton_system.modules.shared.infrastructure.config.config import Config
         from pathlib import Path
-        import tkinter as tk
-        from tkinter import filedialog
 
         self.print_header(f"--- Gerar Documento ({doc_type.upper()}) ---")
 
-        # 1. Select Client Folder via GUI
-        print("Selecione a pasta do cliente na janela que abrirá...")
-        root = tk.Tk()
-        root.withdraw() # Hide main window
-        root.attributes('-topmost', True) # Bring to front
-        client_folder = filedialog.askdirectory(title="Selecione a Pasta do Cliente")
-        root.destroy()
+        # 1. Select Client Folder via UI Provider (TUI or GUI)
+        print("Selecione a pasta do cliente...")
+        client_folder = self.ui.select_directory("Selecione a Pasta do Cliente")
 
         if not client_folder:
             self.print_warning("Nenhuma pasta selecionada.")
@@ -324,6 +385,7 @@ class MenuSystem:
 
         client_path = Path(client_folder)
         print(f"Pasta selecionada: {client_path}")
+
 
         # 2. Check/Create Data File Pipeline
         data_files = self.document_service.list_client_data_files(client_path)
@@ -411,12 +473,12 @@ class MenuSystem:
             self.document_service.generate_document(str(template_path), str(selected_file), str(output_path), doc_type)   
             self.print_success(f"Documento gerado com sucesso em: {output_path}")
 
-            # Open folder
-            import os
-            os.startfile(client_path)
+            # Open folder via UI Provider
+            self.ui.open_folder(client_path)
 
         except Exception as e:
             self.print_error(f"Erro ao gerar documento: {e}")
+
 
     def _select_from_list(self, items):
         for i, item in enumerate(items):
@@ -516,3 +578,176 @@ class MenuSystem:
             self.print_error("Erro: Launcher administrativo não encontrado.")
         except Exception as e:
             self.print_error(f"Erro ao abrir ferramentas administrativas: {e}")
+    def handle_deployment(self):
+        """Menu para gerenciar a base de dados e implantação."""
+        try:
+            from foton_system.scripts.deployment_manager import DeploymentManager
+            manager = DeploymentManager()
+            manager.interactive_menu()
+        except ImportError:
+            self.print_error("Erro: Gerenciador de Deployment não encontrado.")
+        except Exception as e:
+            logger.error(f"Erro no menu de deployment: {e}", exc_info=True)
+            self.print_error(f"Erro ao abrir gerenciador de deployment: {e}")
+
+    def validate_template_ui(self):
+        """Interface de validação pré-voo de templates."""
+        from foton_system.modules.shared.infrastructure.config.config import Config
+        from pathlib import Path
+
+        self.print_header("--- Validar Template (Pré-voo) ---")
+
+        # 1. Selecionar pasta do cliente
+        print("Selecione a pasta do cliente...")
+        client_folder = self.ui.select_directory("Selecione a Pasta do Cliente")
+        if not client_folder:
+            self.print_warning("Nenhuma pasta selecionada.")
+            return
+
+        client_path = Path(client_folder)
+        print(f"Pasta selecionada: {client_path}")
+
+        # 2. Selecionar arquivo de dados
+        data_files = self.document_service.list_client_data_files(client_path)
+        if not data_files:
+            self.print_warning("Nenhum arquivo de dados encontrado.")
+            return
+
+        print("\nArquivos de dados encontrados:")
+        selected_file = None
+        for i, f in enumerate(data_files):
+            print(f"{i + 1}. {f.name}")
+
+        try:
+            choice = int(input("Escolha o arquivo de dados: "))
+            if 1 <= choice <= len(data_files):
+                selected_file = data_files[choice - 1]
+            else:
+                self.print_error("Opção inválida.")
+                return
+        except ValueError:
+            self.print_error("Entrada inválida.")
+            return
+
+        # 3. Selecionar template
+        print("\nSelecione o tipo de documento:")
+        print("1. PPTX (Proposta)")
+        print("2. DOCX (Contrato)")
+        doc_choice = input("Escolha: ")
+        doc_type = 'pptx' if doc_choice == '1' else 'docx'
+
+        templates = self.document_service.list_templates(doc_type)
+        if not templates:
+            self.print_warning("Nenhum template encontrado.")
+            return
+
+        print("\nSelecione o Template:")
+        template_name = self._select_from_list(templates)
+        if not template_name:
+            return
+
+        template_path = Config().templates_path / template_name
+
+        # 4. Executar validação
+        missing = self.document_service.validate_template_keys(str(template_path), str(selected_file), doc_type)
+
+        if not missing:
+            self.print_success(f"\n✅ PRÉ-VOO OK! Template '{template_name}' está completo.")
+            self.print_success(f"   Todos os campos do template estão presentes em '{selected_file.name}'.")
+        else:
+            self.print_warning(f"\n⚠️ PRÉ-VOO: {len(missing)} variáveis faltando:")
+            for k in missing:
+                print(f"   ❌ {k}")
+            print(f"\n📄 Template: {template_name}")
+            print(f"📋 Dados: {selected_file.name}")
+
+        input("\nPressione Enter para voltar...")
+
+    def handle_watcher(self):
+        """Menu para gerenciar o modo Sentinela (Watcher) e base de conhecimento."""
+        self.print_header("--- Modo Sentinela (Watcher) ---")
+        print("Monitora mudanças nas pastas de clientes e sincroniza automaticamente.")
+        print("\n1. Ativar Watcher")
+        print("2. Desativar Watcher")
+        print("3. Indexar Base de Conhecimento (RAG)")
+        print("4. Consultar Conhecimento")
+        print("0. Voltar")
+
+        choice = input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
+
+        if choice == '1':
+            self.print_warning("Iniciando Watcher...")
+            try:
+                from foton_system.core.watcher.service import WatcherService
+                watcher = WatcherService()
+                watcher.start()
+                self.print_success("Watcher ativado com sucesso!")
+            except Exception as e:
+                logger.error(f"Erro ao ativar Watcher: {e}", exc_info=True)
+                self.print_error(f"Erro ao ativar Watcher: {e}")
+        elif choice == '2':
+            self.print_warning("Watcher desativado.")
+        elif choice == '3':
+            self._index_knowledge_ui()
+        elif choice == '4':
+            self._query_knowledge_ui()
+        elif choice != '0':
+            self.print_error("Opção inválida.")
+
+    def _index_knowledge_ui(self):
+        """Interface para indexação da base de conhecimento."""
+        self.print_header("--- Indexar Base de Conhecimento ---")
+        print("Isso irá escanear todos os documentos (.md, .txt) e indexá-los")
+        print("para busca semântica (RAG).\n")
+
+        confirm = input("Deseja prosseguir? (S/N): ").upper()
+        if confirm != 'S':
+            self.print_warning("Operação cancelada.")
+            return
+
+        try:
+            from foton_system.core.ops.op_index_knowledge import OpIndexKnowledge
+            op = OpIndexKnowledge(actor="CLI_User")
+            print("\n🧠 Indexando... (isso pode demorar na primeira vez)")
+            result = op.execute()
+            self.print_success(
+                f"\n✅ Base de Conhecimento Atualizada!\n"
+                f"   Arquivos processados: {result.get('files_scanned', 0)}\n"
+                f"   Chunks criados: {result.get('chunks_created', 0)}"
+            )
+        except ImportError:
+            self.print_error("RAG indisponível: instale 'chromadb' e 'sentence-transformers'.")
+        except Exception as e:
+            logger.error(f"Erro ao indexar: {e}", exc_info=True)
+            self.print_error(f"Erro ao indexar: {e}")
+
+        input("Pressione Enter para voltar...")
+
+    def _query_knowledge_ui(self):
+        """Interface para consultar a base de conhecimento."""
+        self.print_header("--- Consultar Conhecimento ---")
+        query = input("Digite sua pergunta: ").strip()
+        if not query:
+            self.print_warning("Nenhuma pergunta fornecida.")
+            return
+
+        try:
+            from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
+            op = OpQueryKnowledge(actor="CLI_User")
+            result = op.execute(query=query)
+
+            if result['status'] == 'EMPTY':
+                self.print_warning("📭 Nenhum resultado encontrado na base.")
+            else:
+                self.print_success(f"\n🔍 {result['total']} resultados para: \"{query}\"\n")
+                for i, r in enumerate(result['results'], 1):
+                    print(f"--- [{i}] Fonte: {r['source']} (Similaridade: {r['score']:.0%}) ---")
+                    print(f"{r['document'][:500]}")
+                    print()
+        except ImportError:
+            self.print_error("RAG indisponível: instale 'chromadb' e 'sentence-transformers'.")
+        except Exception as e:
+            logger.error(f"Erro na consulta: {e}", exc_info=True)
+            self.print_error(f"Erro: {e}")
+
+        input("Pressione Enter para voltar...")

@@ -3,21 +3,36 @@ import re
 import json
 from pathlib import Path
 from datetime import datetime
+from typing import Optional
 from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
 from foton_system.modules.documents.application.ports.document_service_port import DocumentServicePort
 from foton_system.modules.shared.infrastructure.utils.formatting import FotonFormatter
 from foton_system.modules.shared.infrastructure.services.cub_service import CubService
+from foton_system.modules.shared.domain.exceptions import (
+    TemplateNotFoundError,
+    DocumentGenerationError
+)
 
 logger = setup_logger()
 
+
 class DocumentService:
-    def __init__(self, docx_adapter: DocumentServicePort, pptx_adapter: DocumentServicePort):
+    def __init__(self, docx_adapter: DocumentServicePort, pptx_adapter: DocumentServicePort, config: Optional[Config] = None):
+        """
+        Initialize DocumentService with adapters and optional config.
+        
+        Args:
+            docx_adapter: Adapter for DOCX document handling
+            pptx_adapter: Adapter for PPTX document handling
+            config: Configuration object. If None, uses default Config singleton.
+        """
         self.docx_handler = docx_adapter
         self.pptx_handler = pptx_adapter
+        self._config = config or Config()
 
     def list_templates(self, extension):
-        templates_dir = Config().templates_path
+        templates_dir = self._config.templates_path
         if not templates_dir.exists():
             logger.warning(f"Diretório de templates não encontrado: {templates_dir}")
             return []
@@ -25,7 +40,7 @@ class DocumentService:
         return [f.name for f in templates_dir.glob(f'*.{extension}')]
 
     def list_data_files(self):
-        data_dir = Config().templates_path
+        data_dir = self._config.templates_path
         if not data_dir.exists():
             return []
 
@@ -95,8 +110,8 @@ class DocumentService:
         missing_keys = self._validate_keys(template_path, replacements, doc_type)
 
         # Clean missing variables
-        if missing_keys and Config().clean_missing_variables:
-            placeholder = Config().missing_variable_placeholder
+        if missing_keys and self._config.clean_missing_variables:
+            placeholder = self._config.missing_variable_placeholder
             logger.info(f"Limpando {len(missing_keys)} variáveis faltando com placeholder '{placeholder}'")
             for key in missing_keys:
                 replacements[key] = placeholder
@@ -161,7 +176,7 @@ class DocumentService:
     def _load_context_data(self, data_path):
         data = {}
         try:
-            base_clients = Config().base_pasta_clientes
+            base_clients = self._config.base_pasta_clientes
             current_dir = data_path.parent
 
             dirs_to_check = []

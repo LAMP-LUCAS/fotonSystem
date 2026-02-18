@@ -1,15 +1,30 @@
 import pandas as pd
 import re
+from typing import Optional
 from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
 from foton_system.modules.clients.application.ports.client_repository_port import ClientRepositoryPort
-
 from foton_system.modules.shared.infrastructure.validators import validate_filename
+from foton_system.modules.shared.domain.exceptions import (
+    InvalidAliasError,
+    DatabaseLockError,
+    ValidationError
+)
 
 logger = setup_logger()
+
+
 class ClientService:
-    def __init__(self, repository: ClientRepositoryPort):
+    def __init__(self, repository: ClientRepositoryPort, config: Optional[Config] = None):
+        """
+        Initialize ClientService with repository and optional config.
+        
+        Args:
+            repository: The client repository adapter
+            config: Configuration object. If None, uses default Config singleton.
+        """
         self.repository = repository
+        self._config = config or Config()
 
     def sync_clients_db_from_folders(self):
         """Updates DB with clients found in folders but not in DB."""
@@ -60,7 +75,7 @@ class ClientService:
             # Let's use Config().base_pasta_clientes / alias.
             
             for alias in missing_folders:
-                self.repository.create_folder(Config().base_pasta_clientes / alias)
+                self.repository.create_folder(self._config.base_pasta_clientes / alias)
             
             logger.info(f"{len(missing_folders)} pastas de clientes criadas.")
 
@@ -77,7 +92,7 @@ class ClientService:
             
             folder_clients = self.repository.list_client_folders()
             new_services_list = []
-            ignored = set(Config().ignored_folders)
+            ignored = set(self._config.ignored_folders)
 
             for client in folder_clients:
                 client_services = self.repository.list_service_folders(client)
@@ -125,7 +140,7 @@ class ClientService:
                 if client not in folder_clients:
                     continue
 
-                service_path = Config().base_pasta_clientes / client / service
+                service_path = self._config.base_pasta_clientes / client / service
                 # We need to check existence. Repository doesn't have exists() method exposed directly for arbitrary paths?
                 # We can use os.path.exists or Path.exists since we are using local file system.
                 # But to be pure, we should ask repository.
@@ -405,7 +420,7 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
                 if not cod:
                     cod = self.generate_client_code(row.get('NomeCliente'))
                 
-                folder = Config().base_pasta_clientes / alias
+                folder = self._config.base_pasta_clientes / alias
                 if not folder.exists():
                     continue
 
@@ -468,7 +483,7 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
                 if not cod or pd.isna(cod):
                     cod = self._generate_service_code(client_alias, service_alias)
                 
-                folder = Config().base_pasta_clientes / client_alias / service_alias
+                folder = self._config.base_pasta_clientes / client_alias / service_alias
                 if not folder.exists():
                     continue
 
@@ -523,7 +538,7 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
             for client_alias in folder_clients:
                 service_folders = self.repository.list_service_folders(client_alias)
                 for service_alias in service_folders:
-                    folder = Config().base_pasta_clientes / client_alias / service_alias
+                    folder = self._config.base_pasta_clientes / client_alias / service_alias
                     latest_file = self._get_latest_file(folder, service_alias)
                     
                     if not latest_file:

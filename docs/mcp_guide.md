@@ -1,72 +1,163 @@
-# Guia de Uso: FOTON MCP 🚀
+# 🤖 Guia de Integração MCP - FOTON System
 
-O **FOTON MCP** é o servidor que permite que Inteligências Artificiais (como Claude Desktop, Cursor ou ChatGPT) interajam diretamente com o sistema Foton para gerenciar seu escritório.
+> **Deixe a IA trabalhar por você.**
 
-## 1. Instalação e Requisitos
+← [[README|Voltar ao Início]] | [[UserGuide|Guia do Usuário]] | [[AI_INTEGRATION_REPORT|Relatório de IA]] →
 
-### Pré-requisitos
+O **FOTON MCP** conecta seu escritório a assistentes de IA como Claude Desktop, Cursor e outros clientes compatíveis com o Model Context Protocol.
 
-* **Python 3.10+**
-* **Claude Desktop** ou **Cursor IDE** (ou qualquer cliente compatível com MCP)
-
-### Passo 1: Instalar dependências
-
-No terminal da pasta do projeto, execute:
-
-```bash
-pip install mcp fastmcp pandas openpyxl python-docx python-pptx
-```
-
-### Passo 2: Localizar o script
-
-O servidor MCP está em:
-`foton_system/interfaces/mcp/foton_mcp.py`
+> **Quer entender como funciona?** Veja [[AI_INTEGRATION_REPORT|Relatório de Integração IA]]
 
 ---
 
-## 2. Configuração nos LLMs
+## 🚀 Configuração em 2 Minutos
 
-### No Claude Desktop
+### Passo 1: Gerar Configuração
 
-1. Abra o arquivo de configuração do Claude (`%APPDATA%/Claude/claude_desktop_config.json` no Windows).
-2. Adicione o FOTON na lista de `mcpServers`:
+No terminal, execute:
+
+```powershell
+foton --mcp-config
+```
+
+O sistema gera o JSON pronto para copiar:
 
 ```json
 {
   "mcpServers": {
     "foton": {
       "command": "python",
-      "args": ["Caminho/Absoluto/Para/fotonSystem/foton_system/interfaces/mcp/foton_mcp.py"]
+      "args": ["C:\\...\\foton_mcp.py"]
     }
   }
 }
 ```
 
-3. Reinicie o Claude. Um ícone de martelo (tools) aparecerá.
+### Passo 2: Colar no Assistente
 
-### No Cursor (IDE)
+O comando `foton --mcp-config` detecta automaticamente se você está usando o código-fonte ou o executável instalado e gera o JSON correto.
 
-1. Vá em **Settings > Cursor Settings > Features > MCP**.
-2. Clique em **+ Add New MCP Server**.
-3. Escolha o tipo `command` e cole:
-   `python "Caminho/Absoluto/Para/foton_system/interfaces/mcp/foton_mcp.py"`
-4. Pronto! O Cursor agora tem acesso às ferramentas do Foton.
+**Se estiver usando o executável:**
+
+```json
+"foton": {
+  "command": "C:\\Users\\...\\foton_system_v1.0.0.exe",
+  "args": ["--mcp"]
+}
+```
+
+**Se estiver desenvolvendo (Python):**
+
+```json
+"foton": {
+  "command": "python",
+  "args": ["C:\\...\\foton_mcp.py"]
+}
+```
+
+#### Para Claude Desktop
+
+1. Abra `%APPDATA%\Claude\claude_desktop_config.json`
+2. Cole o JSON gerado pelo comando.
+3. Reinicie o Claude.
+
+#### Para Cursor IDE
+
+1. Vá em **Settings** > **Features** > **MCP**
+2. Clique em **+ Add New MCP Server**
+3. Type: `command`
+4. Cole o comando e argumentos fornecidos pelo `foton --mcp-config`.
 
 ---
 
-## 3. Comandos e Utilização
+## 💬 Comandos Disponíveis
 
-Você não precisa digitar comandos específicos. Basta pedir para a IA em linguagem natural:
+Depois de configurar, basta pedir em linguagem natural:
 
-* *"Registre uma entrada de R$ 500 para o cliente João Silva referente a consultoria"*
-* *"Qual é o saldo atual do cliente Maria?"*
-* *"Gere uma proposta para o cliente João usando o template de anteprojeto"*
-* *"Sincronize meu dashboard do Excel"*
+### 💵 Financeiro
+
+| Comando | O que faz |
+|---------|-----------|
+| *"Qual o saldo do cliente Silva?"* | Consulta o resumo financeiro |
+| *"Registre entrada de R$ 5.000 para João"* | Registra pagamento recebido |
+| *"Registre despesa de R$ 200 para material"* | Registra saída de caixa |
+
+### 📄 Documentos
+
+| Comando | O que faz |
+|---------|-----------|
+| *"Liste os templates disponíveis"* | Mostra PPTX e DOCX cadastrados |
+| *"Gere proposta para Maria usando template comercial"* | Cria documento com dados do cliente |
+
+### 🧠 Memória (RAG)
+
+| Comando | O que faz |
+|---------|-----------|
+| *"O que sabemos sobre projetos residenciais?"* | Busca na base de conhecimento |
+| *"Qual foi a última decisão sobre acabamentos?"* | Pesquisa histórico de documentos |
 
 ---
 
-## 4. Segurança
+## ⚠️ Solução de Problemas
 
-* O servidor roda localmente.
-* A IA só tem acesso às ferramentas definidas no arquivo `foton_mcp.py`.
-* Sempre valide documentos gerados antes de enviar ao cliente.
+### MCP não inicia
+
+> [!NOTE]
+> O servidor demora ~15 segundos para iniciar na primeira vez. Isso é normal devido às dependências carregadas.
+
+### JSON inválido
+
+Use sempre `foton --mcp-config` para gerar o JSON correto. Não edite manualmente!
+
+### Erro de caminho
+
+Verifique se o Python está no PATH do sistema:
+
+```powershell
+python --version
+```
+
+Se não funcionar, reinstale o Python marcando "Add to PATH".
+
+---
+
+## 🔒 Segurança
+
+- O servidor roda **localmente** no seu computador
+- A IA só acessa ferramentas definidas no `foton_mcp.py`
+- Nenhum dado é enviado para servidores externos
+- Sempre valide documentos gerados antes de enviar ao cliente
+
+---
+
+## 📋 Referência Técnica
+
+### Arquivo do Servidor
+
+```
+foton_system/interfaces/mcp/foton_mcp.py
+```
+
+### Ferramentas Expostas
+
+| Tool | Descrição |
+|------|-----------|
+| `registrar_financeiro` | Registra entrada/saída financeira |
+| `consultar_financeiro` | Consulta saldo e resumo |
+| `listar_templates` | Lista templates PPTX/DOCX |
+| `gerar_documento` | Gera documento a partir de template |
+| `consultar_conhecimento` | Pesquisa na base de memória (RAG) |
+
+---
+
+## 📚 Documentação Relacionada
+
+- [[UserGuide|📖 Como usar a integração]] - Exemplos práticos
+- [[AI_INTEGRATION_REPORT|🤖 Relatório Técnico]] - Como a IA se integra
+- [[Pipelines|🔄 Fluxo de Dados]] - Como o MCP acessa os dados
+
+---
+
+**Desenvolvido para Arquitetos que querem projetar, não gerenciar arquivos.**
+
+🔗 [LAMP Arquitetura](https://github.com/LAMP-LUCAS/fotonSystem)

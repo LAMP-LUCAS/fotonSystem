@@ -260,17 +260,24 @@ def create_github_release(version, token):
         release_url = resp.json()['url']
         print(Fore.GREEN + f"Rascunho criado: {resp.json()['html_url']}")
 
-    # Upload Asset
-    exe_name = f"foton_system_v{version}.exe"
-    asset_path = DIST_DIR / exe_name
+    # Upload Asset (ZIP from onedir build)
+    zip_name = f"foton_system_v{version}.zip"
+    asset_path = DIST_DIR / zip_name
+    
+    # Fallback: try .exe if zip doesn't exist (legacy onefile builds)
+    if not asset_path.exists():
+        exe_name = f"foton_system_v{version}.exe"
+        asset_path = DIST_DIR / exe_name
+        zip_name = exe_name
     
     if not asset_path.exists():
-        print(Fore.RED + f"Arquivo não encontrado para upload: {asset_path}")
+        print(Fore.RED + f"Arquivo não encontrado para upload: {DIST_DIR / zip_name}")
+        print(Fore.YELLOW + "Execute o build primeiro: python foton_system/scripts/build.py")
         return
 
     # Check file size
     file_size_mb = asset_path.stat().st_size / (1024 * 1024)
-    print(Fore.YELLOW + f"Preparando upload de {exe_name} ({file_size_mb:.2f} MB)...")
+    print(Fore.YELLOW + f"Preparando upload de {zip_name} ({file_size_mb:.2f} MB)...")
     
     if file_size_mb > 2000: # GitHub limit is 2GB
         print(Fore.RED + "Arquivo excede o limite de 2GB do GitHub Releases.")
@@ -282,26 +289,27 @@ def create_github_release(version, token):
     
     # Check if asset already exists and delete it
     for asset in release_data.get('assets', []):
-        if asset['name'] == exe_name:
+        if asset['name'] == zip_name:
             print(Fore.YELLOW + "Asset já existe. Substituindo...")
             session.delete(asset['url'])
             break
 
     # Perform Upload
+    content_type = "application/zip" if zip_name.endswith('.zip') else "application/octet-stream"
     with open(asset_path, 'rb') as f:
         headers = {
-            "Content-Type": "application/octet-stream",
+            "Content-Type": content_type,
             "Content-Length": str(asset_path.stat().st_size)
         }
         upload_resp = session.post(
-            f"{upload_url}?name={exe_name}",
+            f"{upload_url}?name={zip_name}",
             headers=headers,
             data=f,
-            timeout=300 # 5 minutes timeout for large files
+            timeout=600 # 10 minutes timeout for large ZIP files
         )
         
         if upload_resp.status_code == 201:
-            print(Fore.GREEN + "✅ Upload concluído com sucesso!")
+            print(Fore.GREEN + f"✅ Upload concluído com sucesso! ({zip_name})")
         else:
             print(Fore.RED + f"❌ Falha no upload: {upload_resp.status_code} - {upload_resp.text}")
 
