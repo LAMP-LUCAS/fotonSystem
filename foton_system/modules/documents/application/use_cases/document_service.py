@@ -33,7 +33,7 @@ class DocumentService:
 
     def list_templates(self, extension):
         templates_dir = self._config.templates_path
-        if not templates_dir.exists():
+        if not templates_dir or not templates_dir.exists():
             logger.warning(f"Diretório de templates não encontrado: {templates_dir}")
             return []
         
@@ -41,7 +41,7 @@ class DocumentService:
 
     def list_data_files(self):
         data_dir = self._config.templates_path
-        if not data_dir.exists():
+        if not data_dir or not data_dir.exists():
             return []
 
         files = list(data_dir.glob('*.txt')) + list(data_dir.glob('*.json'))
@@ -80,6 +80,38 @@ class DocumentService:
         except Exception as e:
             logger.error(f"Erro ao criar arquivo de dados: {e}")
             return None
+
+    def _load_data(self, path):
+
+        path = Path(path)
+        if not path.exists():
+            logger.error(f"Arquivo de dados não encontrado: {path}")
+            return {}
+        if path.suffix == '.json':
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return {k.lower(): v for k, v in data.items()}
+        elif path.suffix == '.txt':
+            return self._parse_txt_data(path)
+        elif path.suffix == '.md':
+            raw_data = self._parse_md_data(path)
+            return {k.lower(): v for k, v in raw_data.items()}
+        return {}
+
+    def _parse_txt_data(self, path):
+        replacements = {}
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if ';' in line:
+                        parts = line.strip().split(';')
+                        if len(parts) >= 2:
+                            key, value = parts[0], parts[1]
+                            replacements[key.lower()] = value
+        except Exception as e:
+            logger.error(f"Erro ao parsear TXT {path}: {e}")
+        return replacements
+
 
     def generate_document(self, template_path, data_path, output_path, doc_type):
         logger.info(f"Gerando documento do tipo {doc_type}...")
@@ -330,6 +362,7 @@ class DocumentService:
                                 raise ValueError("Expressão contém caracteres inválidos")
 
                             result = eval(expression)
-                            replacements[key] = str(result)
+                            # Store with .2f precision for financial consistency
+                            replacements[key] = f"{result:.2f}"
                         except Exception as e:
                             logger.warning(f"Falha ao calcular {key}: {e}")

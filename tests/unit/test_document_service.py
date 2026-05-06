@@ -146,44 +146,103 @@ class TestDocumentServiceDataParsing(unittest.TestCase):
         self.assertEqual(result['@nome'], 'João Silva')
         self.assertEqual(result['@cpf'], '12345678900')
 
-    def test_load_data_handles_json(self):
-        """Loads data from JSON files correctly."""
+    def test_load_data_returns_normalized_keys(self):
+        """Loads data from JSON files and normalizes keys to lowercase."""
         json_file = self.test_dir / 'data.json'
-        json_file.write_text(json.dumps({'@nome': 'Test', '@valor': 100}), encoding='utf-8')
-        
-        result = self.service._load_data(str(json_file))
-        
+        # Key with mixed case
+        json_file.write_text(json.dumps({'@Nome': 'Test', '@VALOR': 100}), encoding='utf-8')
+
+        result = self.service._load_data(json_file)
+
+        # Should be normalized to lowercase
         self.assertEqual(result['@nome'], 'Test')
         self.assertEqual(result['@valor'], 100)
 
     def test_load_data_returns_empty_for_missing_file(self):
         """Returns empty dict for non-existent files."""
-        result = self.service._load_data('/nonexistent/path.md')
-        
+        result = self.service._load_data(Path('/nonexistent/path.md'))
+
         self.assertEqual(result, {})
 
+
+class TestDocumentServiceResilience(unittest.TestCase):
+    """Tests for Case-Insensitivity and Structural Agnostic Context Loading."""
+
+    def setUp(self):
+        self.test_dir = Path(tempfile.mkdtemp())
+        self.service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir, ignore_errors=True)
+
+    def test_extract_keys_normalizes_to_lowercase(self):
+        """extract_keys_from_text should always save keys in lowercase."""
+        keys = set()
+        self.service._extract_keys_from_text('Olá @NomeCliente e @VALOR.', keys)
+
+        self.assertIn('@nomecliente', keys)
+        self.assertIn('@valor', keys)
+        self.assertNotIn('@NomeCliente', keys)
+
+    @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
+    def test_load_context_data_is_agnostic_to_folder_names(self, MockConfig):
+        """Should find INFO files even if folder names don't match."""
+        # Setup folder structure
+        # base / Client / 03_PROJETOS / Project
+        base = self.test_dir / "CLIENTES"
+        client = base / "SIMONE"
+        projects = client / "03_PROJETOS" # Folder with NO matching INFO file
+        project = projects / "APTO_502"
+        project.mkdir(parents=True)
+
+        mock_config = MagicMock()
+        mock_config.base_pasta_clientes = base
+        MockConfig.return_value = mock_config
+
+        # Create INFO files with non-matching names
+        (client / "INFO-GERAL.md").write_text("@CLIENTE; SIMONE", encoding='utf-8')
+        (project / "INFO-ESPECIFICO.md").write_text("@VALOR; 1000", encoding='utf-8')
+
+        # Load context from the deepest folder
+        data = self.service._load_context_data(project / "data.md")
+
+        self.assertEqual(data['@cliente'], 'SIMONE')
+        self.assertEqual(data['@valor'], '1000')
+
+    def test_resolve_operations_is_case_insensitive(self):
+        """Calculations should work even if variable case differs."""
+        data = {
+            '@valorproposta': '1000',
+            '@parcela': '[calculo: @VALORPROPOSTA * 0.1]'
+        }
+
+        self.service._resolve_operations(data)
+
+        self.assertEqual(data['@parcela'], '100.00')
 
 class TestDocumentServiceKeyExtraction(unittest.TestCase):
     """Tests for template key extraction."""
 
     def test_extract_keys_finds_at_variables(self):
-        """Extracts @variable patterns from text."""
+        """Extracts @variable patterns from text and normalizes."""
         service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
         keys = set()
-        
+
+
         service._extract_keys_from_text('O cliente @nomeCliente mora em @cidade.', keys)
-        
-        self.assertIn('@nomeCliente', keys)
+
+        self.assertIn('@nomecliente', keys)
         self.assertIn('@cidade', keys)
 
     def test_extract_keys_handles_percentage(self):
-        """Extracts @variable% patterns."""
+        """Extracts @variable% patterns and normalizes to lowercase."""
         service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
         keys = set()
         
         service._extract_keys_from_text('Custo é @ArqEng% do total.', keys)
         
-        self.assertIn('@ArqEng%', keys)
+        self.assertIn('@arqeng%', keys)
+
 
 
 class TestDocumentServiceTemplates(unittest.TestCase):
