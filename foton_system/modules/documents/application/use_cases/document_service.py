@@ -143,35 +143,12 @@ class DocumentService:
 
     def _apply_formatting(self, replacements):
         """
-        Iterates over all keys and applies formatting rules.
-        Also creates derived keys if helpful.
+        Iterates over all keys and applies smart formatting rules.
+        PURE DATA POLICY: No automatic 'R$' prefix or 'm²' suffix.
         """
-        formatted_replacements = {}
-        
         for key, value in replacements.items():
-            # Apply currency formatting if it looks like money
-            # Heuristic: Key contains 'valor', 'custo', 'total', 'preco' OR Value looks like a float
-            is_money_key = any(x in key.lower() for x in ['valor', 'custo', 'total', 'preco', 'cub', 'exec'])
-            
-            # Try to interpret as number
-            try:
-                # If it's already a string with 'R$', try to parse it back to float first to normalize
-                clean_val = FotonFormatter.parse_br_number(value)
-                
-                if is_money_key:
-                    # Update the MAIN key with formatted currency (User Preference)
-                    replacements[key] = FotonFormatter.format_currency(clean_val)
-                elif isinstance(clean_val, float) and clean_val != 0.0:
-                     # It's a number but not necessarily money (e.g., Area). 
-                     # Let's format as decimal (1.000,00) but keep original key flexible?
-                     # For safety, let's just ensure consistent decimal formatting for areas
-                     if 'area' in key.lower() or 'aceqv' in key.lower():
-                         replacements[key] = FotonFormatter.format_decimal(clean_val)
-            except:
-                pass
-                
-        # We modify 'replacements' in place or update it
-        # The logic above updates 'replacements' directly for specific keys
+            # Apply smart formatting: literals in quotes remain raw, numbers get BR decimal format, % get percentage format
+            replacements[key] = FotonFormatter.smart_format(key, value)
 
     def _load_context_data(self, data_path):
         data = {}
@@ -187,34 +164,76 @@ class DocumentService:
             dirs_to_check.reverse()
 
             for folder in dirs_to_check:
-                alias = folder.name
-                info_file = self._get_latest_info_file(folder, alias)
-                if info_file:
-                    logger.info(f"Carregando contexto de: {info_file.name}")
+                # Find any *INFO*.md file in the folder, regardless of folder name
+                info_files = list(folder.glob("*INFO*.md"))
+                if info_files:
+                    # Sort by modification time to get the most recent if multiple exist
+                    info_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+                    info_file = info_files[0]
+                    logger.info(f"Carregando contexto de: {info_file.name} em {folder.name}")
                     folder_data = self._parse_md_data(info_file)
-                    data.update(folder_data)
+                    # Lowercase keys for case-insensitive matching
+                    normalized_folder_data = {k.lower(): v for k, v in folder_data.items()}
+                    data.update(normalized_folder_data)
 
         except Exception as e:
             logger.warning(f"Erro ao carregar dados de contexto: {e}")
 
         return data
 
+    def _parse_md_data(self, file_path):
+        """
+        Parses metadata from an MD file.
+        Format: @Variable; Value
+        """
+        data = {}
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith('@'):
+                        if ';' in line:
+                            parts = line.split(';', 1)
+                            key = parts[0].strip()
+                            value = parts[1].strip()
+                            data[key] = value
+                        elif ':' in line: # Fallback for older files
+                            parts = line.split(':', 1)
+                            key = parts[0].strip()
+                            value = parts[1].strip()
+                            data[key] = value
+        except Exception as e:
+            logger.error(f"Erro ao parsear {file_path}: {e}")
+        return data
+
+    def _load_data(self, data_path):
+        """
+        Loads data from the specific file (usually the one being used for generation).
+        """
+        if not data_path.exists():
+            return {}
+        
+        raw_data = self._parse_md_data(data_path)
+        # Lowercase keys for case-insensitive matching
+        return {k.lower(): v for k, v in raw_data.items()}
+
     def _get_latest_info_file(self, folder, alias):
-        if not folder.exists():
-            return None
-        files = list(folder.glob(f"*_INFO-{alias}.md"))
-        if not files: # Fallback to standard INFO-{alias}.md
-            files = list(folder.glob(f"INFO-{alias}.md"))
-            
+        # This method is now deprecated by the new glob logic in _load_context_data
+        # but kept for potential backward compatibility if called elsewhere.
+        files = list(folder.glob("*INFO*.md"))
         if not files:
             return None
 
-        files.sort(key=lambda f: f.name, reverse=True)
+        files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
         return files[0]
 
     def validate_template_keys(self, template_path, data_path, doc_type):
+        """
+        Public method to validate template keys against context and local data.
+        Ensures everything is case-insensitive by lowercasing keys.
+        """
         context_data = self._load_context_data(Path(data_path))
-        doc_data = self._load_data(data_path)
+        doc_data = self._load_data(Path(data_path))
         replacements = {**context_data, **doc_data}
         return self._validate_keys(template_path, replacements, doc_type)
 
@@ -253,7 +272,8 @@ class DocumentService:
             logger.warning(f"Não foi possível validar as chaves do template: {e}")
             return []
 
-        missing_keys = [k for k in required_keys if k not in replacements]
+        # All keys are normalized to lowercase for comparison
+        missing_keys = [k for k in required_keys if k.lower() not in replacements]
         if missing_keys:
             logger.warning(f"CHAVES FALTANDO: {missing_keys}")
 
@@ -274,42 +294,11 @@ class DocumentService:
             logger.error(f"Erro ao gravar log de geração: {e}")
 
     def _extract_keys_from_text(self, text, keys_set):
+        """Extracts keys from text and normalizes them to lowercase for consistent validation."""
         if text and '@' in text:
             found = re.findall(r'(?<![\w.])@[\w%]+(?!\.[a-z]{2,}\b)', text)
-            keys_set.update(found)
-
-    def _load_data(self, path):
-        path = str(path) # Ensure string
-        if not os.path.exists(path):
-            logger.error(f"Arquivo de dados não encontrado: {path}")
-            return {}
-        if path.endswith('.json'):
-            with open(path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        elif path.endswith('.txt'):
-            return self._parse_txt_data(path)
-        elif path.endswith('.md'):
-            return self._parse_md_data(path)
-        return {}
-
-    def _parse_txt_data(self, path):
-        replacements = {}
-        with open(path, 'r', encoding='utf-8') as f:
-            for line in f:
-                parts = line.strip().split(';')
-                if len(parts) >= 2:
-                    key, value = parts[0], parts[1]
-                    replacements[key] = value
-        return replacements
-
-    def _parse_md_data(self, path):
-        replacements = {}
-        with open(path, 'r', encoding='utf-8') as f:
-            for line in f:
-                if ':' in line:
-                    key, value = line.split(':', 1)
-                    replacements[key.strip()] = value.strip()
-        return replacements
+            for k in found:
+                keys_set.add(k.lower())
 
     def _resolve_operations(self, replacements):
         """
@@ -317,17 +306,23 @@ class DocumentService:
         Improvement: Handles Brazilian number formats during calculation.
         """
         for _ in range(3):
-            for key, value in replacements.items():
+            # Normalize keys for lookup
+            current_keys = list(replacements.keys())
+            for key in current_keys:
+                value = replacements[key]
                 if isinstance(value, str) and '[calculo:' in value:
                     match = re.search(r'\[calculo:\s*(.+?)\]', value)
                     if match:
                         expression = match.group(1)
-                        for k, v in replacements.items():
-                            if k in expression and k != key:
+                        # Sort keys by length to avoid partial matches during calculation replacement
+                        for k in sorted(current_keys, key=len, reverse=True):
+                            v = replacements[k]
+                            if k.lower() in expression.lower() and k != key:
                                 try:
                                     # Normalize to float for calculation
                                     float_val = FotonFormatter.parse_br_number(v)
-                                    expression = expression.replace(k, str(float_val))
+                                    # Case-insensitive replacement of variable in expression
+                                    expression = re.sub(re.escape(k), str(float_val), expression, flags=re.IGNORECASE)
                                 except:
                                     pass
                         try:
@@ -335,17 +330,6 @@ class DocumentService:
                                 raise ValueError("Expressão contém caracteres inválidos")
 
                             result = eval(expression)
-                            # Store result as clean float string first to allow further calcs
-                            # Or format immediately?
-                            # Decision: Store as formatted string because recursive calculations 
-                            # inside _resolve_operations will parse it back via parse_br_number
-                            
-                            # However, to be safe, let's keep it simple.
-                            # The Formatter in step 6 will handle the final look.
-                            # But wait, if step 6 sees "5000.00", it formats.
-                            # If we store "R$ 5.000,00" here, step 6 sees string.
-                            
-                            # Let's return a string representation of the float
-                            replacements[key] = f"{result:.2f}"
+                            replacements[key] = str(result)
                         except Exception as e:
                             logger.warning(f"Falha ao calcular {key}: {e}")

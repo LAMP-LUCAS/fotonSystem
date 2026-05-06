@@ -273,14 +273,20 @@ class ClientService:
         return files[0]
 
     def _read_file_content(self, path):
-        """Reads key-value pairs from MD file."""
+        """
+        Reads key-value pairs from MD file.
+        Supports preferred semicolon (;) and legacy colon (:).
+        """
         data = {}
         if not path.exists():
             return data
             
         with open(path, 'r', encoding='utf-8') as f:
             for line in f:
-                if ':' in line:
+                if ';' in line:
+                    key, value = line.split(';', 1)
+                    data[key.strip()] = value.strip()
+                elif ':' in line:
                     key, value = line.split(':', 1)
                     data[key.strip()] = value.strip()
         return data
@@ -294,88 +300,88 @@ Aqui tem todas as colunas da tabela de clientes e variáveis extra para personal
 
 Dados que serão utilizados nas propostas comerciais:
 
-@dataProposta: 
-@numeroProposta: 
-@nomeProposta: 
-@cidadeProposta: 
-@localProposta: 
-@geolocalizacaoProposta: 
-@nomeCliente: 
-@empregoCliente: 
-@estadoCivilCliente: 
-@cpfCnpjCliente: 
-@enderecoCliente: 
+@dataProposta; 
+@numeroProposta; 
+@nomeProposta; 
+@cidadeProposta; 
+@localProposta; 
+@geolocalizacaoProposta; 
+@nomeCliente; 
+@empregoCliente; 
+@estadoCivilCliente; 
+@cpfCnpjCliente; 
+@enderecoCliente; 
 """
 
     SERVICE_TEMPLATE_STR = """## INFO-SERVICO.md
 
-@TEMPLATE: 
+@TEMPLATE; 
 
 ### DADOS BÁSICOS
 
-@DataAtual: 
+@DataAtual; 
 
 ### DADOS DO CLIENTE - CONTRATO
 
 O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo tem os dados para a contratação do serviço:
 
-@nomeContrato: 
-@numeroContrato: 
-@nomeClienteContrato: 
-@estadoCivilClienteContrato: 
-@empregoClienteContrato: 
-@telefoneClienteContrato: 
-@emailClienteContrato: 
-@enderecoClienteContrato: 
-@cpfCnpjClienteContrato: 
+@nomeContrato; 
+@numeroContrato; 
+@nomeClienteContrato; 
+@estadoCivilClienteContrato; 
+@empregoClienteContrato; 
+@telefoneClienteContrato; 
+@emailClienteContrato; 
+@enderecoClienteContrato; 
+@cpfCnpjClienteContrato; 
 
 ### DADOS DO SERVIÇO
 
-@modalidadeServico: 
-@anoProjeto: 
-@demandaProposta: 
-@areaTotal: 
-@areaCoberta: 
-@areaDescoberta: 
-@detalhesProposta: 
-@estiloProjeto: 
-@ambientesProjeto: 
-@inProposta: 
-@lvProposta: 
-@anProposta: 
-@baProposta: 
-@prProposta: 
-@inSolucao: 
-@valorProposta: 
-@valorContrato: 
+@modalidadeServico; 
+@anoProjeto; 
+@demandaProposta; 
+@areaTotal; 
+@areaCoberta; 
+@areaDescoberta; 
+@detalhesProposta; 
+@estiloProjeto; 
+@ambientesProjeto; 
+@inProposta; 
+@lvProposta; 
+@anProposta; 
+@baProposta; 
+@prProposta; 
+@inSolucao; 
+@valorProposta; 
+@valorContrato; 
 
 #### DADOS PARA ESTIMATIVA DE CUSTO - PROPOSTA
 
-@projArqEng: 
-@procLegais: 
-@ACEqv: 
-@execcub: 
-@execInfra: 
-@execPais: 
-@execMob: 
-@totalParcial: 
-@totalExec: 
-@totalinss: 
-@totalGeral: 
-@ArqEng%: 
-@Legais%: 
-@precoCUB%: 
-@Parcial%: 
-@infra%: 
-@pais%: 
-@mob%: 
-@Exec%: 
-@inss%: 
+@projArqEng; 
+@procLegais; 
+@ACEqv; 
+@execcub; 
+@execInfra; 
+@execPais; 
+@execMob; 
+@totalParcial; 
+@totalExec; 
+@totalinss; 
+@totalGeral; 
+@ArqEng%; 
+@Legais%; 
+@precoCUB%; 
+@Parcial%; 
+@infra%; 
+@pais%; 
+@mob%; 
+@Exec%; 
+@inss%; 
 """
 
     def _write_formatted_file_content(self, path, data, template_str):
         """
-        Writes data to file using the template structure.
+        Writes data to file using the template structure with semicolon separator.
         Preserves existing values if not in data (for updates).
         """
         lines = template_str.split('\n')
@@ -386,13 +392,16 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
         
         for line in lines:
             stripped = line.strip()
-            if stripped.startswith('@') and ':' in stripped:
-                key = stripped.split(':')[0].strip()
+            # Handle both possible separators during template processing
+            sep = ';' if ';' in stripped else (':' if ':' in stripped else None)
+            
+            if stripped.startswith('@') and sep:
+                key = stripped.split(sep)[0].strip()
                 written_keys.add(key)
                 
                 # Value priority: Data (DB) > Existing File > Empty
                 value = data.get(key, "")
-                output_lines.append(f"{key}: {value}")
+                output_lines.append(f"{key}; {value}")
             else:
                 output_lines.append(line)
         
@@ -401,7 +410,7 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
         if extra_keys:
             output_lines.append("\n### VARIÁVEIS EXTRAS")
             for key in extra_keys:
-                output_lines.append(f"{key}: {data[key]}")
+                output_lines.append(f"{key}; {data[key]}")
         
         with open(path, 'w', encoding='utf-8') as f:
             f.write('\n'.join(output_lines))
