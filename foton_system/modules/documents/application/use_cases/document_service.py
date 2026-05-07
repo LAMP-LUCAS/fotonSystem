@@ -81,22 +81,30 @@ class DocumentService:
             logger.error(f"Erro ao criar arquivo de dados: {e}")
             return None
 
-    def _load_data(self, path):
-
-        path = Path(path)
-        if not path.exists():
-            logger.error(f"Arquivo de dados não encontrado: {path}")
+    def _load_data(self, data_path):
+        """
+        Loads data from the specific file (JSON, TXT, or MD) and normalizes keys to lowercase.
+        """
+        data_path = Path(data_path)
+        if not data_path.exists():
             return {}
-        if path.suffix == '.json':
-            with open(path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                return {k.lower(): v for k, v in data.items()}
-        elif path.suffix == '.txt':
-            return self._parse_txt_data(path)
-        elif path.suffix == '.md':
-            raw_data = self._parse_md_data(path)
-            return {k.lower(): v for k, v in raw_data.items()}
-        return {}
+        
+        raw_data = {}
+        suffix = data_path.suffix.lower()
+        
+        try:
+            if suffix == '.json':
+                with open(data_path, 'r', encoding='utf-8') as f:
+                    raw_data = json.load(f)
+            elif suffix == '.txt':
+                raw_data = self._parse_txt_data(data_path)
+            elif suffix == '.md' or suffix == '':
+                raw_data = self._parse_md_data(data_path)
+        except Exception as e:
+            logger.error(f"Erro ao carregar arquivo de dados {data_path}: {e}")
+            
+        # Lowercase keys for case-insensitive matching
+        return {str(k).lower(): v for k, v in raw_data.items()}
 
     def _parse_txt_data(self, path):
         replacements = {}
@@ -111,7 +119,6 @@ class DocumentService:
         except Exception as e:
             logger.error(f"Erro ao parsear TXT {path}: {e}")
         return replacements
-
 
     def generate_document(self, template_path, data_path, output_path, doc_type):
         logger.info(f"Gerando documento do tipo {doc_type}...")
@@ -237,17 +244,6 @@ class DocumentService:
         except Exception as e:
             logger.error(f"Erro ao parsear {file_path}: {e}")
         return data
-
-    def _load_data(self, data_path):
-        """
-        Loads data from the specific file (usually the one being used for generation).
-        """
-        if not data_path.exists():
-            return {}
-        
-        raw_data = self._parse_md_data(data_path)
-        # Lowercase keys for case-insensitive matching
-        return {k.lower(): v for k, v in raw_data.items()}
 
     def _get_latest_info_file(self, folder, alias):
         # This method is now deprecated by the new glob logic in _load_context_data

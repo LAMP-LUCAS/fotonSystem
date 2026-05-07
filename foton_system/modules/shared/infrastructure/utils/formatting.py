@@ -11,10 +11,15 @@ class FotonFormatter:
     @staticmethod
     def format_currency(value):
         """
-        Converts value to Brazilian decimal string.
-        PURE DATA POLICY: Does not include 'R$' prefix.
+        Converts value to Brazilian decimal string with R$ prefix.
+        Used for presentation (CLI/MCP reports).
         """
-        return FotonFormatter.format_decimal(value)
+        try:
+            formatted = FotonFormatter.format_decimal(value)
+            return f"R$ {formatted}"
+        except Exception:
+            return f"R$ {value}"
+
 
     @staticmethod
     def format_decimal(value):

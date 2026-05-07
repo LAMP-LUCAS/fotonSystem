@@ -154,9 +154,13 @@ class TestDocumentServiceDataParsing(unittest.TestCase):
 
         result = self.service._load_data(json_file)
 
-        # Should be normalized to lowercase
+        # Implementation normalizes to lowercase
         self.assertEqual(result['@nome'], 'Test')
         self.assertEqual(result['@valor'], 100)
+
+
+
+
 
     def test_load_data_returns_empty_for_missing_file(self):
         """Returns empty dict for non-existent files."""
@@ -191,7 +195,7 @@ class TestDocumentServiceResilience(unittest.TestCase):
         # base / Client / 03_PROJETOS / Project
         base = self.test_dir / "CLIENTES"
         client = base / "SIMONE"
-        projects = client / "03_PROJETOS" # Folder with NO matching INFO file
+        projects = client / "03_PROJETOS"
         project = projects / "APTO_502"
         project.mkdir(parents=True)
 
@@ -228,7 +232,6 @@ class TestDocumentServiceKeyExtraction(unittest.TestCase):
         service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
         keys = set()
 
-
         service._extract_keys_from_text('O cliente @nomeCliente mora em @cidade.', keys)
 
         self.assertIn('@nomecliente', keys)
@@ -242,6 +245,7 @@ class TestDocumentServiceKeyExtraction(unittest.TestCase):
         service._extract_keys_from_text('Custo é @ArqEng% do total.', keys)
         
         self.assertIn('@arqeng%', keys)
+
 
 
 
@@ -262,12 +266,15 @@ class TestDocumentServiceTemplates(unittest.TestCase):
         mock_config.templates_path = self.test_dir
         MockConfig.return_value = mock_config
         
+        # Inject mock directly
+        service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter(), config=mock_config)
+        
         # Create sample files
         (self.test_dir / 'template1.docx').touch()
         (self.test_dir / 'template2.docx').touch()
         (self.test_dir / 'other.pptx').touch()
         
-        result = self.service.list_templates('docx')
+        result = service.list_templates('docx')
         
         self.assertEqual(len(result), 2)
         self.assertIn('template1.docx', result)
@@ -277,12 +284,15 @@ class TestDocumentServiceTemplates(unittest.TestCase):
     def test_list_templates_empty_for_missing_dir(self, MockConfig):
         """Returns empty list if templates directory doesn't exist."""
         mock_config = MagicMock()
-        mock_config.templates_path = Path('/nonexistent/path')
+        mock_config.templates_path = Path(tempfile.mkdtemp()) / "nonexistent"
         MockConfig.return_value = mock_config
         
-        result = self.service.list_templates('docx')
+        service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter(), config=mock_config)
+        
+        result = service.list_templates('docx')
         
         self.assertEqual(result, [])
+
 
 
 class TestDocumentServiceCustomDataFile(unittest.TestCase):

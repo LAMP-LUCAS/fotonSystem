@@ -1,6 +1,8 @@
 import pandas as pd
 import re
+from pathlib import Path
 from typing import Optional
+
 from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
 from foton_system.modules.clients.application.ports.client_repository_port import ClientRepositoryPort
@@ -26,7 +28,46 @@ class ClientService:
         self.repository = repository
         self._config = config or Config()
 
+    def resolve_client_path(self, client_name: str) -> Path:
+        """
+        Resolves a client name to a validated directory path.
+        Supports exact match and partial/fuzzy matching.
+        Raises ValueError if not found or ambiguous.
+        """
+        clients_dir = self._config.base_pasta_clientes
+        ignored = set(self._config.ignored_folders + ['.obsidian'])
+
+        if not clients_dir.exists():
+            raise ValueError(f"Diretório de clientes não encontrado: {clients_dir}")
+
+        # 1. Exact match
+        exact = clients_dir / client_name
+        if exact.exists() and exact.is_dir():
+            return exact
+
+        # 2. Case-insensitive / partial match
+        search = client_name.lower()
+        matches = []
+        for d in clients_dir.iterdir():
+            if d.is_dir() and d.name not in ignored:
+                if search in d.name.lower():
+                    matches.append(d)
+
+        if len(matches) == 1:
+            return matches[0]
+        elif len(matches) > 1:
+            names = [m.name for m in matches]
+            raise ValueError(
+                f"Nome de cliente ambíguo '{client_name}'. Encontrados {len(matches)} correspondências: {', '.join(names)}. "
+                f"Por favor, seja mais específico."
+            )
+        else:
+            raise ValueError(
+                f"Cliente '{client_name}' não encontrado. Use 'listar_clientes' para ver os clientes disponíveis."
+            )
+
     def sync_clients_db_from_folders(self):
+
         """Updates DB with clients found in folders but not in DB."""
         logger.info("Sincronizando base de clientes a partir das pastas...")
         try:
