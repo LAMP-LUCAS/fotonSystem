@@ -195,12 +195,9 @@ class TestClientServiceSyncPipeline(unittest.TestCase):
         self.assertEqual(len(df), 3)
         
         # Create folder for DB-only client
-        with patch('foton_system.modules.clients.application.use_cases.client_service.Config') as MockConfig:
-            mock_config = MagicMock()
-            mock_config.base_pasta_clientes = self.repo.clients_path
-            MockConfig.return_value = mock_config
-            
-            self.service.sync_client_folders_from_db()
+        # We must update the config instance inside the service because it's a singleton already initialized
+        self.service._config.set('caminho_pastaClientes', str(self.repo.clients_path))
+        self.service.sync_client_folders_from_db()
         
         # Verify folder was created
         self.assertTrue((self.repo.clients_path / 'Client_C').exists())

@@ -30,6 +30,13 @@ def _start_mcp():
 # Ultra-Safe Entry Point
 def safety_entry():
     """Provides immediate visual feedback and robust error handling."""
+    
+    # ── SANDBOX MODE: Global Activation ──
+    if "--sandbox" in sys.argv:
+        _ensure_path()
+        from foton_system.modules.shared.infrastructure.services.sandbox_service import SandboxService
+        SandboxService.initialize_sandbox()
+
     # ── MCP MODE: Must be checked FIRST — zero stdout before mcp.run() ──
     if "--mcp" in sys.argv:
         _start_mcp()

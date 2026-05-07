@@ -129,6 +129,7 @@ def info_sistema() -> str:
         config = _get_config()
         clients_dir = config.base_pasta_clientes
         templates_dir = config.templates_path
+        mode_str = "🧪 SANDBOX (Ambiente de Teste)" if PathManager.is_sandbox_active() else "🏗️ PRODUÇÃO"
 
         client_count = 0
         if clients_dir.exists():
@@ -148,6 +149,7 @@ def info_sistema() -> str:
         output = (
             "📊 FOTON System Status\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"  🛠️ Modo:      {mode_str}\n"
             f"  📂 Clientes:  {clients_dir}\n"
             f"     → {client_count} cliente(s) encontrado(s)\n"
             f"  📄 Templates: {templates_dir}\n"
@@ -598,7 +600,7 @@ def gerar_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -
         )
     except Exception as e:
         _logger.error(f"gerar_documento failed: {e}", exc_info=True)
-        return f"❌ Error POP: {e}"
+        return f"❌ Erro POP: {e}"
 
 
 @mcp.tool()

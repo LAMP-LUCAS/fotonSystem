@@ -93,14 +93,9 @@ class TestFullSyncCycle(unittest.TestCase):
         df = pd.DataFrame({'Alias': ['DBClient'], 'NomeCliente': ['Test Client']})
         self.repo.save_clients(df)
         
-        # Patch Config to use our temp path
-        from unittest.mock import patch, MagicMock
-        with patch('foton_system.modules.clients.application.use_cases.client_service.Config') as MockConfig:
-            mock_config = MagicMock()
-            mock_config.base_pasta_clientes = self.repo.clients_path
-            MockConfig.return_value = mock_config
-            
-            self.service.sync_client_folders_from_db()
+        # Update the config instance inside the service
+        self.service._config.set('caminho_pastaClientes', str(self.repo.clients_path))
+        self.service.sync_client_folders_from_db()
         
         # Verify folder exists
         self.assertTrue((self.repo.clients_path / 'DBClient').exists())
