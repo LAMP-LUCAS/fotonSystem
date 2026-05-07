@@ -732,7 +732,62 @@ def sincronizar_clientes() -> str:
 # ==============================================================================
 
 @mcp.tool()
+def configurar_agente() -> str:
+    """
+    Automates the formal installation of the Foton AI Skill into the Gemini CLI.
+    Creates the required directory structure and SKILL.md with official metadata.
+    AI RECOMMENDED: Run this to enable specialized architectural reasoning.
+    """
+    _logger.info("Tool called: configurar_agente")
+    try:
+        config = _get_config()
+        # Define the official skill path in the workspace
+        root_dir = config.base_pasta_clientes.parent
+        skill_dir = root_dir / ".gemini" / "skills" / "foton-architecture"
+        skill_dir.mkdir(parents=True, exist_ok=True)
+        
+        skill_md = skill_dir / "SKILL.md"
+        
+        content = (
+            "---\n"
+            "name: foton-architecture\n"
+            "description: Manage architecture projects, generate smart documents (DOCX/PPTX), and track financial ledgers using the Foton system. Use for client onboarding, document pre-flight validation, and semantic knowledge base queries.\n"
+            "---\n\n"
+            "# Foton Architecture System\n\n"
+            "This skill enables Gemini CLI to act as a specialized architectural engineering assistant.\n\n"
+            "## 🛠 Operational Workflows\n\n"
+            "### 1. New Client Onboarding\n"
+            "1. Run `listar_clientes` to search for similar existing projects.\n"
+            "2. Execute `pipeline_novo_cliente(nome, ...)` to create the standard folder structure.\n\n"
+            "### 2. Information Management\n"
+            "1. Use `ler_ficha_cliente` to get context.\n"
+            "2. Use `atualizar_ficha_cliente` to record new data (prefer semicolon separator).\n\n"
+            "### 3. Smart Document Generation\n"
+            "1. **Pre-Flight (MANDATORY):** Run `pipeline_emitir_documento`.\n"
+            "2. **Emission:** Run `gerar_documento` once variables are satisfied.\n\n"
+            "### 4. Financial Tracking\n"
+            "1. **Record:** Use `registrar_financeiro`.\n"
+            "2. **Audit:** Use `consultar_financeiro` or `resumo_financeiro_geral`.\n\n"
+            "---\n"
+            "*Foton: Intelligence and adaptability for the modern architect.*\n"
+        )
+        
+        skill_md.write_text(content, encoding="utf-8")
+        
+        return (
+            f"✅ Foton Skill configurada com sucesso!\n"
+            f"   Local: {skill_dir}\n"
+            f"   ⚠️ IMPORTANTE: Execute o comando '/skills reload' no chat para ativar a expertise."
+        )
+    except Exception as e:
+        _logger.error(f"configurar_agente failed: {e}", exc_info=True)
+        return f"❌ Erro ao configurar skill: {e}"
+
+
+
+@mcp.tool()
 def pipeline_novo_cliente(nome: str, apelido: str = "", nif: str = "", email: str = "", telefone: str = "") -> str:
+
     """
     SAFE workflow to create a client while checking for duplicates.
     AI RECOMMENDED: Always prefer this over 'cadastrar_cliente'.
