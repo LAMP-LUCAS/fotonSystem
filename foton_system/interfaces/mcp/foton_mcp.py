@@ -109,8 +109,8 @@ def _get_config():
 @mcp.tool()
 def ping() -> str:
     """
-    Health check. Returns instantly if the FOTON MCP server is alive.
-    Use this to verify connectivity before calling other tools.
+    Verifies that the Foton MCP server is responsive.
+    PROTOCOL: Use this as the very first tool call to ensure the link is active.
     """
     _logger.info("Tool called: ping")
     return f"🟢 FOTON MCP Online (pid={__import__('os').getpid()}, ts={int(time.time())})"
@@ -119,9 +119,10 @@ def ping() -> str:
 @mcp.tool()
 def info_sistema() -> str:
     """
-    Returns a full diagnostic of the FOTON system: configured paths, client count,
-    template count, module availability, and version info. Use this to understand
-    the current system state and available resources before starting work.
+    Provides a comprehensive diagnostic of the Foton system's environment.
+    CONTEXT: Call this at the start of a session to understand folder paths, client counts, 
+    template availability, and active business rules (like missing variable placeholders).
+    Returns path configurations and module availability.
     """
     _logger.info("Tool called: info_sistema")
     try:
@@ -158,7 +159,7 @@ def info_sistema() -> str:
         )
         return output
     except Exception as e:
-        return f"❌ Erro ao obter info do sistema: {e}"
+        return f"❌ Error retrieving system info: {e}"
 
 
 # ==============================================================================
@@ -168,14 +169,9 @@ def info_sistema() -> str:
 @mcp.tool()
 def listar_clientes() -> str:
     """
-    Lists all registered clients (architecture projects) in the firm's directory.
-    Each client is a folder inside the configured 'caminho_pastaClientes' path.
-
-    Returns the client name, whether an INFO file exists (📁 = has INFO, 📂 = no INFO),
-    and the count of services (sub-projects) under that client.
-
-    Use this as the FIRST STEP when the user asks about clients, projects, or wants
-    to perform any operation on a specific client.
+    Lists all registered clients in the architecture firm.
+    PROTOCOL: Always call this before performing any operation on a client you're not 100% sure exists.
+    OUTPUT: Indicates if the client has a "Center of Truth" (📁 = has INFO file) and the count of sub-services.
     """
     _logger.info("Tool called: listar_clientes")
     try:
@@ -198,10 +194,8 @@ def listar_clientes() -> str:
         output = f"📋 {len(clients)} client(s) found:\n"
         for c in clients:
             client_path = clients_dir / c
-            # Check for INFO file
             info_files = list(client_path.glob("*INFO*.md"))
             has_info = len(info_files) > 0
-            # Count services (subfolders not in ignored list)
             services = [
                 s.name for s in client_path.iterdir()
                 if s.is_dir() and s.name not in ignored
@@ -219,7 +213,9 @@ def listar_clientes() -> str:
 @mcp.tool()
 def cadastrar_cliente(nome: str, apelido: str = "", nif: str = "", email: str = "", telefone: str = "") -> str:
     """
-    Creates a new client in the FOTON system (Audited Standard Operation / POP).
+    Creates a new client folder and master record.
+    SAFETY: Use 'pipeline_novo_cliente' instead for a safer, non-duplicate workflow.
+    Logic: Creates standard folders (ADMINISTRATIVO, FINANCEIRO, PROJETOS) and initial INFO and FINANCEIRO files.
     """
     _logger.info(f"Tool called: cadastrar_cliente(nome={nome})")
     try:
@@ -239,26 +235,26 @@ def cadastrar_cliente(nome: str, apelido: str = "", nif: str = "", email: str = 
             f"   Código: {result['client_id']}"
         )
     except ValueError as e:
-        return f"⚠️ Dados inválidos: {e}"
+        return f"⚠️ Invalid data: {e}"
     except Exception as e:
         _logger.error(f"cadastrar_cliente failed: {e}", exc_info=True)
-        return f"❌ Erro ao cadastrar cliente: {e}"
+        return f"❌ Error creating client: {e}"
 
 
 @mcp.tool()
 def ler_ficha_cliente(cliente: str) -> str:
     """
-    Reads the client's INFO file (the Single Source of Truth / Centro de Verdade).
+    Reads the 'Center of Truth' (INFO-*.md) for a client.
+    CONTEXT: This is the mandatory first step before generating documents. It provides project metadata, 
+    technical decisions, and meeting notes needed to understand the client's current state.
+    RESOLUTION: Support fuzzy/partial client name matching.
     """
     _logger.info(f"Tool called: ler_ficha_cliente(cliente={cliente})")
     try:
         config = _get_config()
         clients_dir = config.base_pasta_clientes
-
-        # Resolve client folder (exact or partial match)
         client_path = _resolve_client_path(clients_dir, cliente, config)
 
-        # Find INFO file (pattern: *INFO*.md)
         info_files = list(client_path.glob("*INFO*.md"))
         if not info_files:
             return (
@@ -266,7 +262,6 @@ def ler_ficha_cliente(cliente: str) -> str:
                 f"   Expected pattern: *INFO*.md in {client_path}"
             )
 
-        # Read the most recent INFO file
         info_file = sorted(info_files, key=lambda f: f.stat().st_mtime, reverse=True)[0]
         content = info_file.read_text(encoding="utf-8")
 
@@ -280,13 +275,16 @@ def ler_ficha_cliente(cliente: str) -> str:
         return f"❌ {e}"
     except Exception as e:
         _logger.error(f"ler_ficha_cliente failed: {e}", exc_info=True)
-        return f"❌ Erro ao ler ficha: {e}"
+        return f"❌ Error reading info: {e}"
 
 
 @mcp.tool()
 def atualizar_ficha_cliente(cliente: str, secao: str, conteudo: str) -> str:
     """
-    Updates a section of the client's INFO-*.md file (the Single Source of Truth).
+    Appends information to a specific section of the client's Center of Truth.
+    PROTOCOL: Use this to record meeting notes or technical decisions.
+    SAFETY: Automatically creates a .bak backup before modifying.
+    Sections: Use Markdown headers (e.g., 'Notas de Reunião').
     """
     _logger.info(f"Tool called: atualizar_ficha_cliente(cliente={cliente}, secao={secao})")
     try:
@@ -299,31 +297,23 @@ def atualizar_ficha_cliente(cliente: str, secao: str, conteudo: str) -> str:
 
         info_file = sorted(info_files, key=lambda f: f.stat().st_mtime, reverse=True)[0]
 
-        # SECURITY: Backup before modifying
         import shutil
         backup = info_file.with_suffix('.md.bak')
         shutil.copy2(info_file, backup)
-        _logger.info(f"Backup created: {backup}")
 
         content = info_file.read_text(encoding="utf-8")
 
-        # Find section and append
         section_header = f"## {secao}"
         if section_header in content:
-            # Append after the section header (before next ## or end of file)
             parts = content.split(section_header, 1)
             after_header = parts[1]
-
-            # Find next section
             next_section_idx = after_header.find("\n## ")
             if next_section_idx == -1:
-                # Append at end
                 new_content = content + f"\n{conteudo}\n"
             else:
                 insert_point = len(parts[0]) + len(section_header) + next_section_idx
                 new_content = content[:insert_point] + f"\n{conteudo}\n" + content[insert_point:]
         else:
-            # Create new section at end
             new_content = content.rstrip() + f"\n\n{section_header}\n{conteudo}\n"
 
         info_file.write_text(new_content, encoding="utf-8")
@@ -337,13 +327,15 @@ def atualizar_ficha_cliente(cliente: str, secao: str, conteudo: str) -> str:
         return f"❌ {e}"
     except Exception as e:
         _logger.error(f"atualizar_ficha_cliente failed: {e}", exc_info=True)
-        return f"❌ Erro ao atualizar ficha: {e}"
+        return f"❌ Error updating info: {e}"
 
 
 @mcp.tool()
 def listar_servicos_cliente(cliente: str) -> str:
     """
-    Lists the services (sub-projects) under a specific client.
+    Lists sub-projects/services within a client's main folder.
+    CONTEXT: Each service represents a distinct project (e.g., 'Reforma Apto 502').
+    Ignores system folders like '01_ADMINISTRATIVO'.
     """
     _logger.info(f"Tool called: listar_servicos_cliente(cliente={cliente})")
     try:
@@ -371,7 +363,7 @@ def listar_servicos_cliente(cliente: str) -> str:
         return f"❌ {e}"
     except Exception as e:
         _logger.error(f"listar_servicos_cliente failed: {e}", exc_info=True)
-        return f"❌ Erro ao listar serviços: {e}"
+        return f"❌ Error listing services: {e}"
 
 
 # ==============================================================================
@@ -381,7 +373,9 @@ def listar_servicos_cliente(cliente: str) -> str:
 @mcp.tool()
 def registrar_financeiro(cliente: str, descricao: str, valor: float, tipo: str = "ENTRADA") -> str:
     """
-    Records a financial entry in the client's FINANCEIRO.csv ledger.
+    Records a financial entry (income/expense) in the client's ledger.
+    TYPES: 'ENTRADA' (credit) or 'SAIDA' (debit).
+    Value: Always pass a positive float.
     """
     _logger.info(f"Tool called: registrar_financeiro(cliente={cliente}, valor={valor})")
     try:
@@ -396,13 +390,13 @@ def registrar_financeiro(cliente: str, descricao: str, valor: float, tipo: str =
         return f"✅ {result['message']} (POP Auditado)"
     except Exception as e:
         _logger.error(f"registrar_financeiro failed: {e}", exc_info=True)
-        return f"❌ Erro POP: {e}"
+        return f"❌ Error: {e}"
 
 
 @mcp.tool()
 def consultar_financeiro(cliente: str) -> str:
     """
-    Returns the financial summary for a specific client.
+    Returns the financial balance and transaction summary for a specific client.
     """
     _logger.info(f"Tool called: consultar_financeiro(cliente={cliente})")
     try:
@@ -419,13 +413,14 @@ def consultar_financeiro(cliente: str) -> str:
         return f"❌ {result.message}"
     except Exception as e:
         _logger.error(f"consultar_financeiro failed: {e}", exc_info=True)
-        return f"❌ Erro: {e}"
+        return f"❌ Error: {e}"
 
 
 @mcp.tool()
 def resumo_financeiro_geral() -> str:
     """
-    Returns a financial dashboard of ALL clients.
+    Firm-wide financial dashboard. 
+    CONTEXT: Use this for high-level business intelligence to identify profitable clients or cash-flow issues.
     """
     _logger.info("Tool called: resumo_financeiro_geral")
     try:
@@ -469,9 +464,9 @@ def resumo_financeiro_geral() -> str:
             results.append((d.name, income, expense, balance))
 
         if not results:
-            return "📭 No financial data found across clients."
+            return "📭 No financial data found."
 
-        output = f"📊 Dashboard Financeiro ({len(results)} clientes com dados):\n"
+        output = f"📊 Dashboard Financeiro ({len(results)} clientes):\n"
         output += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         for name, inc, exp, bal in results:
             emoji = "🟢" if bal >= 0 else "🔴"
@@ -481,12 +476,12 @@ def resumo_financeiro_geral() -> str:
         total_balance = total_income - total_expense
         output += (
             f"  TOTAL: R$ {total_balance:,.2f} "
-            f"(Receita: R$ {total_income:,.2f} | Despesa: R$ {total_expense:,.2f})"
+            f"(Rec: R$ {total_income:,.2f} | Desp: R$ {total_expense:,.2f})"
         )
         return output
     except Exception as e:
         _logger.error(f"resumo_financeiro_geral failed: {e}", exc_info=True)
-        return f"❌ Erro: {e}"
+        return f"❌ Error: {e}"
 
 
 # ==============================================================================
@@ -496,7 +491,8 @@ def resumo_financeiro_geral() -> str:
 @mcp.tool()
 def listar_templates() -> str:
     """
-    Lists all available document templates (DOCX and PPTX).
+    Lists all available document templates (DOCX for contracts, PPTX for proposals).
+    PROTOCOL: Show this to the user to let them choose the document type they want to generate.
     """
     _logger.info("Tool called: listar_templates")
     try:
@@ -525,13 +521,14 @@ def listar_templates() -> str:
         return output
     except Exception as e:
         _logger.error(f"listar_templates failed: {e}", exc_info=True)
-        return f"❌ Erro: {e}"
+        return f"❌ Error: {e}"
 
 
 @mcp.tool()
 def listar_documentos_cliente(cliente: str, servico: str = "") -> str:
     """
-    Lists all files belonging to a client.
+    Lists existing files for a client or specific service.
+    CONTEXT: Use this to check if a document was already generated before creating a duplicate.
     """
     _logger.info(f"Tool called: listar_documentos_cliente(cliente={cliente}, servico={servico})")
     try:
@@ -558,11 +555,10 @@ def listar_documentos_cliente(cliente: str, servico: str = "") -> str:
             files_by_folder[folder].append(f"{rel.name} ({size_kb:.0f} KB)")
 
         if not files_by_folder:
-            return f"📭 No files found in {target.name}."
+            return f"📭 No files found."
 
         total = sum(len(v) for v in files_by_folder.values())
-        scope = f"{client_path.name}/{servico}" if servico else client_path.name
-        output = f"📂 {total} arquivo(s) em {scope}:\n"
+        output = f"📂 {total} arquivo(s) em {target.name}:\n"
 
         for folder, files in sorted(files_by_folder.items()):
             output += f"\n  📁 {folder}/\n"
@@ -574,13 +570,18 @@ def listar_documentos_cliente(cliente: str, servico: str = "") -> str:
         return f"❌ {e}"
     except Exception as e:
         _logger.error(f"listar_documentos_cliente failed: {e}", exc_info=True)
-        return f"❌ Erro: {e}"
+        return f"❌ Error: {e}"
 
 
 @mcp.tool()
 def gerar_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -> str:
     """
-    Generates a document for a client by merging a template with client data.
+    Merging Engine: Template + Client Data = Generated Document.
+    PROTOCOL: 
+    1. Always run 'validar_template' first.
+    2. Provide 'dados_extras' for variables not found in the INFO files.
+    3. The file is saved with prefix 'GERADO_' in the client's folder.
+    CASE-INSENSITIVITY: Variables are matched regardless of casing (@CLIENTE == @cliente).
     """
     _logger.info(f"Tool called: gerar_documento(cliente={cliente}, template={nome_template})")
     try:
@@ -597,13 +598,16 @@ def gerar_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -
         )
     except Exception as e:
         _logger.error(f"gerar_documento failed: {e}", exc_info=True)
-        return f"❌ Erro POP: {e}"
+        return f"❌ Error POP: {e}"
 
 
 @mcp.tool()
 def validar_template(cliente: str, nome_template: str, arquivo_dados: str = "") -> str:
     """
-    Pre-flight validation for document generation.
+    Pre-flight validation: Checks if the INFO files provide all variables required by the template.
+    Returns: A list of MISSING variables.
+    PROTOCOL: Mandatory check before calling 'gerar_documento'.
+    AGNOSTICISM: Searches the entire folder hierarchy for information.
     """
     _logger.info(f"Tool called: validar_template(cliente={cliente}, template={nome_template})")
     try:
@@ -623,7 +627,7 @@ def validar_template(cliente: str, nome_template: str, arquivo_dados: str = "") 
         else:
             md_files = list(client_path.glob('*INFO*.md')) + list(client_path.glob('*.md'))
             if not md_files:
-                return f"⚠️ No data files (.md) found for {client_path.name}"
+                return f"⚠️ No data files (.md) found in {client_path.name}"
             data_path = md_files[0]
 
         from foton_system.interfaces.mcp.mcp_services import MCPServiceFactory
@@ -638,7 +642,7 @@ def validar_template(cliente: str, nome_template: str, arquivo_dados: str = "") 
             output += f"   ❌ {key}\n"
         return output
     except Exception as e:
-        return f"❌ Erro na validação: {e}"
+        return f"❌ Validation error: {e}"
 
 
 # ==============================================================================
@@ -648,7 +652,8 @@ def validar_template(cliente: str, nome_template: str, arquivo_dados: str = "") 
 @mcp.tool()
 def consultar_conhecimento(pergunta: str) -> str:
     """
-    Searches the firm's knowledge base using semantic search (RAG).
+    Semantic search (RAG) across past projects and reference materials.
+    CONTEXT: Use this to find 'How did we solve X for client Y before?' or 'What are the rules for Z?'.
     """
     _logger.info(f"Tool called: consultar_conhecimento(pergunta='{pergunta[:50]}...')")
     try:
@@ -657,7 +662,7 @@ def consultar_conhecimento(pergunta: str) -> str:
         result = op.execute(query=pergunta)
 
         if result["status"] == "EMPTY":
-            return "📭 No relevant knowledge found in the database."
+            return "📭 No relevant knowledge found."
 
         output = []
         for i, r in enumerate(result["results"], 1):
@@ -671,7 +676,8 @@ def consultar_conhecimento(pergunta: str) -> str:
 @mcp.tool()
 def indexar_conhecimento(pasta_alvo: str = "") -> str:
     """
-    Indexes documents into the firm's knowledge base.
+    Updates the semantic database by indexing documents.
+    PROTOCOL: Run this after adding many new files or manually updating INFO files to ensure RAG stays current.
     """
     _logger.info(f"Tool called: indexar_conhecimento(alvo={pasta_alvo})")
     try:
@@ -691,7 +697,7 @@ def indexar_conhecimento(pasta_alvo: str = "") -> str:
 @mcp.tool()
 def sincronizar_base() -> str:
     """
-    Synchronizes the master dashboard database.
+    Syncs the Excel Master Dashboard with the filesystem.
     """
     _logger.info("Tool called: sincronizar_base")
     try:
@@ -706,7 +712,7 @@ def sincronizar_base() -> str:
 @mcp.tool()
 def sincronizar_clientes() -> str:
     """
-    Discovers and registers new clients and services from folders.
+    Discovers new client/service folders and adds them to the Excel database.
     """
     _logger.info("Tool called: sincronizar_clientes")
     try:
@@ -722,26 +728,25 @@ def sincronizar_clientes() -> str:
 
 
 # ==============================================================================
-# PIPELINES
+# PIPELINES (AI RECOMMENDED FLOWS)
 # ==============================================================================
 
 @mcp.tool()
 def pipeline_novo_cliente(nome: str, apelido: str = "", nif: str = "", email: str = "", telefone: str = "") -> str:
     """
-    SAFE PIPELINE for creating a new client.
+    SAFE workflow to create a client while checking for duplicates.
+    AI RECOMMENDED: Always prefer this over 'cadastrar_cliente'.
     """
     _logger.info(f"Tool called: pipeline_novo_cliente(nome={nome})")
     try:
-        config = _get_config()
         factory = _get_factory()
         svc = factory.get_client_service()
         
-        # Check for duplicates using new resolution logic if possible, or simple manual scan
         try:
             exists = svc.resolve_client_path(nome)
-            return f"⚠️ PIPELINE PARADO — Cliente similar já existe: {exists.name}"
+            return f"⚠️ PIPELINE STOPPED — A similar client already exists: {exists.name}. Use 'ler_ficha_cliente' to verify."
         except ValueError:
-            pass # Good, doesn't exist
+            pass 
 
         result = cadastrar_cliente(nome, apelido, nif, email, telefone)
         return result
@@ -752,16 +757,17 @@ def pipeline_novo_cliente(nome: str, apelido: str = "", nif: str = "", email: st
 @mcp.tool()
 def pipeline_emitir_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -> str:
     """
-    SAFE PIPELINE for document generation report.
+    SAFE pre-flight report before document generation.
+    AI RECOMMENDED: Always run this before 'gerar_documento' to provide a summary to the user.
+    Logic: Validates variables AND checks for existing generated files to avoid duplicates.
     """
     _logger.info(f"Tool called: pipeline_emitir_documento(cliente={cliente}, template={nome_template})")
     try:
-        config = _get_config()
         svc = _get_factory().get_client_service()
         client_path = svc.resolve_client_path(cliente)
 
-        output = f"📋 PRÉ-VOO — Emissão de Documento\n"
-        output += f"   Cliente:  {client_path.name}\n"
+        output = f"📋 PRE-FLIGHT — Document Generation\n"
+        output += f"   Client:  {client_path.name}\n"
         output += f"   Template: {nome_template}\n\n"
 
         validation = validar_template(cliente, nome_template)
@@ -770,10 +776,11 @@ def pipeline_emitir_documento(cliente: str, nome_template: str, dados_extras: di
         template_base = Path(nome_template).stem
         existing = list(client_path.rglob(f"GERADO_*{template_base}*"))
         if existing:
-            output += f"\n⚠️ DUPLICATAS: {len(existing)} similar(es) já existe(m).\n"
+            output += f"\n⚠️ DUPLICATES: {len(existing)} similar file(s) found in {client_path.name}.\n"
         else:
-            output += "✅ DUPLICATAS: Nenhum similar encontrado.\n"
+            output += "✅ DUPLICATES: No similar files found.\n"
 
+        output += "\nPROTOCOL: Review this report and confirm with the user before calling 'gerar_documento'."
         return output
     except Exception as e:
         return f"❌ Pipeline error: {e}"
@@ -785,8 +792,7 @@ def pipeline_emitir_documento(cliente: str, nome_template: str, dados_extras: di
 
 def _resolve_client_path(clients_dir: Path, cliente: str, config) -> Path:
     """
-    Internal helper used by old tests and some tools. 
-    Now proxies to ClientService.
+    Internal proxy to ClientService.
     """
     svc = _get_factory().get_client_service()
     return svc.resolve_client_path(cliente)
