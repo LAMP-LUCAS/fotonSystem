@@ -18,11 +18,15 @@ O Agente **NÃO** deve manipular DOCX/PPTX diretamente. O Agente deve manipular 
 
 ## 2. Formatação de Dados (IMPORTANTE)
 
-O sistema possui um **Middleware de Formatação Automática**.
-O Agente deve fornecer **NÚMEROS PUROS** ou **DATA ISO** sempre que possível. O sistema formata para o padrão brasileiro (R$ X.XXX,XX) automaticamente.
+O sistema possui um **Middleware de Formatação Automática**. 
+O Agente deve fornecer **NÚMEROS PUROS** para cálculos e **TEXTO ENTRE ASPAS** para literais que não devem ser formatados (como anos ou códigos).
 
-### Regras de Tipagem
+### Regras de Tipagem e Bypass
 
+*   **Números Decimais (Default):** Qualquer sequência de números puros (ex: `2026`) será interpretada como valor decimal e formatada (ex: `2.026,00`). Use para áreas, valores e quantidades.
+*   **Bypass Literal (Aspas):** Use aspas para que o sistema ignore a formatação decimal. 
+    *   *Input:* `@anoProjeto: "2026"` -> *Output:* `2026`
+    *   *Input:* `@numeroProposta: "001"` -> *Output:* `001`
 *   **Dinheiro:** Se a chave contiver `valor`, `custo`, `total`, `preco`, `cub`, `exec` -> O sistema adiciona `R$` e formata.
     *   *Input:* `@valorProposta: 5000.50`
     *   *Output no Doc:* `R$ 5.000,50`
