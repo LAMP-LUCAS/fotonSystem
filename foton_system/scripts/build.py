@@ -11,6 +11,7 @@ import sys
 import time
 import shutil
 import subprocess
+import argparse
 from pathlib import Path
 
 
@@ -59,6 +60,9 @@ def robust_rmtree(path: Path, max_retries: int = 3) -> bool:
 
 def build():
     """Main build function."""
+    parser = argparse.ArgumentParser(description="FotonSystem Build Script")
+    parser.add_argument("--clean", action="store_true", help="Clear PyInstaller cache before building")
+    cli_args = parser.parse_args()
     
     # Base paths
     base_dir = Path(__file__).resolve().parent.parent.parent
@@ -69,6 +73,8 @@ def build():
     print("=" * 60)
     print("  🚀 FotonSystem Build Script")
     print("=" * 60)
+    if cli_args.clean:
+        print(f"{'MODO LIMPEZA ATIVADO':^60}")
     print("")
     
     # Clean previous builds with robust deletion
@@ -132,7 +138,13 @@ def build():
         f'--add-data={base_dir / "foton_system" / "scripts"}{os.pathsep}foton_system/scripts',
         f'--add-data={base_dir / "foton_system" / "resources"}{os.pathsep}foton_system/resources',
         
+        # Robustness Flags
+        '--collect-all=plyer',
+        '--collect-all=colorama',
+        '--collect-all=watchdog',
+
         # Core dependencies
+        '--hidden-import=encodings',
         '--hidden-import=pandas',
         '--hidden-import=openpyxl',
         '--hidden-import=docx',
@@ -171,6 +183,10 @@ def build():
         '--hidden-import=foton_system.core.memory',
         '--hidden-import=foton_system.core.memory.vector_store',
     ]
+
+    # Conditional Clean
+    if cli_args.clean:
+        args.append('--clean')
     
     # Run PyInstaller
     print("⚙️ Running PyInstaller...")
