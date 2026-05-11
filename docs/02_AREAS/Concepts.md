@@ -1,6 +1,12 @@
+---
+type: concept
+domain: core
+status: active
+tags: [architecture, hexagonal, ddd]
+---
 # Conceitos e Diretrizes Arquiteturais - FOTON System
 
-Este documento descreve a arquitetura, conceitos e padrões adotados no desenvolvimento do projeto [**FOTON System**](../README.md). Ele serve como guia para desenvolvedores de todos os níveis (Junior a Senior) entenderem a estrutura e a lógica por trás do código.
+Este documento descreve a arquitetura, conceitos e padrões adotados no desenvolvimento do projeto [**FOTON System**](../../README.md). Ele serve como guia para desenvolvedores de todos os níveis (Junior a Senior) entenderem a estrutura e a lógica por trás do código.
 
 ## 1. Visão Geral da Arquitetura
 
@@ -123,7 +129,7 @@ service = ClientService(repo)           # Entrega a peça para o caso de uso
 
 ## 6. Deploy e Distribuição
 
-O sistema é distribuído via executável compilado (PyInstaller) ou código fonte conforme detalhado em [`docs/deployment_guide.md`](deployment_guide.md) .
+O sistema é distribuído via executável compilado (PyInstaller) ou código fonte conforme detalhado em [[DeploymentGuide]] .
 
 * **Branch de Deploy:** Contém a versão estável pronta para produção.
 * **Atualização:** O sistema pode ser atualizado baixando a nova versão da branch de deploy.
@@ -133,5 +139,9 @@ O sistema é distribuído via executável compilado (PyInstaller) ou código fon
 **Dúvidas?** Consulte o Tech Lead ou revise a documentação oficial do Python e Clean Architecture.
 
 ---
+## 🔗 Links Relacionados
+- Índice: [[Index]]
+- Protocolo: [[LlmProtocol]]
+- Pipelines: [[Pipelines]]
 
 **Desenvolvido para Arquitetos que querem projetar, não gerenciar arquivos.** Veja mais em [Mundo AEC](https://www.mundoaec.com)

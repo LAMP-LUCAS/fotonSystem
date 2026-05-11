@@ -2,6 +2,10 @@
 
 > **Identidade do Sistema:** O Foton System é uma "Camada de Orquestração de Arquitetura" (Architecture Orchestration Layer). Ele não é apenas um gerador de documentos, mas um **Sistema Operacional para Escritórios de Arquitetura Autônomos**.
 
+## 0. PROTOCOLO OBRIGATÓRIO
+**ANTES DE QUALQUER AÇÃO, LEIA: [[LlmProtocol]]**
+Você deve seguir rigorosamente a arquitetura PARA + Zettelkasten descrita no protocolo para manter a documentação coesa e evitar entropia.
+
 ## 1. O Problema que Resolvemos (Contexto do Usuário)
 Arquitetos autônomos sofrem com a **fragmentação**.
 *   Dados do cliente estão no Whatsapp.
