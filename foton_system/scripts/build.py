@@ -62,6 +62,7 @@ def build():
     """Main build function."""
     parser = argparse.ArgumentParser(description="FotonSystem Build Script")
     parser.add_argument("--clean", action="store_true", help="Clear PyInstaller cache before building")
+    parser.add_argument("--type", choices=["lite", "full"], default="lite", help="Build type: lite (small, excludes AI) or full (includes everything)")
     cli_args = parser.parse_args()
     
     # Base paths
@@ -137,15 +138,49 @@ def build():
         f'--add-data={base_dir / "foton_system" / "config"}{os.pathsep}foton_system/config',
         f'--add-data={base_dir / "foton_system" / "scripts"}{os.pathsep}foton_system/scripts',
         f'--add-data={base_dir / "foton_system" / "resources"}{os.pathsep}foton_system/resources',
+        f'--add-data={base_dir / "foton_system" / "interfaces"}{os.pathsep}foton_system/interfaces',
         
         # Robustness Flags
         '--collect-all=plyer',
         '--collect-all=colorama',
         '--collect-all=watchdog',
+        '--collect-all=setuptools',
+        '--collect-all=pywebview',
+    ]
 
-        # Core dependencies
-        '--hidden-import=encodings',
+    # Exclusions for LITE build
+    if cli_args.type == "lite":
+        print("💡 Building LITE version (AI modules will be installed on-demand)")
+        args.extend([
+            '--exclude-module=matplotlib',
+            '--exclude-module=PyQt6',
+            '--exclude-module=PySide6',
+            '--exclude-module=tensorflow',
+            '--exclude-module=notebook',
+            '--exclude-module=scipy',
+            '--exclude-module=sklearn',
+            '--exclude-module=pygame',
+            '--exclude-module=torch.distributed',
+            '--exclude-module=torch.utils.tensorboard',
+            '--exclude-module=altair',
+            '--exclude-module=IPython',
+            '--exclude-module=ipykernel',
+            '--exclude-module=nbformat',
+            '--exclude-module=nbconvert',
+            '--exclude-module=uvicorn',
+            '--exclude-module=websockets',
+            '--exclude-module=chromadb',
+            '--exclude-module=sentence_transformers',
+            '--exclude-module=torch',
+            '--exclude-module=transformers',
+        ])
+    else:
+        print("🔥 Building FULL version (Includes all AI modules)")
+
+    # Core dependencies
+    args.extend([
         '--hidden-import=pandas',
+        '--hidden-import=pandas.plotting',
         '--hidden-import=openpyxl',
         '--hidden-import=docx',
         '--hidden-import=pptx',
@@ -163,26 +198,35 @@ def build():
         '--hidden-import=plyer',
         '--hidden-import=watchdog.observers',
         '--hidden-import=watchdog.events',
+        '--hidden-import=webview',
+        '--hidden-import=jaraco',
         '--hidden-import=json',
-        
-        # RAG dependencies (graceful degradation if not installed)
-        '--hidden-import=chromadb',
-        '--hidden-import=chromadb.config',
-        '--hidden-import=chromadb.api',
-        '--hidden-import=chromadb.api.models',
-        '--hidden-import=sentence_transformers',
-        '--hidden-import=torch',
-        '--hidden-import=transformers',
-        '--hidden-import=tokenizers',
-        '--hidden-import=tqdm',
-        '--hidden-import=huggingface_hub',
-        
-        # Knowledge operations
-        '--hidden-import=foton_system.core.ops.op_query_knowledge',
-        '--hidden-import=foton_system.core.ops.op_index_knowledge',
-        '--hidden-import=foton_system.core.memory',
-        '--hidden-import=foton_system.core.memory.vector_store',
-    ]
+    ])
+
+    # RAG dependencies (Only for FULL build)
+    if cli_args.type == "full":
+        print("🧠 Adding AI dependencies to bundle...")
+        args.extend([
+            '--hidden-import=chromadb',
+            '--hidden-import=chromadb.config',
+            '--hidden-import=chromadb.api',
+            '--hidden-import=chromadb.api.models',
+            '--hidden-import=sentence_transformers',
+            '--hidden-import=torch',
+            '--hidden-import=transformers',
+            '--hidden-import=tokenizers',
+            '--hidden-import=tqdm',
+            '--hidden-import=huggingface_hub',
+            '--hidden-import=foton_system.core.ops.op_query_knowledge',
+            '--hidden-import=foton_system.core.ops.op_index_knowledge',
+            '--hidden-import=foton_system.core.memory',
+            '--hidden-import=foton_system.core.memory.vector_store',
+        ])
+    else:
+        # For LITE build, we still need these to be discoverable but not necessarily bundled
+        # unless they are already in the environment. However, since we use DependencyManager
+        # to load them from a VENV, we should NOT bundle them here.
+        pass
 
     # Conditional Clean
     if cli_args.clean:

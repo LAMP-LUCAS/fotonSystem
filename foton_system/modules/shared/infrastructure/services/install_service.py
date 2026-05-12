@@ -1,6 +1,7 @@
 ﻿import os
 import sys
 import shutil
+import time
 from pathlib import Path
 from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
@@ -37,11 +38,9 @@ class InstallService:
                 if target_exe.exists():
                     try:
                         # Tentativa robusta: renomear o arquivo em uso
-                        temp_old = target_exe.with_suffix(f".old_{int(time.time())}")
+                        timestamp = int(time.time())
+                        temp_old = target_exe.with_suffix(f".old_{timestamp}")
                         target_exe.rename(temp_old)
-                        # Tenta deletar o arquivo renomeado (opcional)
-                        try: temp_old.unlink()
-                        except: pass
                     except Exception as e:
                         logger.debug(f"Não foi possível renomear exe antigo: {e}")
                 
@@ -57,28 +56,30 @@ class InstallService:
                     
                     if target_internal.exists():
                         try:
-                            # Tenta remover de forma limpa primeiro
-                            shutil.rmtree(target_internal)
-                        except Exception:
-                            # Se falhar (Acesso Negado), renomeia a pasta antiga para sair do caminho
-                            try:
-                                timestamp = int(time.time())
-                                trash_internal = target_internal.parent / f"_internal_old_{timestamp}"
-                                target_internal.rename(trash_internal)
-                                logger.info(f"Pasta _internal bloqueada. Renomeada para {trash_internal.name}")
-                            except Exception as rename_err:
-                                logger.error(f"Falha crítica ao mover _internal antigo: {rename_err}")
-                                # Se não conseguir nem renomear, tentaremos o copytree com override
-                                pass
+                            # Tentativa de renomear a pasta inteira se estiver bloqueada
+                            timestamp = int(time.time())
+                            trash_internal = target_internal.parent / f"_internal_old_{timestamp}"
+                            target_internal.rename(trash_internal)
+                            logger.info(f"Pasta _internal antiga movida para {trash_internal.name}")
+                        except Exception as rename_err:
+                            logger.warning(f"Pasta _internal em uso. Tentando atualização incremental: {rename_err}")
+                            # Se não conseguir renomear a pasta, o copytree(dirs_exist_ok=True) 
+                            # tentará atualizar arquivo por arquivo.
                     
-                    # Copia a pasta inteira (dirs_exist_ok garante que podemos mesclar se necessário)
-                    shutil.copytree(source_internal, target_internal, dirs_exist_ok=True)
-                    print(f"✅ Dependências atualizadas.")
+                    # Copia a pasta inteira
+                    try:
+                        shutil.copytree(source_internal, target_internal, dirs_exist_ok=True)
+                        print(f"✅ Dependências atualizadas.")
+                    except shutil.Error as copy_err:
+                        # Filtrar erros de arquivos em uso que não impedem a execução
+                        logger.warning(f"Alguns arquivos não puderam ser atualizados (provavelmente em uso): {copy_err}")
+                        print(f"⚠️ Alguns arquivos de sistema estão em uso e não foram sobrescritos.")
+                        print(f"   Isso é normal se você tiver outra janela do Foton aberta.")
 
             except Exception as e:
                 logger.error(f"Erro ao copiar arquivos na instalação: {e}", exc_info=True)
                 print(f"❌ Erro ao instalar binários: {e}")
-                print("Dica: Verifique se não há outra instância do FotonSystem aberta.")
+                print("Dica: Feche TODAS as janelas do Foton e tente novamente.")
                 return
 
         # 3. Inicializar Configuração no AppData

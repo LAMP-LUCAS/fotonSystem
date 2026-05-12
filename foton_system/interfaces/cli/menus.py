@@ -101,11 +101,11 @@ class MenuSystem:
         options = [
             ("1", "Gerenciar Clientes"),
             ("2", "Gerenciar Serviços"),
-            ("3", "Documentos (PPTX/DOCX)"),
-            ("4", "Produtividade (Pomodoro)"),
-            ("5", "Configurações do Sistema"),
-            ("6", "Instalação / Atalhos"),
-            ("7", "Implantação (Gerenciar Base de Dados)"),
+            ("3", "Preencher Ficha (Interface)"),
+            ("4", "Documentos (PPTX/DOCX)"),
+            ("5", "Produtividade (Pomodoro)"),
+            ("6", "Configurações do Sistema"),
+            ("7", "Instalação / Atalhos"),
             ("8", "Modo Sentinela (Watcher)"),
             ("0", "Sair")
         ]
@@ -157,15 +157,15 @@ class MenuSystem:
                 elif choice == '2':
                     self.handle_services()
                 elif choice == '3':
-                    self.handle_documents()
+                    self.handle_webview_interface()
                 elif choice == '4':
-                    self.handle_productivity()
+                    self.handle_documents()
                 elif choice == '5':
-                    self.handle_settings()
+                    self.handle_productivity()
                 elif choice == '6':
-                    self.handle_installation()
+                    self.handle_settings()
                 elif choice == '7':
-                    self.handle_deployment()
+                    self.handle_installation()
                 elif choice == '8':
                     self.handle_watcher()
                 elif choice == '0':
@@ -177,6 +177,43 @@ class MenuSystem:
             print("\n")
             self.print_warning("Interrupção detectada. Encerrando o sistema com segurança...")
             sys.exit()
+
+    def handle_webview_interface(self):
+        """Abre a interface WebView para preenchimento de fichas."""
+        from pathlib import Path
+        self.print_header("--- Preencher Ficha (Interface) ---")
+        
+        print("Selecione o arquivo de dados (.md) para carregar...")
+        data_file = self.ui.select_file("Selecione o Arquivo de Dados", extensions=[".md"])
+        
+        if not data_file:
+            self.print_warning("Nenhum arquivo selecionado.")
+            return
+
+        data_path = Path(data_file)
+        
+        try:
+            # Ler conteúdo inicial
+            with open(data_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            # Callback para salvar
+            def save_fn(new_content):
+                try:
+                    with open(data_path, "w", encoding="utf-8") as f:
+                        f.write(new_content)
+                    return True
+                except Exception as e:
+                    logger.error(f"Erro ao salvar arquivo via WebView: {e}")
+                    return False
+
+            from foton_system.interfaces.webview_bridge import open_info_interface
+            print(f"🚀 Abrindo interface para: {data_path.name}")
+            open_info_interface(content, save_fn)
+            
+        except Exception as e:
+            self.print_error(f"Erro ao abrir interface: {e}")
+            input("Pressione Enter para voltar...")
 
     def handle_installation(self):
         from foton_system.modules.shared.infrastructure.services.install_service import InstallService

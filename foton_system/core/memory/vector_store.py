@@ -40,11 +40,30 @@ class VectorStore:
     def _initialize(self) -> None:
         """Inicializa ChromaDB e modelo de embeddings."""
         try:
-            import chromadb
-            from sentence_transformers import SentenceTransformer
+            from foton_system.infrastructure.dependency_manager import DependencyManager
             from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
 
-            # 1. Caminho seguro de persistência (Local AppData)
+            # 1. Verificar/Instalar dependências de IA
+            AI_PACK_PACKAGES = ["chromadb", "sentence-transformers", "torch", "transformers"]
+            if not DependencyManager.is_plugin_installed("ai_pack", "chromadb"):
+                print("\n🤖 O módulo de Memória Semântica (IA) não está instalado.")
+                choice = input("👉 Deseja instalar o AI Pack agora? (~800MB) [s/N]: ")
+                if choice.lower() == 's':
+                    if not DependencyManager.install_plugin("ai_pack", AI_PACK_PACKAGES):
+                        raise Exception("Falha ao instalar pacotes de IA.")
+                else:
+                    logger.info("Usuário optou por não instalar o AI Pack.")
+                    return
+
+            # 2. Adicionar o VENV ao sys.path dinamicamente
+            ai_path = DependencyManager.get_plugin_python_path("ai_pack")
+            if ai_path and ai_path not in sys.path:
+                sys.path.append(ai_path)
+
+            import chromadb
+            from sentence_transformers import SentenceTransformer
+
+            # 3. Caminho seguro de persistência (Local AppData)
             config_dir = BootstrapService.get_user_config_dir()
             self.db_path: Path = config_dir / "memory_db"
             self.db_path.mkdir(parents=True, exist_ok=True)
