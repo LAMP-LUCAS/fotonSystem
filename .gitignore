@@ -11,3 +11,5 @@ build/
 deploy_release/
 
 foton_system/config/settings.json
+
+.obsidian/
