@@ -37,6 +37,8 @@ class MenuSystem:
         self.pptx_adapter = PythonPPTXAdapter()
         self.document_service = DocumentService(self.docx_adapter, self.pptx_adapter)
 
+        self.tip_service = TipService()
+
         # Ensure database exists to prevent pipeline errors
         self._ensure_database_exists()
 

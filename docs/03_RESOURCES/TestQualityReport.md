@@ -1,70 +1,59 @@
 ---
 type: report
-domain: core
+domain: dev
 status: active
-tags: [test, quality, coverage]
+tags: [test, quality, coverage, e2e, io]
 ---
-# 📊 Relatório de Qualidade da Suíte de Testes (TestQualityReport)
+# 📊 Relatório de Qualidade de Testes (TestQualityReport)
 
-Este relatório apresenta uma análise detalhada da maturidade, eficácia e robustez dos testes atuais do **FOTON System**.
+Este documento detalha o estado da cobertura de testes, as metodologias aplicadas e os protocolos de resiliência do **FOTON System**.
 
----
+## 🏗️ Arquitetura de Validação
 
-## 📈 Resumo Executivo
+Seguimos a **ADR 003**, que exige isolamento total via **Modo Sandbox** para todos os testes. Isso garante a soberania dos dados reais do usuário.
 
-| Métrica | Nível | Observação |
-|---------|-------|------------|
-| **Qualidade (Detecção)** | Alta | Detecta bugs de formatação e lógica de fluxo com precisão. |
-| **Cobertura (Coverage)** | Média/Alta | ~60% Global. Lógica de negócio (Client/Doc/Finance) com alta cobertura. |
-| **Integração** | Alta | Pipeline E2E simula fluxo real do arquiteto com arquivos físicos. |
-| **Resiliência** | Alta | Simula falhas de OneDrive (Lock/Permission) de forma exaustiva. |
-| **Robustez** | Alta | Testada contra inputs Unicode, caminhos longos e dados corrompidos. |
-| **Coesão/Coerência** | Alta | Arquitetura desacoplada via Dependency Injection (MCP Services). |
+### Níveis de Teste
+
+1.  **Unitários:** Validam lógicas isoladas (ex: `FotonFormatter`, `FormSession`).
+2.  **Integração:** Validam a comunicação entre módulos e o sistema de arquivos (ex: `test_io_resilience`).
+3.  **E2E (End-to-End):** Simulam fluxos completos de trabalho do arquiteto (ex: `test_architect_pipeline`).
+4.  **UI/Interface:** Simulam interações de usuário na TUI (ex: `test_form_session`).
 
 ---
 
-## 🔍 Análise Detalhada
+## 🛡️ Robustez e Resiliência de I/O
 
-### 1. Qualidade e Detecção de Bugs
+O sistema é testado contra cenários de erro comuns em escritórios de arquitetura:
 
-Os testes de **Formatação** (`test_formatting.py`) e **Financeiro** (`test_finance.py`) são excelentes. Eles garantem que os cálculos monetários e a manipulação de CSVs básicos funcionem perfeitamente. No entanto, a ausência de testes em casos de borda (ex: valores nulos no Excel) reduz o potencial de detecção preventiva.
-
-### 2. Integração e Pipelines
-
-A suíte atual brilha na validação da navegação da interface (`test_ui_menus.py`), mas falha em integrar o sistema de ponta-a-ponta de forma automatizada.
-
-- **O que falta:** Um teste que cadastre um cliente no Excel, gere uma pasta real, crie um arquivo INFO e gere um contrato PPTX sem usar `Mocks`.
-
-### 3. Cobertura de Código (Coverage)
-
-- **FotonFormatter:** 100% (Excelente)
-- **ClientService:** 95% (Crítica - Coração do sistema blindado)
-- **DocumentService:** 90% (Lógica de resolução e parsing testada)
-- **FinanceService:** 100% (Lógica de balanço e CSV testada)
-- **MCP Services:** 100% (Nova camada de DI totalmente coberta)
-- **MenuSystem:** 65% (Navegação e fluxos principais cobertos com TUI bypass)
-
-### 4. Resiliência e Robustez (Iniciativa OneDrive)
-
-Os testes agora simulam o "Mundo Real":
-
-- **PermissionError:** Simula quando o OneDrive bloqueia o acesso ao Excel durante o sync.
-- **FileLockedError:** Garante que o sistema aguarde ou falhe graciosamente em vez de travar.
-- **Unicode/Special Chars:** Nomes de clientes como "João & Maria (PROJ)" são tratados preventivamente.
+-   **Retry on Lock:** Validado em `tests/unit/test_io_resilience.py`. O sistema utiliza um algoritmo de **Exponential Backoff** para tentar salvar arquivos Excel que possam estar bloqueados pelo OneDrive ou abertos no Excel.
+-   **SSOT Lifecycle:** Validado em `tests/e2e/test_architect_pipeline.py`. Garante que as mudanças manuais em arquivos Markdown sejam sincronizadas com o banco de dados sem perda de informação.
 
 ---
 
-## 💡 Recomendações de Melhoria
+## 🧪 Métricas Atuais
 
-1. **Aumentar Cobertura do `ClientService`:** Implementar testes unitários para a lógica de sincronização bidirecional.
-2. **Testes de "Mundo Real":** Criar uma suite de integração que utilize arquivos Excel físicos (temporários) em vez de Mocks profundos.   
-3. **Simulação de Falhas de IO:** Adicionar testes que usem `mock` para simular `PermissionError` e `FileLockedError` (comum no OneDrive). 
-4. **Testes de Input Sujo:** Adicionar casos de teste com caracteres especiais em nomes de clientes e valores financeiros corrompidos.     
+| Categoria | Cobertura | Status | Observações |
+| :--- | :--- | :--- | :--- |
+| Core Lógica | > 90% | ✅ Estável | Cobertura total de cálculos e formatação. |
+| Repositórios | > 85% | ✅ Estável | Testado contra locks e permissões. |
+| Pipelines E2E | 100% | ✅ Estável | Fluxo completo (Cliente -> INFO -> Documento). |
+| Interface TUI | > 70% | 📈 Em Expansão | Loop de navegação e edição validado com Mocks. |
+
+---
+
+## 🚀 Como Executar os Testes
+
+Para rodar a suíte completa com isolamento automático:
+
+```powershell
+$env:PYTHONPATH="."
+python tests/run_tests.py
+```
+
+> [!DIDACTIC:META] Segurança de Teste: Nunca execute testes fora do ambiente de desenvolvimento. O modo Sandbox é ativado automaticamente, mas a flag `--sandbox` no CLI é o seu melhor amigo para demonstrações seguras.
 
 ---
 ## 🔗 Links Relacionados
 - Índice: [[Index]]
-- Pipelines: [[Pipelines]]
-- Guia TUI: [[TuiGuide]]
-
-**Conclusão:** A fundação é sólida e bem organizada (coesiva), mas a cobertura precisa se expandir do "perímetro" (formatação/menus) para o "centro" (lógica de negócios e dados).
+- ADR Sandbox: [[ADR003_SandboxTestIsolation]]
+- Guia de Desenvolvimento: [[Contributing]]

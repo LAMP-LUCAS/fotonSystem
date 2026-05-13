@@ -106,6 +106,12 @@ def parse_args():
         action="store_true",
         help="Inicia o servidor MCP (Model Context Protocol) para IA"
     )
+
+    parser.add_argument(
+        "--sandbox",
+        action="store_true",
+        help="Ativa o modo de experimentação isolado (Sandbox)"
+    )
     
     parser.add_argument(
         "--tui",

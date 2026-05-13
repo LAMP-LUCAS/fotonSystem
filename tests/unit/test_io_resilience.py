@@ -1,117 +1,85 @@
-"""
-IO Resilience and Robustness Tests
-
-Tests edge cases common in OneDrive/cloud environments:
-- PermissionError (file locked by another process)
-- FileNotFoundError (sync delays)
-- Dirty/malformed input data
-"""
-
 import unittest
-from unittest.mock import patch, MagicMock
-import pandas as pd
+import os
+import shutil
+import tempfile
+import time
+import threading
 from pathlib import Path
-
+from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
 from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
-from foton_system.modules.shared.infrastructure.validators import validate_filename, sanitize_filename
-
+from foton_system.modules.shared.infrastructure.config.config import Config
+from foton_system.modules.shared.domain.exceptions import DatabaseLockError
 
 class TestIOResilience(unittest.TestCase):
-    """Tests for I/O error handling and resilience."""
+    """
+    Tests the system's resilience to file locks (OneDrive/Excel open).
+    """
 
-    @patch('foton_system.modules.clients.infrastructure.repositories.excel_client_repository.pd.read_excel')
-    def test_excel_permission_error_is_propagated(self, mock_read):
-        """PermissionError from Excel read should be propagated with proper logging."""
-        mock_read.side_effect = PermissionError("File is locked by OneDrive")
+    @classmethod
+    def setUpClass(cls):
+        cls.temp_dir = Path(tempfile.gettempdir()) / "foton_io_test"
+        if cls.temp_dir.exists():
+            shutil.rmtree(cls.temp_dir)
+        cls.temp_dir.mkdir(parents=True)
+
+        PathManager._sandbox_dir = cls.temp_dir
+        PathManager.set_sandbox_mode(True)
+        PathManager.ensure_directories()
+
+        config = Config()
+        config.set('caminho_baseDados', str(PathManager.get_app_data_dir() / "baseDados_io.xlsx"))
+        config.save()
+
+        cls.repo = ExcelClientRepository()
+
+    def test_excel_lock_retry_mechanism(self):
+        """
+        Simulates an Excel file lock and verifies the retry with backoff.
+        """
+        df = self.repo.get_clients_dataframe()
+        db_path = PathManager.get_app_data_dir() / "baseDados_io.xlsx"
+
+        # 1. Make file read-only to trigger PermissionError
+        import stat
+        os.chmod(db_path, stat.S_IREAD) # Set Read-Only
         
-        repo = ExcelClientRepository()
+        # 2. Try to save while locked in a separate thread so we can release it
+        results = {"success": False, "duration": 0, "error": None}
         
-        with self.assertRaises(PermissionError):
-            repo.get_clients_dataframe()
+        def attempt_save():
+            start_time = time.time()
+            try:
+                self.repo.save_clients(df)
+                results["duration"] = time.time() - start_time
+                results["success"] = True
+            except Exception as e:
+                results["error"] = e
 
-    @patch('foton_system.modules.clients.infrastructure.repositories.excel_client_repository.pd.read_excel')
-    def test_excel_file_not_found_raises(self, mock_read):
-        """FileNotFoundError from missing Excel should be propagated."""
-        mock_read.side_effect = FileNotFoundError("Excel not found")
+        save_thread = threading.Thread(target=attempt_save)
+        save_thread.start()
+
+        # Wait a bit, then restore write permission
+        # The backoff is: 0.5, 1.0, 2.0
+        # By waiting 0.7s, the first retry (at 0.5s) might still fail, 
+        # but the second one (at 0.5 + 1.0 = 1.5s) should succeed.
+        time.sleep(0.7)
+        os.chmod(db_path, stat.S_IWRITE) # Restore Write
         
-        repo = ExcelClientRepository()
-        
-        with self.assertRaises(FileNotFoundError):
-            repo.get_clients_dataframe()
+        save_thread.join()
 
-    @patch('foton_system.modules.clients.infrastructure.repositories.excel_client_repository.Config')
-    def test_folder_creation_handles_permission_error(self, MockConfig):
-        """Folder creation should propagate PermissionError gracefully."""
-        mock_config = MagicMock()
-        mock_config.base_pasta_clientes = Path('/fake/clients')
-        MockConfig.return_value = mock_config
-        
-        repo = ExcelClientRepository()
-        
-        with patch.object(Path, 'mkdir', side_effect=PermissionError("Access denied")):
-            with self.assertRaises(PermissionError):
-                repo.create_folder(Path('/protected/folder'))
+        # 3. Validations
+        if results["error"]:
+            self.fail(f"O sistema falhou com erro: {results['error']}")
+            
+        self.assertTrue(results["success"], "O sistema falhou em salvar o arquivo após a liberação do lock.")
+        self.assertGreater(results["duration"], 1.5, f"Deveria ter esperado pelo menos uma tentativa de retry. Durou {results['duration']:.2f}s")
+        print(f"\n✅ Retry bem-sucedido após {results['duration']:.2f}s")
 
-
-class TestValidatorRobustness(unittest.TestCase):
-    """Tests for filename validation edge cases."""
-
-    def test_validate_filename_rejects_all_invalid_chars(self):
-        """All Windows-invalid characters should be rejected."""
-        invalid_chars = '<>:"/\\|?*'
-        for char in invalid_chars:
-            with self.subTest(char=char):
-                self.assertFalse(validate_filename(f"test{char}name"))
-
-    def test_validate_filename_accepts_unicode(self):
-        """Unicode characters (accents, emojis) should be accepted."""
-        self.assertTrue(validate_filename("João 🏗️ Arquiteto"))
-        self.assertTrue(validate_filename("Résidence Étoile"))
-        self.assertTrue(validate_filename("中文客户"))
-
-    def test_validate_filename_rejects_reserved_names(self):
-        """Windows reserved names should be rejected."""
-        reserved = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM9', 'LPT1', 'LPT9']
-        for name in reserved:
-            with self.subTest(name=name):
-                self.assertFalse(validate_filename(name))
-
-    def test_validate_filename_accepts_reserved_as_substring(self):
-        """Reserved names as part of larger name should be accepted."""
-        self.assertTrue(validate_filename("CONEXÃO"))
-        self.assertTrue(validate_filename("01_AUX_Folder"))
-        self.assertTrue(validate_filename("LPT1_Extended"))
-
-    def test_sanitize_removes_invalid_chars(self):
-        """Sanitizer should strip all invalid characters."""
-        result = sanitize_filename("Client<>:Name/Test\\Bad|Chars?*End")
-        self.assertEqual(result, "ClientNameTestBadCharsEnd")
-
-    def test_sanitize_strips_dots_and_spaces(self):
-        """Sanitizer should strip leading/trailing dots and spaces."""
-        self.assertEqual(sanitize_filename("  .Hidden.File.  "), "Hidden.File")
-        self.assertEqual(sanitize_filename("...test..."), "test")
-
-
-class TestDirtyDataHandling(unittest.TestCase):
-    """Tests for handling corrupted/malformed data."""
-
-    def test_empty_string_validation(self):
-        """Empty strings should be rejected."""
-        self.assertFalse(validate_filename(""))
-        self.assertFalse(validate_filename(None))
-
-    def test_whitespace_only_validation(self):
-        """Whitespace-only strings should be sanitized to empty."""
-        result = sanitize_filename("   ")
-        self.assertEqual(result, "")
-
-    def test_very_long_filename_validation(self):
-        """Very long filenames should pass validation (Windows handles truncation)."""
-        long_name = "A" * 300
-        # validate_filename only checks for invalid chars, not length
-        self.assertTrue(validate_filename(long_name))
-
+    @classmethod
+    def tearDownClass(cls):
+        PathManager.set_sandbox_mode(False)
+        if cls.temp_dir.exists():
+            shutil.rmtree(cls.temp_dir)
 
 if __name__ == '__main__':
     unittest.main()

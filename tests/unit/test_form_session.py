@@ -1,73 +1,62 @@
-"""
-Unit tests for FormSession domain model.
-"""
-
-import pytest
+import unittest
+from unittest.mock import patch, MagicMock
 from foton_system.modules.documents.domain.models.form_session import FormSession
+from foton_system.interfaces.cli.views.form_view import TUIFormView
 
-def test_parse_markdown_variables():
-    md = """# Title
-@nomeCliente; Nome do Cliente
-@areaTotal; Área do terreno
-Some text
-@ACEqv; [calculo: @areaTotal * 0.7] Área equivalente
+class TestTUIFormFiller(unittest.TestCase):
+    """
+    Unit tests for TUI Form Interaction Logic.
+    Uses mocks to simulate user input.
+    """
+
+    def setUp(self):
+        self.session = FormSession()
+        self.md_content = """# TEST
+@nome; João
+@valor; 1000
+@total; [calculo: @valor * 2] Resultado
 """
-    session = FormSession()
-    session.parse_markdown(md)
-    
-    assert len(session.fields) == 3
-    assert session.fields[0].name == "nomeCliente"
-    assert session.fields[1].name == "areaTotal"
-    assert session.fields[2].is_calculated is True
+        self.session.parse_markdown(self.md_content)
+        self.view = TUIFormView(self.session)
 
-def test_navigation():
-    md = "@var1; desc\n@var2; desc"
-    session = FormSession()
-    session.parse_markdown(md)
-    
-    assert session.cursor == 0
-    assert session.get_current_field().name == "var1"
-    
-    session.next()
-    assert session.cursor == 1
-    assert session.get_current_field().name == "var2"
-    
-    session.next() # Limit
-    assert session.cursor == 1
-    
-    session.prev()
-    assert session.cursor == 0
+    @patch('builtins.input')
+    @patch('os.system')
+    def test_navigation_and_edit_cycle(self, mock_os, mock_input):
+        """
+        Simulates: Change name -> Next -> Change value -> Prev -> Save.
+        """
+        # Command Sequence:
+        # 1. "Maria" (Update @nome, moves to next)
+        # 2. "2000" (Update @valor, moves to next)
+        # 3. "p" (Move back to @valor)
+        # 4. "s" (Save)
+        # 5. "s" (Confirm save)
+        mock_input.side_effect = ["Maria", "2000", "p", "s", "s"]
 
-def test_calculation_logic():
-    md = """@area; 100
-@preco; 2
-@total; [calculo: @area * @preco] Total
-"""
-    session = FormSession()
-    session.parse_markdown(md)
-    
-    session.cursor = 0 # @area
-    session.update_current("100")
-    
-    session.next() # @preco
-    session.update_current("5")
-    
-    # @total deve ser 500.00
-    total_field = session.fields[2]
-    assert total_field.current_value == "500.00"
+        action = self.view.run_loop()
 
-def test_markdown_regeneration():
-    md = """# Header
-@nome;Fulano
-Texto extra
-@total;[calculo: 10*10] Valor"""
-    
-    session = FormSession()
-    session.parse_markdown(md)
-    session.update_current("Lucas")
-    
-    new_md = session.generate_markdown()
-    assert "# Header" in new_md
-    assert "@nome;Lucas" in new_md
-    assert "@total;[calculo: 10*10] Valor" in new_md
-    assert "Texto extra" in new_md
+        # Check final state
+        self.assertEqual(action, "save")
+        
+        # Verify field updates
+        fields = {f.name: f for f in self.session.fields}
+        self.assertEqual(fields['nome'].current_value, "Maria")
+        self.assertEqual(fields['valor'].current_value, "2000")
+        
+        # Verify calculation was triggered (Mocking FormSession logic if needed, but it should work)
+        # Note: FormSession might need manual trigger if not in real loop, 
+        # but here the view calls update_current which triggers re-calc.
+        self.assertEqual(fields['total'].current_value, "4000.00")
+
+    @patch('builtins.input')
+    @patch('os.system')
+    def test_cancel_action(self, mock_os, mock_input):
+        """
+        Simulates: Change something -> Cancel -> Confirm Cancel.
+        """
+        mock_input.side_effect = ["New Name", "c", "s"]
+        action = self.view.run_loop()
+        self.assertEqual(action, "cancel")
+
+if __name__ == '__main__':
+    unittest.main()

@@ -63,9 +63,9 @@ class TUIFormView:
         self._clear()
         print(f"{Fore.CYAN}{'='*60}\n{Style.BRIGHT}📄 PRÉ-VISUALIZAÇÃO DO ARQUIVO\n{'='*60}{Style.RESET_ALL}")
         print(f"{Style.DIM}Legenda: {Fore.WHITE}Original {Fore.CYAN}Modificado {Fore.GREEN}Calculado{Style.RESET_ALL}\n")
-        
+
         field_dict = {f.name: f for f in self.session.fields}
-        
+
         for item in self.session.structure:
             if item["type"] == "text":
                 print(f"{Style.DIM}{item['content']}{Style.RESET_ALL}")
@@ -81,8 +81,5 @@ class TUIFormView:
                     print(f"{prefix}{Fore.CYAN}{val}{Style.RESET_ALL}")
                 else:
                     print(f"{prefix}{f.original_value}")
-                    
-        input(f"\n{Fore.YELLOW}Pressione ENTER para voltar ao formulário...{Style.RESET_ALL}")
-     print(f"{prefix}{f.original_value}")
-                    
+
         input(f"\n{Fore.YELLOW}Pressione ENTER para voltar ao formulário...{Style.RESET_ALL}")
