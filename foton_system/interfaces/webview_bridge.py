@@ -5,12 +5,18 @@ Utiliza pywebview para abrir a interface de preenchimento de dados de forma nati
 Permite ler arquivos MD do projeto e salvar o resultado diretamente no sistema.
 """
 
-import webview
 import json
 import os
 import sys
+import webbrowser
 from pathlib import Path
 from typing import Optional
+
+try:
+    import webview
+    WEBVIEW_AVAILABLE = True
+except ImportError:
+    WEBVIEW_AVAILABLE = False
 
 class WebViewBridge:
     def __init__(self, initial_md_content: str = "", save_callback=None):
@@ -37,32 +43,56 @@ class WebViewBridge:
             self.window.destroy()
 
 def open_info_interface(content: str = "", save_fn=None):
-    """Abre a interface WebView."""
+    """Abre a interface WebView ou fallback para Browser."""
+    if not WEBVIEW_AVAILABLE:
+        print("\n⚠️  Módulo 'webview' não disponível no ambiente atual.")
+        print("💡 Tentando abrir a interface no seu navegador padrão...")
+        _open_in_browser(content)
+        return
+
     api = WebViewBridge(content, save_fn)
     
     # Localizar o arquivo HTML
     html_path = Path(__file__).resolve().parent / "fotonInfoInterface.html"
     
-    # Se não existir no local de interfaces, tenta no assets
     if not html_path.exists():
         from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
         html_path = PathManager.get_app_dir() / "assets" / "fotonInfoInterface.html"
 
-    # Fallback se ainda não existir
     if not html_path.exists():
-        print(f"❌ Erro: Interface HTML não encontrada em {html_path}")
+        print(f"❌ Erro: Interface HTML não encontrada. Tentando modo browser...")
+        _open_in_browser(content)
         return
 
-    window = webview.create_window(
-        'Foton System - Preenchedor de Templates',
-        str(html_path),
-        js_api=api,
-        width=1000,
-        height=800,
-        resizable=True
-    )
-    api.window = window
-    webview.start()
+    try:
+        window = webview.create_window(
+            'Foton System - Preenchedor de Templates',
+            str(html_path),
+            js_api=api,
+            width=1000,
+            height=800,
+            resizable=True
+        )
+        api.window = window
+        webview.start()
+    except Exception as e:
+        print(f"⚠️ Falha ao iniciar janela nativa: {e}")
+        print("💡 Abrindo fallback no navegador...")
+        _open_in_browser(content)
+
+def _open_in_browser(content: str):
+    """Fallback: Abre o HTML no navegador padrão."""
+    html_path = Path(__file__).resolve().parent / "fotonInfoInterface.html"
+    if not html_path.exists():
+        from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+        html_path = PathManager.get_app_dir() / "assets" / "fotonInfoInterface.html"
+    
+    if html_path.exists():
+        webbrowser.open(f"file:///{html_path.resolve()}")
+        print("✅ Interface aberta no navegador.")
+        print("📝 Nota: No modo navegador, você deve copiar o resultado final manualmente.")
+    else:
+        print("❌ Erro crítico: Arquivo HTML da interface não encontrado em lugar nenhum.")
 
 if __name__ == "__main__":
     # Teste isolado

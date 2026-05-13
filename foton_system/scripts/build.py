@@ -6,6 +6,7 @@ Optimized for fast builds and instant startup.
 """
 
 import PyInstaller.__main__
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
 import os
 import sys
 import time
@@ -145,8 +146,28 @@ def build():
         '--collect-all=colorama',
         '--collect-all=watchdog',
         '--collect-all=setuptools',
-        '--collect-all=pywebview',
+        '--collect-all=webview',
     ]
+
+    # 1.5 Add WebView specific datas and binaries (Dynamic Collection)
+    try:
+        print("🔍 Collecting WebView assets...")
+        webview_datas = collect_data_files('webview')
+        webview_libs = collect_dynamic_libs('webview')
+
+        for source, dest in webview_datas:
+            args.append(f'--add-data={source}{os.pathsep}{dest}')
+
+        for source, dest in webview_libs:
+            args.append(f'--add-binary={source}{os.pathsep}{dest}')
+            
+        # Specific hidden imports for WebView2 support
+        args.extend([
+            '--hidden-import=clr_loader',
+            '--hidden-import=pythonnet',
+        ])
+    except Exception as e:
+        print(f"⚠️ Warning: Could not collect webview hooks: {e}")
 
     # Exclusions for LITE build
     if cli_args.type == "lite":

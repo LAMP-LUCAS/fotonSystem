@@ -179,13 +179,11 @@ class MenuSystem:
             sys.exit()
 
     def handle_webview_interface(self):
-        """Abre a interface WebView para preenchimento de fichas."""
+        """Interface de preenchimento: Escolha entre Terminal (Rápido) ou Visual (Lento)."""
         from pathlib import Path
-        self.print_header("--- Preencher Ficha (Interface) ---")
+        self.print_header("--- Preenchimento de Ficha ---")
         
-        print("Selecione o arquivo de dados (.md) para carregar...")
-        data_file = self.ui.select_file("Selecione o Arquivo de Dados", extensions=[".md"])
-        
+        data_file = self.ui.select_file("Selecione o Arquivo de Dados (.md)", extensions=[".md"])
         if not data_file:
             self.print_warning("Nenhum arquivo selecionado.")
             return
@@ -193,26 +191,43 @@ class MenuSystem:
         data_path = Path(data_file)
         
         try:
-            # Ler conteúdo inicial
+            # Carregar conteúdo inicial
             with open(data_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            # Callback para salvar
-            def save_fn(new_content):
-                try:
-                    with open(data_path, "w", encoding="utf-8") as f:
-                        f.write(new_content)
-                    return True
-                except Exception as e:
-                    logger.error(f"Erro ao salvar arquivo via WebView: {e}")
-                    return False
-
-            from foton_system.interfaces.webview_bridge import open_info_interface
-            print(f"🚀 Abrindo interface para: {data_path.name}")
-            open_info_interface(content, save_fn)
+            # Escolha de Interface
+            print(f"\n{Fore.YELLOW}Escolha o modo de preenchimento:{Style.RESET_ALL}")
+            print("  [1] Terminal Rápido (Instantâneo/Interativo)")
+            print("  [2] Interface Visual (Lento/Edge)")
+            print("  [0] Cancelar")
             
+            sub_choice = input(f"\n{Fore.YELLOW}>> Escolha: {Style.RESET_ALL}").strip()
+            
+            if sub_choice == '1':
+                from foton_system.modules.documents.application.use_cases.tui_form_filler_use_case import TUIFormFillerUseCase
+                filler = TUIFormFillerUseCase(data_path)
+                if filler.execute():
+                    self.print_success("\n✅ Ficha atualizada com sucesso via Terminal!")
+                    input("Pressione Enter para continuar...")
+            elif sub_choice == '2':
+                # Callback para salvar
+                def save_fn(new_content):
+                    try:
+                        with open(data_path, "w", encoding="utf-8") as f:
+                            f.write(new_content)
+                        return True
+                    except Exception as e:
+                        logger.error(f"Erro ao salvar via WebView: {e}")
+                        return False
+
+                from foton_system.interfaces.webview_bridge import open_info_interface
+                print(f"🚀 Abrindo interface visual para: {data_path.name}")
+                open_info_interface(content, save_fn)
+            else:
+                self.print_warning("Operação cancelada.")
+                
         except Exception as e:
-            self.print_error(f"Erro ao abrir interface: {e}")
+            self.print_error(f"Erro no pipeline de interface: {e}")
             input("Pressione Enter para voltar...")
 
     def handle_installation(self):
