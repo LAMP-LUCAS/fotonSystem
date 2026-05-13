@@ -6,7 +6,17 @@ tags: [tui, terminal, productivity]
 ---
 # 📟 Guia do Modo Terminal (TuiGuide)
 
-Bem-vindo ao modo mais raiz e eficiente do **FOTON System**! O modo TUI (Terminal User Interface) foi criado para quando você quer velocidade total ou está trabalhando em um ambiente sem suporte a janelas (como via SSH).
+Bem-vindo ao modo mais raiz e eficiente do **FOTON System**! O modo TUI (Terminal User Interface) foi criado para arquitetos que valorizam velocidade, precisão e automação.
+
+---
+
+## 💎 Design e Responsividade
+
+A interface do Foton agora é **Dinâmica e Adaptável**. Graças ao motor `TUILayout`, o sistema detecta o tamanho da sua janela e ajusta o enquadramento automaticamente.
+
+*   **Largura Inteligente:** O sistema opera entre 40 e 100 caracteres de largura, otimizando o espaço disponível.
+*   **Bordas Perfeitas:** Mesmo usando Emojis ou cores, o sistema compensa a largura visual para manter o quadro sempre sólido.
+*   **Limpeza Automática:** A tela é limpa a cada transição para manter o foco na tarefa atual.
 
 ---
 

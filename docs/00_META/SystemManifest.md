@@ -46,7 +46,17 @@ O Agente deve fornecer **NÚMEROS PUROS** para cálculos e **TEXTO ENTRE ASPAS**
 
 ---
 
-## 3. Variáveis de Sistema (Automáticas)
+## 3. Motor de Interface (TUILayout)
+
+O Foton utiliza um motor de renderização dinâmico em `foton_system/interfaces/cli/views/tui_layout.py` para garantir uma experiência coesa e profissional.
+
+*   **Responsividade:** A largura da interface se adapta automaticamente à janela do terminal (40-100 colunas).
+*   **Visible Width Logic:** Compensação para Emojis (2 colunas) e limpeza de ANSI (0 colunas) para manter bordas sólidas.
+*   **Ensino Contextual:** Integração com o `TipService` para exibir dicas `[!DIDACTIC]` específicas para cada etapa do fluxo.
+
+---
+
+## 4. Variáveis de Sistema (Automáticas)
 
 Não é necessário preencher estas variáveis manualmente. O sistema injeta automaticamente:
 

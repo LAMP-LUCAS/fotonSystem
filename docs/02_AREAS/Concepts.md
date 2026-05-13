@@ -23,6 +23,14 @@ O sistema utiliza uma **Arquitetura Híbrida de Monólito Modular com Hexagonal 
 * **Manutenibilidade:** Mudar de Excel para SQL, por exemplo, afeta apenas uma pequena parte do código (o Adaptador), sem quebrar as regras de negócio.
 * **Organização:** Cada coisa tem seu lugar certo.
 
+### 1.1. Ensino Contextual (Teach-as-you-work)
+
+O Foton System não é apenas uma ferramenta passiva; ele é projetado para **ensinar enquanto o usuário trabalha**.
+
+*   **Pílulas de Conhecimento:** Através do `TipService`, o sistema exibe dicas baseadas no contexto da tela atual (ex: dicas de formatação no preenchimento).
+*   **Design Responsivo (TUI 2.0):** O motor `TUILayout` garante que o sistema seja visualmente impecável e adaptável, facilitando a legibilidade em qualquer terminal.
+*   **Transparência Técnica:** O usuário aprende sobre os Centros de Verdade (SSOT) e Herança de Dados de forma orgânica, apenas utilizando as pastas.
+
 > [!DIDACTIC:SSOT] O Coração do Foton: Um dado deve existir em apenas um lugar. Se o endereço do cliente mudou, altere no `INFO-CLIENTE.md` e todas as propostas futuras estarão automaticamente corretas através da herança de dados.
 
 > [!DIDACTIC:ARQUITETURA] Herança de Dados: O sistema busca dados em camadas. Se você definir `@cidade: "São Paulo"` no nível do Cliente, não precisa repetir isso no nível do Serviço. O Foton "herda" as informações automaticamente, economizando seu tempo.
