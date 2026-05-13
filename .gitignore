@@ -13,3 +13,14 @@ deploy_release/
 foton_system/config/settings.json
 
 .obsidian/
+
+# Test Artifacts & Temporary Files
+test_*.txt
+test_*.xlsx
+test.xlsx
+*.bak
+GERADO_*
+tmp/
+.pytest_cache/
+.coverage
+htmlcov/
