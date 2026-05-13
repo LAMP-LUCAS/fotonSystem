@@ -89,6 +89,7 @@ class BootstrapService:
             "caminho_pastaClientes": str(PathManager.get_user_projects_dir()),
             "caminho_templates": str(Path.home() / "Documents" / "FotonTemplates"),
             "caminho_baseDados": str(PathManager.get_app_data_dir() / "baseDados.xlsx"),
+            "caminho_template_info": "",
             "ignored_folders": ["DOC", "ARQ", "HID", "ELE", "STR", "PL", "EVT"],
             "clean_missing_variables": True,
             "missing_variable_placeholder": "---",

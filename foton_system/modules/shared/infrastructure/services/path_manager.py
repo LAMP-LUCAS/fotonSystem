@@ -143,6 +143,19 @@ class PathManager:
         """Returns the path to the log file."""
         return PathManager.get_app_data_dir() / "foton_system.log"
     
+    @staticmethod
+    def get_info_template_path() -> Path:
+        """
+        Returns the path to the master INFO template.
+        Checks for a custom template in settings, falls back to bundled asset.
+        """
+        from foton_system.modules.shared.infrastructure.config.config import Config
+        custom_path = Config().get('caminho_template_info')
+        if custom_path and Path(custom_path).exists():
+            return Path(custom_path)
+            
+        return PathManager.get_assets_dir() / "info-Template.md"
+    
     # --- Helper Methods ---
     
     @staticmethod

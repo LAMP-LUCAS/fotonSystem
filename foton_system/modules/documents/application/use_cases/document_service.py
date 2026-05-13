@@ -54,6 +54,7 @@ class DocumentService:
         return list(client_path.glob('*.md')) + list(client_path.glob('*.txt'))
 
     def create_custom_data_file(self, client_path, cod, ver='00', rev='R00', desc='PROPOSTA'):
+        from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
         client_path = Path(client_path)
         if not client_path.exists():
             return None
@@ -65,13 +66,20 @@ class DocumentService:
             logger.warning(f"Arquivo já existe: {filename}")
             return data_file
 
-        content = """@TEMPLATE: nome do arquivo template a ser utilizado
-# DADOS ESPECÍFICOS DO DOCUMENTO
-@DataAtual:
-@numeroProposta:
-@detalhesProposta:
-@valorProposta:
-"""
+        # DNA: Tenta carregar do template centralizado
+        template_path = PathManager.get_info_template_path()
+        if template_path.exists():
+            try:
+                with open(template_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                logger.info(f"Usando template centralizado: {template_path.name}")
+            except Exception as e:
+                logger.error(f"Erro ao ler template: {e}")
+                content = "# ERRO AO CARREGAR TEMPLATE"
+        else:
+            # Fallback seguro caso o arquivo de assets suma
+            content = "@TEMPLATE: nome do arquivo template a ser utilizado\n# DADOS\n@DataAtual:\n"
+
         try:
             with open(data_file, 'w', encoding='utf-8') as f:
                 f.write(content)

@@ -25,6 +25,8 @@ class TUIFormView:
             elif cmd_lower == 'v': self._show_preview()
             elif cmd_lower == 's':
                 if input(f"\n{Fore.GREEN}Salvar? (S/N): {Style.RESET_ALL}").lower() == 's': return "save"
+            elif cmd_lower == 'a':
+                return "save_as"
             elif cmd_lower == 'c':
                 if input(f"\n{Fore.RED}Sair sem salvar? (S/N): {Style.RESET_ALL}").lower() == 's': return "cancel"
             else:
@@ -53,7 +55,7 @@ class TUIFormView:
                 print(f"\n  {Style.BRIGHT}👉 Valor Atual: {Fore.WHITE}{f.current_value if f.current_value else '(vazio)'}{Style.RESET_ALL}")
         print(f"{Fore.CYAN}{'-'*60}{Style.RESET_ALL}")
         print(f"  {Fore.YELLOW}[ENTER/N]{Style.RESET_ALL} Próxima | {Fore.YELLOW}[P]{Style.RESET_ALL} Anterior | {Fore.YELLOW}[V]{Style.RESET_ALL} Visualizar")
-        print(f"  {Fore.GREEN}[S]{Style.RESET_ALL} Salvar e Sair | {Fore.RED}[C]{Style.RESET_ALL} Cancelar\n{'='*60}{Style.RESET_ALL}")
+        print(f"  {Fore.GREEN}[S]{Style.RESET_ALL} Salvar | {Fore.CYAN}[A]{Style.RESET_ALL} Salvar Como | {Fore.RED}[C]{Style.RESET_ALL} Cancelar\n{'='*60}{Style.RESET_ALL}")
 
     def _show_preview(self):
         self._clear()

@@ -7,6 +7,7 @@ from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
 from foton_system.modules.clients.application.ports.client_repository_port import ClientRepositoryPort
 from foton_system.modules.shared.infrastructure.validators import validate_filename
+from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
 from foton_system.modules.shared.domain.exceptions import (
     InvalidAliasError,
     DatabaseLockError,
@@ -27,6 +28,32 @@ class ClientService:
         """
         self.repository = repository
         self._config = config or Config()
+
+    def _get_template_sections(self):
+        """Loads and splits the unified template into Client and Service parts."""
+        template_path = PathManager.get_info_template_path()
+        client_part = ""
+        service_part = ""
+        
+        if not template_path.exists():
+            return self.CLIENT_TEMPLATE_STR, self.SERVICE_TEMPLATE_STR
+            
+        try:
+            with open(template_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                
+            # Split based on headers
+            parts = re.split(r'##\s*INFO-SERVICO\.md', content, flags=re.IGNORECASE)
+            client_part = parts[0]
+            if len(parts) > 1:
+                service_part = "## INFO-SERVICO.md" + parts[1]
+            else:
+                service_part = self.SERVICE_TEMPLATE_STR # Fallback if section missing
+                
+            return client_part, service_part
+        except Exception as e:
+            logger.error(f"Erro ao carregar template DNA: {e}")
+            return self.CLIENT_TEMPLATE_STR, self.SERVICE_TEMPLATE_STR
 
     def resolve_client_path(self, client_name: str) -> Path:
         """
@@ -461,6 +488,7 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
         logger.info("Exporting client data to files...")
         count = 0
         try:
+            client_template, _ = self._get_template_sections()
             df = self.repository.get_clients_dataframe()
             latest_df = df.groupby('Alias').last().reset_index()
 
@@ -509,7 +537,7 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
 
                 if should_create:
                     filename = self._generate_filename(cod, alias, ver, rev)
-                    self._write_formatted_file_content(folder / filename, file_data, self.CLIENT_TEMPLATE_STR)
+                    self._write_formatted_file_content(folder / filename, file_data, client_template)
                     count += 1
 
             logger.info(f"{count} arquivos de cliente exportados/atualizados.")
@@ -522,6 +550,7 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
         logger.info("Exporting service data to files...")
         count = 0
         try:
+            _, service_template = self._get_template_sections()
             df = self.repository.get_services_dataframe()
             latest_df = df.groupby(['AliasCliente', 'Alias']).last().reset_index()
 
@@ -567,7 +596,7 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
 
                 if should_create:
                     filename = self._generate_filename(cod, service_alias, ver, rev)
-                    self._write_formatted_file_content(folder / filename, file_data, self.SERVICE_TEMPLATE_STR)
+                    self._write_formatted_file_content(folder / filename, file_data, service_template)
                     count += 1
 
             logger.info(f"{count} arquivos de serviço exportados/atualizados.")
