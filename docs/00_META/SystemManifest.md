@@ -23,6 +23,8 @@ O Agente deve fornecer **NÚMEROS PUROS** para cálculos e **TEXTO ENTRE ASPAS**
 
 ### Regras de Tipagem e Bypass
 
+> [!DIDACTIC:FORMATACAO] Dica de Ouro: Use aspas para anos e códigos (ex: "2026"). Isso evita que o sistema coloque vírgulas e pontos decimais em números que não são medidas.
+
 *   **Números Decimais (Default):** Qualquer sequência de números puros (ex: `2026`) será interpretada como valor decimal e formatada (ex: `2.026,00`). Use para áreas, valores e quantidades.
 *   **Bypass Literal (Aspas):** Use aspas para que o sistema ignore a formatação decimal. 
     *   *Input:* `@anoProjeto: "2026"` -> *Output:* `2026`

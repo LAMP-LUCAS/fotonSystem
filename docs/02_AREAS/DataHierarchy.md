@@ -28,6 +28,8 @@ Ao gerar um documento, o sistema busca o valor de cada variável (como `@nomeCli
 
 ## 💡 Vantagens Práticas
 
+> [!DIDACTIC:SSOT] SSOT significa "Single Source of Truth". No Foton, isso significa que você nunca digita o CPF do cliente duas vezes; ele sempre vem do arquivo mestre na pasta do cliente.
+
 1.  **Edição Única:** O cliente mudou de endereço? Altere apenas o `INFO-CLIENTE.md` e gere os documentos novamente. Tudo estará atualizado.
 2.  **Sombreamento (Shadowing):** Precisa que em um contrato específico o nome do cliente apareça diferente? Basta adicionar a variável `@nomeCliente` no arquivo daquele contrato. O sistema usará o valor local e ignorará o global apenas para aquele caso.
 3.  **Segurança de Cálculos:** Áreas e valores baseados em fórmulas (como `ACEqv` ou `CustoExecucao`) geralmente residem na **Camada de Projeto**, evitando divergências entre diferentes propostas.
@@ -36,3 +38,4 @@ Ao gerar um documento, o sistema busca o valor de cada variável (como `@nomeCli
 
 ## 🧬 O Template Mestre (DNA)
 O arquivo `foton_system/assets/info-Template.md` serve como o mapa mestre. Ele define a estrutura que será copiada para as pastas de novos clientes e serviços, garantindo que o seu ecossistema de dados seja padronizado e escalável.
+zado e escalável.

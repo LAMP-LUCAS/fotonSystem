@@ -6,11 +6,13 @@ Renderiza o formato do arquivo no visualizador com destaque para edições.
 import os
 from colorama import Fore, Style
 from foton_system.modules.documents.domain.models.form_session import FormSession
+from foton_system.modules.shared.infrastructure.services.tip_service import TipService
 
 class TUIFormView:
     def __init__(self, session: FormSession, title: str = "Preencher Ficha"):
         self.session = session
         self.title = title
+        self.tip_service = TipService()
 
     def _clear(self):
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -79,5 +81,8 @@ class TUIFormView:
                     print(f"{prefix}{Fore.CYAN}{val}{Style.RESET_ALL}")
                 else:
                     print(f"{prefix}{f.original_value}")
+                    
+        input(f"\n{Fore.YELLOW}Pressione ENTER para voltar ao formulário...{Style.RESET_ALL}")
+     print(f"{prefix}{f.original_value}")
                     
         input(f"\n{Fore.YELLOW}Pressione ENTER para voltar ao formulário...{Style.RESET_ALL}")

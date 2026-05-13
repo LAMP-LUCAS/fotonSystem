@@ -8,6 +8,7 @@ from foton_system.modules.documents.infrastructure.adapters.python_docx_adapter 
 from foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter import PythonPPTXAdapter
 from foton_system.modules.productivity.pomodoro import PomodoroTimer
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
+from foton_system.modules.shared.infrastructure.services.tip_service import TipService
 from foton_system.interfaces.cli.ui_provider import UIProvider, get_ui_provider
 from colorama import init, Fore, Style
 
@@ -111,7 +112,15 @@ class MenuSystem:
         ]
         for key, label in options:
             print(f"{Fore.CYAN}║ {Fore.YELLOW}{key}. {Fore.WHITE}{label.ljust(51)}{Fore.CYAN}║")
-        print(f"╚══════════════════════════════════════════════════════════╝")
+        
+        # Rodapé Didático
+        try:
+            tip = self.tip_service.get_random_tip("GERAL")
+            print(f"{Fore.CYAN}╠{'─'*58}╣")
+            print(f"{Fore.CYAN}║ {Style.DIM}{Fore.LIGHTBLACK_EX}💡 DICA: {tip.ljust(48)}{Style.NORMAL}{Fore.CYAN} ║")
+        except: pass
+
+        print(f"{Fore.CYAN}╚══════════════════════════════════════════════════════════╝")
         return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
 
     def display_clients_menu(self):
