@@ -1,4 +1,10 @@
-# Contribuindo para o FOTON System
+---
+type: guide
+domain: core
+status: active
+tags: [contributing, development, collaboration]
+---
+# Contribuindo para o FOTON System (Contributing)
 
 Obrigado pelo interesse em contribuir para o FOTON System! 🎉
 Este documento define as diretrizes para garantir que a colaboração seja produtiva e organizada.
@@ -85,3 +91,9 @@ Ao abrir uma Issue, por favor inclua:
 * Screenshots ou logs de erro.
 
 Obrigado por ajudar a construir o FOTON System! 🚀
+
+---
+## 🔗 Links Relacionados
+- Índice: [[Index]]
+- Manifesto: [[SystemManifest]]
+- Protocolo: [[LlmProtocol]]

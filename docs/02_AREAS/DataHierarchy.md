@@ -38,4 +38,3 @@ Ao gerar um documento, o sistema busca o valor de cada variável (como `@nomeCli
 
 ## 🧬 O Template Mestre (DNA)
 O arquivo `foton_system/assets/info-Template.md` serve como o mapa mestre. Ele define a estrutura que será copiada para as pastas de novos clientes e serviços, garantindo que o seu ecossistema de dados seja padronizado e escalável.
-zado e escalável.

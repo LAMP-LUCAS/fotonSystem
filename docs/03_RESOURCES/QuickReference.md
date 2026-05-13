@@ -1,4 +1,10 @@
-# ⚡ Cartão de Referência Rápida: Implantação e Backup
+---
+type: guide
+domain: core
+status: active
+tags: [quickref, backup, deployment, cheatsheet]
+---
+# ⚡ Cartão de Referência Rápida: Implantação e Backup (QuickReference)
 
 ## Para Colar na Parede do Escritório 📌
 
@@ -167,9 +173,9 @@ Sistema faz automático
 
 ## 📞 Precisa de Mais Ajuda?
 
-- **Guia Completo:** `docs/DEPLOYMENT_USER_GUIDE.md`
-- **Técnico:** `docs/SMART_BACKUP_STRATEGY.md`
-- **Fluxo Visual:** `docs/DATABASE_FLOW_DIAGRAM.md`
+- **Guia Completo:** [[DeploymentUserGuide]]
+- **Técnico:** [[BackupStrategySummary]]
+- **Fluxo Visual:** [[DatabaseFlowDiagram]]
 
 ---
 
@@ -182,9 +188,13 @@ Sistema faz automático
 - [ ] Pronto! Pode usar normalmente
 
 ---
+## 🔗 Links Relacionados
+- Índice: [[Index]]
+- Guia do Usuário: [[UserGuide]]
+- Implantação: [[DeploymentUserGuide]]
 
 **Última atualização:** 05/02/2026  
-**Versão:** FotonSystem v1.0.0+
+**Versão:** FotonSystem v1.2.0
 
 ---
 

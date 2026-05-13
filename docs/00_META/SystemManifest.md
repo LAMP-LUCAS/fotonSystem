@@ -25,6 +25,10 @@ O Agente deve fornecer **NÚMEROS PUROS** para cálculos e **TEXTO ENTRE ASPAS**
 
 > [!DIDACTIC:FORMATACAO] Dica de Ouro: Use aspas para anos e códigos (ex: "2026"). Isso evita que o sistema coloque vírgulas e pontos decimais em números que não são medidas.
 
+> [!DIDACTIC:IA] Transparência: O Foton não "chuta" dados. Se uma variável @ não estiver no arquivo INFO, o sistema deixará o campo em branco ou exibirá um aviso. Mantenha seu INFO completo!
+
+> [!DIDACTIC:SSOT] Camadas de Dados: O sistema busca dados primeiro no arquivo do documento, depois na pasta do Serviço e por fim na do Cliente. Isso permite sobrescrever @emails ou @telefones específicos para um contrato sem mudar o cadastro global do cliente.
+
 *   **Números Decimais (Default):** Qualquer sequência de números puros (ex: `2026`) será interpretada como valor decimal e formatada (ex: `2.026,00`). Use para áreas, valores e quantidades.
 *   **Bypass Literal (Aspas):** Use aspas para que o sistema ignore a formatação decimal. 
     *   *Input:* `@anoProjeto: "2026"` -> *Output:* `2026`
@@ -35,6 +39,9 @@ O Agente deve fornecer **NÚMEROS PUROS** para cálculos e **TEXTO ENTRE ASPAS**
 *   **Áreas:** Se a chave contiver `area`, `aceqv` -> O sistema formata com pontos e vírgulas.
     *   *Input:* `@areaTotal: 1234.5`
     *   *Output no Doc:* `1.234,50`
+*   **Percentuais:** Chaves terminadas em `%` convertem 0.14 para 14,00%.
+    *   *Input:* `@Honorarios%: 0.05`
+    *   *Output no Doc:* `5,00%`
 *   **Texto:** Texto é mantido como está.
 
 ---
@@ -48,6 +55,8 @@ Não é necessário preencher estas variáveis manualmente. O sistema injeta aut
 | `@DataAtual` | Data de hoje por extenso | `29 de Janeiro de 2026` |
 | `@LinkCUB` | Link direto para o PDF do CUB do mês anterior | `.../cub-dezembro-2025.pdf` |
 | `@ReferenciaCUB` | Rótulo do CUB utilizado | `Dezembro/2025` |
+
+> [!DIDACTIC:GERAL] Automação de Datas: A @DataAtual é gerada no momento da emissão do documento. Você nunca mais enviará uma proposta com a data de ontem!
 
 ---
 

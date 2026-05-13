@@ -53,6 +53,7 @@ tags: [tag1, tag2]
 - **Arquivos de Código:** Seguir PEP8 (snake_case.py).
 - **Documentos Gerados (Saída):** `02-COD_DOC_TIPO_VER_REV_NOME.ext`.
 
+> [!DIDACTIC:META] Ordem sobre o Caos: A padronização de nomes (PascalCase) e pastas (PARA) não é estética. Ela permite que Agentes de IA encontrem o contexto correto em milissegundos, economizando tokens e evitando alucinações.
 
 ---
 ## 🔗 Links Relacionados

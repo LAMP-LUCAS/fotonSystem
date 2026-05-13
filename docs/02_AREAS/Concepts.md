@@ -23,6 +23,10 @@ O sistema utiliza uma **Arquitetura Híbrida de Monólito Modular com Hexagonal 
 * **Manutenibilidade:** Mudar de Excel para SQL, por exemplo, afeta apenas uma pequena parte do código (o Adaptador), sem quebrar as regras de negócio.
 * **Organização:** Cada coisa tem seu lugar certo.
 
+> [!DIDACTIC:SSOT] O Coração do Foton: Um dado deve existir em apenas um lugar. Se o endereço do cliente mudou, altere no `INFO-CLIENTE.md` e todas as propostas futuras estarão automaticamente corretas através da herança de dados.
+
+> [!DIDACTIC:ARQUITETURA] Herança de Dados: O sistema busca dados em camadas. Se você definir `@cidade: "São Paulo"` no nível do Cliente, não precisa repetir isso no nível do Serviço. O Foton "herda" as informações automaticamente, economizando seu tempo.
+
 ---
 
 ## 2. Estrutura de Diretórios
