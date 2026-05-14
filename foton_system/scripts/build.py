@@ -16,16 +16,13 @@ import argparse
 from pathlib import Path
 
 
-def robust_rmtree(path: Path, max_retries: int = 3) -> bool:
+def robust_rmtree(path: Path, max_retries: int = 5) -> bool:
     """
     Robustly removes a directory tree, handling OneDrive and antivirus locks.
     
     Args:
         path: Path to remove
         max_retries: Number of retry attempts
-    
-    Returns:
-        True if successful, False otherwise
     """
     if not path.exists():
         return True
@@ -36,8 +33,9 @@ def robust_rmtree(path: Path, max_retries: int = 3) -> bool:
             return True
         except PermissionError as e:
             if attempt < max_retries - 1:
-                print(f"⏳ Folder locked, retrying in 2s... (attempt {attempt + 1}/{max_retries})")
-                time.sleep(2)
+                wait_time = (attempt + 1) * 2
+                print(f"⏳ Folder locked by another program (OneDrive/AV?), retrying in {wait_time}s... (attempt {attempt + 1}/{max_retries})")
+                time.sleep(wait_time)
             else:
                 # Try using Windows rmdir as fallback
                 try:
@@ -64,6 +62,7 @@ def build():
     parser = argparse.ArgumentParser(description="FotonSystem Build Script")
     parser.add_argument("--clean", action="store_true", help="Clear PyInstaller cache before building")
     parser.add_argument("--type", choices=["lite", "full"], default="lite", help="Build type: lite (small, excludes AI) or full (includes everything)")
+    parser.add_argument("--target", choices=["windows-desktop", "linux-server", "linux-desktop"], default="windows-desktop", help="Target environment profile")
     cli_args = parser.parse_args()
     
     # Base paths
@@ -198,31 +197,47 @@ def build():
     else:
         print("🔥 Building FULL version (Includes all AI modules)")
 
-    # Core dependencies
+    # Core dependencies (Agnostic)
     args.extend([
         '--hidden-import=pandas',
         '--hidden-import=pandas.plotting',
         '--hidden-import=openpyxl',
         '--hidden-import=docx',
         '--hidden-import=pptx',
-        '--hidden-import=plyer.platforms.win.notification',
         '--hidden-import=requests',
-        '--hidden-import=tkinter',
         '--hidden-import=mcp',
-        '--hidden-import=winshell',
-        '--hidden-import=win32com',
-        '--hidden-import=pythoncom',
-        '--hidden-import=foton_system.modules.finance',
-        '--hidden-import=foton_system.modules.sync',
-        '--hidden-import=foton_system.core.ops',
         '--hidden-import=colorama',
-        '--hidden-import=plyer',
         '--hidden-import=watchdog.observers',
         '--hidden-import=watchdog.events',
-        '--hidden-import=webview',
-        '--hidden-import=jaraco',
-        '--hidden-import=json',
+        '--hidden-import=foton_system.modules.shared.infrastructure.services.environment_porter',
+        '--hidden-import=foton_system.modules.shared.infrastructure.adapters.system.null_integrator',
+        '--hidden-import=foton_system.modules.shared.infrastructure.adapters.forms.tui_form_adapter',
     ])
+
+    # Target-Specific Dependencies
+    is_server = "server" in cli_args.target
+    if not is_server:
+        print(f"🖥️ Target: Desktop ({cli_args.target}) - Adding GUI adapters...")
+        args.extend([
+            '--hidden-import=webview',
+            '--hidden-import=crossfiledialog',
+            '--hidden-import=foton_system.modules.shared.infrastructure.adapters.forms.webview_form_adapter',
+            '--hidden-import=foton_system.modules.shared.infrastructure.adapters.forms.browser_form_adapter',
+        ])
+        
+        if "windows" in cli_args.target:
+            args.extend([
+                '--hidden-import=winshell',
+                '--hidden-import=win32com.client',
+                '--hidden-import=clr_loader',
+                '--hidden-import=pythonnet',
+                '--hidden-import=foton_system.modules.shared.infrastructure.adapters.system.windows_integrator',
+                '--hidden-import=plyer.platforms.win.notification',
+            ])
+        elif "linux" in cli_args.target:
+            args.extend([
+                '--hidden-import=foton_system.modules.shared.infrastructure.adapters.system.linux_integrator',
+            ])
 
     # RAG dependencies (Only for FULL build)
     if cli_args.type == "full":
