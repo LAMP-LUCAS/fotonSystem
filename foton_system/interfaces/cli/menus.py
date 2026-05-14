@@ -9,6 +9,7 @@ from foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter 
 from foton_system.modules.productivity.pomodoro import PomodoroTimer
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
 from foton_system.modules.shared.infrastructure.services.tip_service import TipService
+from foton_system.modules.shared.infrastructure.services.environment_porter import get_porter
 from foton_system.interfaces.cli.ui_provider import UIProvider, get_ui_provider
 from foton_system.interfaces.cli.views.tui_layout import TUILayout
 from colorama import init, Fore, Style
@@ -27,7 +28,8 @@ class MenuSystem:
             ui_provider: UIProvider instance for TUI/GUI interactions.
                         If None, auto-detects based on environment.
         """
-        # UI Provider (TUI or GUI)
+        # Ambiente e Provedor de UI
+        self.porter = get_porter()
         self.ui = ui_provider or get_ui_provider('auto')
         
         # Dependency Injection Wiring
@@ -101,18 +103,23 @@ class MenuSystem:
         TUILayout.clear()
         TUILayout.print_header("FOTON SYSTEM")
         
-        options = [
-            ("1", "Gerenciar Clientes"),
-            ("2", "Gerenciar Serviços"),
-            ("3", "Preencher Ficha (Interface)"),
-            ("4", "Documentos (PPTX/DOCX)"),
-            ("5", "Produtividade (Pomodoro)"),
-            ("6", "Configurações do Sistema"),
-            ("7", "Instalação / Atalhos"),
-            ("8", "Modo Sentinela (Watcher)"),
-            ("0", "Sair")
+        # Mapeamento Dinâmico de Opções
+        all_options = [
+            ("1", "Gerenciar Clientes", True),
+            ("2", "Gerenciar Serviços", True),
+            ("3", "Preencher Ficha (Interface)", self.porter.can_use_feature("webview")),
+            ("4", "Documentos (PPTX/DOCX)", True),
+            ("5", "Produtividade (Pomodoro)", True),
+            ("6", "Configurações do Sistema", True),
+            ("7", "Instalação / Atalhos", self.porter.can_use_feature("shortcuts")),
+            ("8", "Modo Sentinela (Watcher)", self.porter.can_use_feature("watcher")),
+            ("0", "Sair", True)
         ]
-        for key, label in options:
+        
+        # Filtra opções disponíveis
+        active_options = [(k, l) for k, l, available in all_options if available]
+        
+        for key, label in active_options:
             TUILayout.print_menu_option(key, label)
         
         # Rodapé Didático
