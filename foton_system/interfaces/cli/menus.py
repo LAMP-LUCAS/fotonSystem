@@ -273,7 +273,7 @@ class MenuSystem:
             sys.exit()
 
     def handle_webview_interface(self):
-        """Interface de preenchimento: Escolha entre Terminal (Rápido) ou Visual (Lento)."""
+        """Interface de preenchimento: Escolha entre Terminal ou Visual (Agnóstico)."""
         from pathlib import Path
         TUILayout.clear()
         TUILayout.print_header("PREENCHIMENTO DE FICHA")
@@ -286,38 +286,47 @@ class MenuSystem:
         data_path = Path(data_file)
         
         try:
-            # Carregar conteúdo inicial
             with open(data_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            # Escolha de Interface
+            # Callback para salvar
+            def save_fn(new_content):
+                try:
+                    with open(data_path, "w", encoding="utf-8") as f:
+                        f.write(new_content)
+                    return True
+                except Exception as e:
+                    logger.error(f"Erro ao salvar: {e}")
+                    return False
+
+            # Obtém o filler adequado via Porteiro
+            filler = self.porter.get_form_filler()
+            
+            # Se for servidor, ele já avisará que é TUI
+            if self.porter.profile == SystemProfile.SERVER_HEADLESS:
+                 filler.open_form(content, save_fn)
+                 input("Pressione Enter para continuar...")
+                 return
+
+            # No Desktop, damos a opção de TUI ou Visual
             print(f"\n{Fore.YELLOW}Escolha o modo de preenchimento:{Style.RESET_ALL}")
-            print("  [1] Terminal Rápido (Instantâneo/Interativo)")
-            print("  [2] Interface Visual (Lento/Edge)")
+            print("  [1] Terminal (Nativo)")
+            print("  [2] Interface Rica (Visual/Web)")
             print("  [0] Cancelar")
             
             sub_choice = input(f"\n{Fore.YELLOW}>> Escolha: {Style.RESET_ALL}").strip()
             
             if sub_choice == '1':
                 from foton_system.modules.documents.application.use_cases.tui_form_filler_use_case import TUIFormFillerUseCase
-                filler = TUIFormFillerUseCase(data_path)
-                if filler.execute():
+                tui_filler = TUIFormFillerUseCase(data_path)
+                if tui_filler.execute():
                     self.print_success("\n✅ Ficha atualizada com sucesso via Terminal!")
                     input("Pressione Enter para continuar...")
             elif sub_choice == '2':
-                # Callback para salvar
-                def save_fn(new_content):
-                    try:
-                        with open(data_path, "w", encoding="utf-8") as f:
-                            f.write(new_content)
-                        return True
-                    except Exception as e:
-                        logger.error(f"Erro ao salvar via WebView: {e}")
-                        return False
-
-                from foton_system.interfaces.webview_bridge import open_info_interface
-                print(f"🚀 Abrindo interface visual para: {data_path.name}")
-                open_info_interface(content, save_fn)
+                print(f"🚀 Iniciando interface para: {data_path.name}")
+                if not filler.open_form(content, save_fn):
+                     self.print_error("Falha ao abrir interface visual.")
+                     input("Enter...")
             else:
                 self.print_warning("Operação cancelada.")
                 

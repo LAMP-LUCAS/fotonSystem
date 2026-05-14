@@ -168,6 +168,35 @@ class EnvironmentPorter:
         cap_str = f" [{', '.join(caps)}]" if caps else ""
         return f"FotonProfile: {self.profile.value}{cap_str} on {self.os_type.capitalize()}"
 
+    def get_integrator(self):
+        """Retorna o adaptador de integração com o SO adequado."""
+        if self.profile == SystemProfile.SERVER_HEADLESS:
+            from foton_system.modules.shared.infrastructure.adapters.system.null_integrator import NullIntegrator
+            return NullIntegrator()
+        
+        if self.os_type == 'windows':
+            from foton_system.modules.shared.infrastructure.adapters.system.windows_integrator import WindowsIntegrator
+            return WindowsIntegrator()
+        elif self.os_type == 'linux':
+            from foton_system.modules.shared.infrastructure.adapters.system.linux_integrator import LinuxIntegrator
+            return LinuxIntegrator()
+        
+        from foton_system.modules.shared.infrastructure.adapters.system.null_integrator import NullIntegrator
+        return NullIntegrator()
+
+    def get_form_filler(self):
+        """Retorna o preenchedor de formulários adequado ao ambiente."""
+        if self.profile == SystemProfile.SERVER_HEADLESS:
+            from foton_system.modules.shared.infrastructure.adapters.forms.tui_form_adapter import TuiFormAdapter
+            return TuiFormAdapter()
+            
+        if self.can_use_feature("webview"):
+            from foton_system.modules.shared.infrastructure.adapters.forms.webview_form_adapter import WebViewFormAdapter
+            return WebViewFormAdapter()
+        else:
+            from foton_system.modules.shared.infrastructure.adapters.forms.browser_form_adapter import BrowserFormAdapter
+            return BrowserFormAdapter()
+
 # Helper para uso simplificado
 def get_porter() -> EnvironmentPorter:
     return EnvironmentPorter()
