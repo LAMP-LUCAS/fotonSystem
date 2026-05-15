@@ -1,15 +1,5 @@
-pandas
-openpyxl
-python-pptx
-python-docx
-plyer
-pyinstaller
-colorama
-requests
-python-dotenv
-mcp
-winshell
-pywin32
-watchdog
-chromadb
-sentence-transformers
+# FotonSystem - Master Requirements
+# Use 'pip install -r requirements-core.txt' para servidores
+# Use 'pip install -r requirements-desktop.txt' para ambientes desktop
+
+-r requirements-desktop.txt

@@ -21,6 +21,34 @@ class PathManager:
     """
     
     APP_NAME = "FotonSystem"
+    _sandbox_mode = False
+    _sandbox_dir = None
+
+    @classmethod
+    def set_sandbox_mode(cls, enabled: bool):
+        """Activates or deactivates sandbox mode."""
+        cls._sandbox_mode = enabled
+        if enabled and cls._sandbox_dir is None:
+            import tempfile
+            temp_dir = Path(tempfile.gettempdir())
+            cls._sandbox_dir = temp_dir / "foton_sandbox"
+            cls._sandbox_dir.mkdir(parents=True, exist_ok=True)
+        elif not enabled:
+            cls._sandbox_dir = None
+
+    @classmethod
+    def get_sandbox_dir(cls) -> Path:
+        """Returns the temporary sandbox directory."""
+        if cls._sandbox_dir is None:
+            import tempfile
+            temp_dir = Path(tempfile.gettempdir())
+            return temp_dir / "foton_sandbox"
+        return cls._sandbox_dir
+
+    @classmethod
+    def is_sandbox_active(cls) -> bool:
+        """Checks if sandbox mode is active."""
+        return cls._sandbox_mode
     
     # --- Core Path Getters ---
     
@@ -31,12 +59,10 @@ class PathManager:
         
         Windows: %LOCALAPPDATA%/FotonSystem
         Linux/Mac: ~/.fotonsystem
-        
-        This is where we store:
-        - settings.json
-        - foton_system.log
-        - Internal databases (if not user-configured)
         """
+        if PathManager.is_sandbox_active():
+            return PathManager.get_sandbox_dir() / "appdata"
+
         home = Path.home()
         if system() == "Windows":
             return home / "AppData" / "Local" / PathManager.APP_NAME
@@ -96,9 +122,10 @@ class PathManager:
         
         Windows: Documents/FotonProjects
         Linux/Mac: ~/FotonProjects
-        
-        This can be overridden by settings.json.
         """
+        if PathManager.is_sandbox_active():
+            return PathManager.get_sandbox_dir() / "projects"
+
         if system() == "Windows":
             return Path.home() / "Documents" / "FotonProjects"
         else:
@@ -115,6 +142,19 @@ class PathManager:
     def get_log_path() -> Path:
         """Returns the path to the log file."""
         return PathManager.get_app_data_dir() / "foton_system.log"
+    
+    @staticmethod
+    def get_info_template_path() -> Path:
+        """
+        Returns the path to the master INFO template.
+        Checks for a custom template in settings, falls back to bundled asset.
+        """
+        from foton_system.modules.shared.infrastructure.config.config import Config
+        custom_path = Config().get('caminho_template_info')
+        if custom_path and Path(custom_path).exists():
+            return Path(custom_path)
+            
+        return PathManager.get_assets_dir() / "info-Template.md"
     
     # --- Helper Methods ---
     

@@ -8,48 +8,46 @@ Aqui tem todas as colunas da tabela de clientes e variáveis extra para personal
 
 Dados que serão utilizados nas propostas comerciais:
 
-@dataProposta Por exemplo: "Março 2025"
-@numeroProposta; Número da Proposta Gerado automaticamente
-@nomeProposta;Nome do tipo de proposta, como "Estudo de Viabilidade"
-@cidadeProposta;Local da proposta, nome da cidade ou região, por exemplo: Aparecida de Goiânia
-@localProposta; Endereço completo do local da proposta
-@geolocalizacaoProposta;Localização geográfica da proposta, no formato: 'Latitude-Longitude'
-@nomeCliente;Nome completo do cliente
-@empregoCliente;Profissão do cliente, exemplo: contador/advogado
-@estadoCivilCliente;Estado civil do cliente, por exemplo: casado, solteiro
-@cpfCnpjCliente;CPF ou CNPJ do cliente no formato: 'CPF nª 000-000-000-00'
-@enderecoCliente;Endereço completo do cliente.
+@dataProposta Por exemplo: "Março 2026"
+@numeroProposta; "SESI26102"
+@nomeProposta; "Assessoria e Projeto"
+@cidadeProposta; "Goiânia"
+@localProposta; "Rua C152, Qd 345, Lt. 07, Jardim América, Goiânia, Goiás"
+@geolocalizacaoProposta; "-16.7149004-49.2803072"
+@nomeCliente; "Simone e Sebastião"
+@empregoCliente; "Advogados"
+@estadoCivilCliente; "Casados"
+@cpfCnpjCliente; "000.000.000-00"
+@enderecoCliente; "Rua C152"
 
 ## INFO-SERVICO.md
 
-@TEMPLATE;nome do arquivo template a ser utilizado, por exemplo: 02-COD_DOC_PC_00_R00_PROPOSTA_VIABILIDADE.pptx
+@TEMPLATE; 02-COD_DOC_PC_00_R00_PROPOSTA_VIABILIDADE.pptx
 
 ### DADOS BÁSICOS
 
-@DataAtual;Dada atualizada no dia da emissão do documento
+@DataAtual; "07 de Maio de 2026"
 
 ### DADOS DO CLIENTE - CONTRATO
 
 O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo tem os dados para a contratação do serviço:
 
-@nomeContrato; Nome para a capa do contrato
-@numeroContrato; Número do Contrato Gerado automaticamente
-@nomeClienteContrato; Nome do cliente à ser inserido no contrato
-@estadoCivilClienteContrato; estado civil do contratante, se pessoa física.
-@empregoClienteContrato; Emprego do contratante
-@telefoneClienteContrato; telefone do cliente
-@emailClienteContrato; email do cliente
-@enderecoClienteContrato; Endereço do cliente a ser inserido no contrato
-@cpfCnpjClienteContrato;CPF ou CNPJ do cliente no formato: 'CPF nª 000-000-000-00'
+@nomeContrato; "Assessoria Técnica e Projeto de Interiores"
+@numeroContrato; "CTR-2026-79937"
+@nomeClienteContrato; "Simone e Sebastião"
+@estadoCivilClienteContrato; "Casados"
+@empregoClienteContrato; "Advogados"
+@telefoneClienteContrato; "62 99999-9999"
+@emailClienteContrato; "cliente@email.com"
 
 ### DADOS DO SERVIÇO
 
-@modalidadeServico; Modalidade do serviço, se é um projeto, consultoria, execução...
-@anoProjeto;Ano em que o projeto será executado, por exemplo: 2024 -
-@demandaProposta;Descrição da demanda específica do projeto, como "Estudo de Viabilidade Técnico Legal"
-@areaTotal;Tamanho do terreno ou área total em metros quadrados, exemplo: 791.50
-@areaCoberta;Área coberta do projeto em metros quadrados, exemplo: 395.75
-@areaDescoberta;Área descoberta do projeto em metros quadrados, exemplo: 395.75
+@modalidadeServico; "Assessoria Técnica e Projeto de Interiores"
+@anoProjeto; "2026"
+@demandaProposta; "Reforma de Interiores"
+@areaTotal; 73.71
+@areaCoberta; 68.41
+@areaDescoberta; 5.30
 @detalhesProposta;Descrição detalhada sobre os objetivos e necessidades da proposta, como o tipo de estudo ou desenvolvimento do projeto
 @estiloProjeto;Estilo do projeto arquitetônico, exemplo: "Contemporâneo-funcionalista"
 @ambientesProjeto;Lista de ambientes planejados para o projeto, exemplo: Sala, 2 Quartos, Cozinha, Banheiro social, etc.

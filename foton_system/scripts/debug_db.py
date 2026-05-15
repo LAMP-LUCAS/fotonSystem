@@ -279,6 +279,9 @@ class DatabaseDebugger:
             file_name = data.get('@nomeCliente', '')
             if file_name and file_name != client_name:
                  self.log(f"⚠ {alias}: Divergência de Nome (DB: '{client_name}' vs Arquivo: '{file_name}')", Fore.MAGENTA)
+            
+            # Didactic Check: Formatting Pitfalls
+            self._check_formatting_pitfalls(alias, data)
 
         self.print_sub_header("Verificação de INFO-SERVICO.md")
         
@@ -312,6 +315,23 @@ class DatabaseDebugger:
                         self.log(f"   - {k}")
                     if len(missing_keys) > 5:
                         self.log(f"   ... e mais {len(missing_keys)-5} chaves.")
+                
+                # Didactic Check: Formatting Pitfalls
+                self._check_formatting_pitfalls(f"{client_alias}/{service_alias}", data)
+
+    def _check_formatting_pitfalls(self, context, data):
+        """Identifies values that might be incorrectly formatted as decimals."""
+        for key, value in data.items():
+            val_str = str(value).strip()
+            # If it's a pure number but looks like a year (e.g., 1990-2050)
+            # or a short code (3-5 digits)
+            if re.match(r'^\d{3,5}$', val_str):
+                # Exclude keys that are definitely numeric
+                numeric_indicators = ['valor', 'custo', 'total', 'preco', 'area', 'aceqv', 'cub', 'exec', 'id']
+                if not any(ind in key.lower() for ind in numeric_indicators):
+                    self.log(f"💡 DICA ({context}): A chave '{key}' contém '{val_str}'.", Fore.CYAN)
+                    self.log(f"   Isso será formatado como decimal (ex: 2.026,00).", Fore.CYAN)
+                    self.log(f"   Para manter como texto literal, use aspas: @{key}: \"{val_str}\"", Fore.CYAN)
 
     def run(self):
         if self.check_files():

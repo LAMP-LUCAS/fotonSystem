@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preenchedor Inteligente de Markdown</title>
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --primary: #0ea5e9;
+            --primary-hover: #0284c7;
+            --accent: #f59e0b;
+            --radius: 12px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+            --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            background: var(--bg);
+            font-family: var(--font);
+            color: var(--text);
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .app-container {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .header {
+            background: var(--surface);
+            border:1px solid var(--border);
+            border-radius: var(--radius);
+            padding:1.25rem 1.5rem;
+            box-shadow: var(--shadow);
+        }
+        .header h1 { font-size:1.5rem; font-weight:700; margin-bottom:0.25rem; color:#0f172a; }
+        .header .subtitle { font-size:0.875rem; color:var(--text-secondary); }
+        .md-input-container {
+            background: var(--surface);
+            border:1px solid var(--border);
+            border-radius: var(--radius);
+            padding:1.25rem;
+            box-shadow: var(--shadow);
+            display:flex; flex-direction:column; gap:0.75rem;
+        }
+        .md-textarea {
+            width:100%;
+            min-height:160px;
+            font-family:'SF Mono','Fira Code',monospace;
+            font-size:0.8rem;
+            padding:0.75rem;
+            border:1px solid var(--border);
+            border-radius:8px;
+            resize:vertical;
+            background:#fafbfc;
+        }
+        .btn-row { display:flex; gap:0.75rem; flex-wrap:wrap; }
+        .btn {
+            padding:0.75rem 1.5rem;
+            border-radius:8px;
+            font-weight:600;
+            font-size:0.95rem;
+            border:none;
+            cursor:pointer;
+            transition: all 0.2s;
+            display:inline-flex;
+            align-items:center;
+            gap:0.5rem;
+            font-family: var(--font);
+        }
+        .btn-primary { background:var(--primary); color:white; box-shadow:0 1px 2px rgba(14,165,233,0.3); }
+        .btn-primary:hover { background:var(--primary-hover); transform:translateY(-1px); }
+        .btn-secondary { background:white; color:var(--text); border:1px solid var(--border); }
+        .btn-secondary:hover { background:#f8fafc; }
+        .btn-accent { background:var(--accent); color:white; }
+        .btn-accent:hover { background:#d97706; }
+        .form-wrapper {
+            background:var(--surface);
+            border:1px solid var(--border);
+            border-radius:var(--radius);
+            box-shadow:var(--shadow);
+            overflow:hidden;
+        }
+        .section-title {
+            background:#f1f5f9;
+            padding:0.75rem 1.25rem;
+            font-weight:700;
+            font-size:0.9rem;
+            text-transform:uppercase;
+            letter-spacing:0.5px;
+            color:#334155;
+            border-bottom:1px solid var(--border);
+        }
+        .field-group {
+            padding:1rem 1.25rem;
+            border-bottom:1px solid #f1f5f9;
+            transition:background 0.15s;
+        }
+        .field-group:hover { background:#fafbfc; }
+        .field-label {
+            display:flex;
+            align-items:baseline;
+            flex-wrap:wrap;
+            gap:0.5rem;
+            font-size:0.9rem;
+            font-weight:600;
+            margin-bottom:0.25rem;
+        }
+        .var-name {
+            background:#e0f2fe;
+            color:#0369a1;
+            padding:0.15rem 0.5rem;
+            border-radius:6px;
+            font-family:'SF Mono','Fira Code',monospace;
+            font-size:0.8rem;
+        }
+        .badge {
+            font-size:0.7rem;
+            padding:0.1rem 0.4rem;
+            border-radius:4px;
+            font-weight:500;
+        }
+        .auto-badge { background:#fef3c7; color:#92400e; }
+        .calc-badge { background:#dcfce7; color:#166534; }
+        .field-hint {
+            font-size:0.8rem;
+            color:var(--text-secondary);
+            margin-bottom:0.5rem;
+        }
+        .field-input {
+            width:100%;
+            padding:0.65rem 0.85rem;
+            border:1px solid var(--border);
+            border-radius:8px;
+            font-size:0.95rem;
+            font-family:var(--font);
+            background:#fff;
+            transition:border-color 0.2s, box-shadow 0.2s;
+        }
+        .field-input:focus {
+            outline:none;
+            border-color:var(--primary);
+            box-shadow:0 0 0 3px rgba(14,165,233,0.15);
+        }
+        .calc-field-wrapper {
+            display:flex;
+            align-items:center;
+            gap:0.75rem;
+            flex-wrap:wrap;
+        }
+        .calc-formula-box {
+            flex:2;
+            min-width:200px;
+        }
+        .calc-formula-input {
+            width:100%;
+            font-family:'SF Mono','Fira Code',monospace;
+            background:#f0fdf4;
+            border:1px solid #86efac;
+            color:#166534;
+        }
+        .calc-result {
+            flex:1;
+            min-width:140px;
+            display:flex;
+            align-items:center;
+            gap:0.25rem;
+            background:#f1f5f9;
+            border:1px solid var(--border);
+            border-radius:8px;
+            padding:0.5rem 0.75rem;
+            font-size:0.9rem;
+            font-weight:500;
+        }
+        .result-label { font-size:0.7rem; color:var(--text-secondary); }
+        .output-container {
+            background:var(--surface);
+            border:1px solid var(--border);
+            border-radius:var(--radius);
+            box-shadow:var(--shadow);
+            padding:1.25rem;
+            display:flex;
+            flex-direction:column;
+            gap:0.75rem;
+        }
+        .output-textarea {
+            width:100%;
+            min-height:220px;
+            font-family:'SF Mono','Fira Code',monospace;
+            font-size:0.8rem;
+            padding:0.75rem;
+            border:1px solid var(--border);
+            border-radius:8px;
+            resize:vertical;
+            background:#fafbfc;
+        }
+        .toast {
+            position:fixed;
+            bottom:1.5rem;
+            left:50%;
+            transform:translateX(-50%);
+            background:#0f172a;
+            color:white;
+            padding:0.65rem 1.25rem;
+            border-radius:20px;
+            font-size:0.85rem;
+            opacity:0;
+            pointer-events:none;
+            transition:opacity 0.3s;
+            z-index:999;
+        }
+        .toast.show { opacity:1; pointer-events:auto; }
+        @media (max-width: 480px) {
+            body { padding:0.5rem; }
+            .header { padding:1rem; }
+            .header h1 { font-size:1.25rem; }
+            .field-group { padding:0.75rem 1rem; }
+            .btn { width:100%; justify-content:center; }
+            .btn-row { flex-direction:column; }
+            .calc-field-wrapper { flex-direction:column; align-items:stretch; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="header">
+        <h1>📋 Preenchedor Inteligente de Templates</h1>
+        <p class="subtitle">Cole um markdown com variáveis <code>@chave;descrição</code>. Fórmulas <code>[calculo: ...]</code> podem ser editadas.</p>
+    </div>
+
+    <div class="md-input-container">
+        <label for="mdSource">📄 Markdown de entrada</label>
+        <textarea id="mdSource" class="md-textarea" placeholder="Cole aqui o markdown..."></textarea>
+        <div class="btn-row">
+            <button id="loadBtn" class="btn btn-primary">🔄 Carregar & Parse</button>
+            <button id="loadExampleBtn" class="btn btn-secondary">📋 Carregar exemplo</button>
+        </div>
+    </div>
+
+    <div id="dynamicForm" class="form-wrapper"></div>
+
+    <div class="btn-row" id="actionRow" style="display:none;">
+        <button id="generateBtn" class="btn btn-accent">✨ Gerar Markdown Final</button>
+        <button id="resetBtn" class="btn btn-secondary">🔄 Restaurar padrões</button>
+    </div>
+
+    <div id="outputContainer" class="output-container" style="display:none;">
+        <h2>📄 Markdown Gerado (fórmulas mantidas ou editadas)</h2>
+        <textarea id="outputArea" class="output-textarea" readonly></textarea>
+        <div class="btn-row">
+            <button id="copyBtn" class="btn btn-secondary">📋 Copiar Markdown</button>
+        </div>
+    </div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+    (function() {
+        const DEFAULT_MARKDOWN = `# TEMPLATE DE VARIÁVEIS
+
+## INFO-CLIENTE.md
+Aqui tem todas as colunas da tabela de clientes e variáveis extra para personalização
+
+### DADOS DO CLIENTE - PROPOSTA
+
+Dados que serão utilizados nas propostas comerciais:
+
+@dataProposta; Por exemplo: "Março 2025"
+@numeroProposta; Número da Proposta Gerado automaticamente
+@nomeProposta;Nome do tipo de proposta, como "Estudo de Viabilidade"
+@cidadeProposta;Local da proposta, nome da cidade ou região, por exemplo: Aparecida de Goiânia
+@localProposta; Endereço completo do local da proposta
+@geolocalizacaoProposta;Localização geográfica da proposta, no formato: 'Latitude-Longitude'
+@nomeCliente;Nome completo do cliente
+@empregoCliente;Profissão do cliente, exemplo: contador/advogado
+@estadoCivilCliente;Estado civil do cliente, por exemplo: casado, solteiro
+@cpfCnpjCliente;CPF ou CNPJ do cliente no formato: 'CPF nª 000-000-000-00'
+@enderecoCliente;Endereço completo do cliente.
+
+## INFO-SERVICO.md
+
+@TEMPLATE;nome do arquivo template a ser utilizado, por exemplo: 02-COD_DOC_PC_00_R00_PROPOSTA_VIABILIDADE.pptx
+
+### DADOS BÁSICOS
+
+@DataAtual;Dada atualizada no dia da emissão do documento
+
+### DADOS DO CLIENTE - CONTRATO
+
+O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo tem os dados para a contratação do serviço:
+
+@nomeContrato; Nome para a capa do contrato
+@numeroContrato; Número do Contrato Gerado automaticamente
+@nomeClienteContrato; Nome do cliente à ser inserido no contrato
+@estadoCivilClienteContrato; estado civil do contratante, se pessoa física.
+@empregoClienteContrato; Emprego do contratante
+@telefoneClienteContrato; telefone do cliente
+@emailClienteContrato; email do cliente
+@enderecoClienteContrato; Endereço do cliente a ser inserido no contrato
+@cpfCnpjClienteContrato;CPF ou CNPJ do cliente no formato: 'CPF nª 000-000-000-00'
+@dataContrato; Data do contrato por extenso "01 de janeiro de 2026"
+
+### DADOS DO SERVIÇO
+
+@modalidadeServico; Modalidade do serviço, se é um projeto, consultoria, execução...
+@anoProjeto;Ano em que o projeto será executado, por exemplo: 2024 -
+@demandaProposta;Descrição da demanda específica do projeto, como "Estudo de Viabilidade Técnico Legal"
+@areaTotal;Tamanho do terreno ou área total em metros quadrados, exemplo: 791.50
+@areaCoberta;Área coberta do projeto em metros quadrados, exemplo: 395.75
+@areaDescoberta;Área descoberta do projeto em metros quadrados, exemplo: 395.75
+@detalhesProposta;Descrição detalhada sobre os objetivos e necessidades da proposta, como o tipo de estudo ou desenvolvimento do projeto
+@estiloProjeto;Estilo do projeto arquitetônico, exemplo: "Contemporâneo-funcionalista"
+@ambientesProjeto;Lista de ambientes planejados para o projeto, exemplo: Sala, 2 Quartos, Cozinha, Banheiro social, etc.
+@inProposta;Data de início da proposta, exemplo: Outubro
+@lvProposta;Data de levantamento de viabilidade, exemplo: Outubro
+@anProposta;Data de análise da proposta, exemplo: Outubro
+@baProposta;Data de conclusão do estudo de viabilidade, exemplo: Novembro
+@prProposta;Data de aprovação preliminar da proposta, exemplo: Novembro
+@inSolucao;Data de início da solução final, exemplo: Novembro
+@valorProposta; Valor total da proposta inicial, exemplo: 2066.77
+@valorContrato; Valor a ser realizado no contrato.
+
+#### DADOS PARA ESTIMATIVA DE CUSTO - PROPOSTA
+
+@projArqEng;Custo estimado dos projetos de arquitetura e engenharia, exemplo: 35347.55
+@procLegais;Custo estimado dos processos legais, exemplo: 4241.70
+@ACEqv;[calculo: @areaCoberta+@areaDescoberta*0.7] Valor baseado na área construída equivalente
+@execcub;[calculo: 1300*@ACEqv] Custo de execução baseado no CUB multiplicado pela ACEqv
+@execInfra;[calculo: @execcub*0.20] Custo de execução de infraestrutura
+@execPais;[calculo: @execcub*0.05] Custo de execução de paisagism
+@execMob;[calculo: @execcub*0.05] Custo de execução de mobiliário
+@totalParcial;[calculo: @projArqEng+@procLegais] Soma dos custos parciais
+@totalExec;[calculo: @execcub+@execInfra+@execPais] Soma dos custos de execução
+@totalinss;[calculo: @execcub*0.20] Soma das contribuições ao INSS
+@totalGeral;[calculo: @totalParcial+@totalExec+@totalinss] Soma do total parcial, total de execução e total de INSS
+@ArqEng%;[calculo: @projArqEng/@totalGeral] Percentual do custo de projetos de arquitetura e engenharia em relação ao total 
+@Legais%;[calculo: @procLegais/@totalGeral] Percentual do custo de processos legais em relação ao total
+@precoCUB%;[calculo: @execcub/@totalGeral] Percentual do custo baseado no CUB em relação ao total
+@Parcial%;[calculo: @totalParcial/@totalGeral] Percentual do total parcial em relação ao total geral
+@infra%;[calculo: @execInfra/@totalGeral] Percentual do custo de infraestrutura em relação ao total
+@pais%;[calculo: @execPais/@totalGeral] Percentual do custo de paisagismo em relação ao total
+@mob%;[calculo: @execMob/@totalGeral] Percentual do custo de mobiliário em relação ao total
+@Exec%;[calculo: @totalExec/@totalGeral] Percentual do custo de execução em relação ao total
+@inss%;[calculo: @totalinss/@totalGeral] Percentual da contribuição ao INSS em relação ao total`;
+
+        let originalStructure = [];
+        let variableDefinitions = {};
+        let allVariablesOrdered = [];
+        let fieldElements = {};
+
+        // ---------- PARSER (regex ajustada para %) ----------
+        function parseMarkdown(md) {
+            const lines = md.split('\n');
+            const structure = [];
+            const varDefs = {};
+            const varOrder = [];
+
+            const calcRegex = /^\[calculo:\s*(.*?)\]\s*(.*)$/;
+            const exampleRegex = /(?:por exemplo|exemplo)\s*:?\s*(.+)$/i;
+
+            for (let line of lines) {
+                const trimmed = line.trim();
+                // Regex atualizada: aceita % no nome da variável
+                const varMatch = trimmed.match(/^@([\w%]+);\s*(.*)$/);
+                if (varMatch) {
+                    const varName = varMatch[1];
+                    let description = varMatch[2].trim();
+
+                    let isCalculated = false;
+                    let calcExpression = '';
+                    let calcOriginal = '';
+                    let example = '';
+
+                    const calcMatch = description.match(calcRegex);
+                    if (calcMatch) {
+                        isCalculated = true;
+                        calcExpression = calcMatch[1].trim();
+                        calcOriginal = `[calculo: ${calcExpression}]`;
+                        description = calcMatch[2].trim();
+                    }
+
+                    const exampleMatch = description.match(exampleRegex);
+                    if (exampleMatch) {
+                        example = exampleMatch[1].replace(/["']/g, '').replace(/\.$/, '').trim();
+                        description = description.replace(exampleRegex, '').replace(/,\s*$/, '').trim();
+                    }
+
+                    const isAuto = /gerado automaticamente/i.test(description);
+                    const varDef = {
+                        name: varName,
+                        description,
+                        example,
+                        isCalculated,
+                        calcExpression,
+                        calcOriginal,
+                        isAuto,
+                        originalLine: line,
+                    };
+                    varDefs[varName] = varDef;
+                    varOrder.push(varName);
+                    structure.push({ type: 'variable', name: varName, definition: varDef });
+                } else {
+                    structure.push({ type: 'text', text: line });
+                }
+            }
+            return { structure, varDefs, varOrder };
+        }
+
+        // ---------- VALORES AUTOMÁTICOS ----------
+        function getAutoValue(varName, description) {
+            const now = new Date();
+            const months = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+            const capMonths = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+            if (varName === 'dataProposta') return `${capMonths[now.getMonth()]} ${now.getFullYear()}`;
+            if (varName === 'DataAtual') return `${now.getDate()} de ${months[now.getMonth()]} de ${now.getFullYear()}`;
+            if (varName === 'numeroProposta') return `PROP-${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(Math.floor(Math.random()*9000)+1000)}`;
+            if (varName === 'numeroContrato') return `CTR-${now.getFullYear()}-${String(Math.floor(Math.random()*90000)+10000)}`;
+            if (varName === 'dataContrato') {
+                const future = new Date(now);
+                future.setFullYear(future.getFullYear()+1);
+                return `${future.getDate()} de ${months[future.getMonth()]} de ${future.getFullYear()}`;
+            }
+            return '';
+        }
+
+        // ---------- AVALIADOR DE EXPRESSÃO (regex ajustada para %) ----------
+        function evaluateExpression(expr, fieldMap) {
+            // Substitui @variavel (incluindo %) pelo valor numérico
+            let safeExpr = expr.replace(/@([\w%]+)/g, (match, varName) => {
+                const val = fieldMap[varName];
+                if (val !== undefined && val !== '' && !isNaN(parseFloat(val))) {
+                    return parseFloat(val);
+                }
+                return '0';
+            });
+            // Permite apenas números, operadores, parênteses e ponto
+            safeExpr = safeExpr.replace(/[^0-9+\-*/().]/g, '');
+            try {
+                const result = eval(safeExpr);
+                if (isNaN(result) || !isFinite(result)) return '';
+                return result;
+            } catch (e) {
+                return '';
+            }
+        }
+
+        // ---------- EXTRAIR EXPRESSÃO DO CAMPO DE FÓRMULA ----------
+        function extractCalcExpressionFromField(formulaText) {
+            const match = formulaText.match(/^\[calculo:\s*(.*?)\]\s*$/);
+            return match ? match[1].trim() : formulaText.trim(); // fallback
+        }
+
+        // ---------- CONSTRUIR FORMULÁRIO ----------
+        function buildForm(structure, varDefs, varOrder) {
+            const form = document.getElementById('dynamicForm');
+            form.innerHTML = '';
+            fieldElements = {};
+            allVariablesOrdered = varOrder.slice();
+
+            let currentSection = 'Geral';
+            let sectionDiv = null;
+            const ensureSection = (title) => {
+                if (!sectionDiv || sectionDiv.dataset.sectionTitle !== title) {
+                    sectionDiv = document.createElement('div');
+                    sectionDiv.className = 'form-section';
+                    sectionDiv.dataset.sectionTitle = title;
+                    const titleDiv = document.createElement('div');
+                    titleDiv.className = 'section-title';
+                    titleDiv.textContent = title;
+                    sectionDiv.appendChild(titleDiv);
+                    form.appendChild(sectionDiv);
+                }
+                return sectionDiv;
+            };
+
+            for (let item of structure) {
+                if (item.type === 'text') {
+                    const line = item.text.trim();
+                    if (/^#{1,6}\s+/.test(line)) {
+                        currentSection = line.replace(/^#{1,6}\s+/, '').trim() || 'Geral';
+                        ensureSection(currentSection);
+                    }
+                } else if (item.type === 'variable') {
+                    const varName = item.name;
+                    const def = varDefs[varName];
+                    if (!def) continue;
+                    const sec = ensureSection(currentSection);
+
+                    const fg = document.createElement('div');
+                    fg.className = 'field-group';
+
+                    const label = document.createElement('div');
+                    label.className = 'field-label';
+                    label.innerHTML = `<span class="var-name">@${varName}</span>`;
+                    if (def.isAuto) label.innerHTML += '<span class="badge auto-badge">🤖 auto</span>';
+                    if (def.isCalculated) label.innerHTML += '<span class="badge calc-badge">📐 calc</span>';
+                    fg.appendChild(label);
+
+                    const hint = document.createElement('div');
+                    hint.className = 'field-hint';
+                    hint.textContent = def.description || '';
+                    if (def.example && !def.isCalculated) hint.textContent += ` (ex: ${def.example})`;
+                    fg.appendChild(hint);
+
+                    if (def.isCalculated) {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'calc-field-wrapper';
+
+                        const formulaBox = document.createElement('div');
+                        formulaBox.className = 'calc-formula-box';
+                        const formulaInput = document.createElement('input');
+                        formulaInput.type = 'text';
+                        formulaInput.className = 'field-input calc-formula-input';
+                        formulaInput.value = def.calcOriginal;
+                        // EDITÁVEL! Removido readonly
+                        formulaInput.placeholder = '[calculo: ...]';
+                        formulaBox.appendChild(formulaInput);
+                        wrapper.appendChild(formulaBox);
+
+                        const resultDiv = document.createElement('div');
+                        resultDiv.className = 'calc-result';
+                        resultDiv.innerHTML = '<span class="result-label">Resultado:</span> <span class="result-value">--</span>';
+                        wrapper.appendChild(resultDiv);
+
+                        fg.appendChild(wrapper);
+                        fieldElements[varName] = {
+                            formulaInput,
+                            resultSpan: resultDiv.querySelector('.result-value'),
+                        };
+
+                        // Listener: ao editar a fórmula, recalcula
+                        formulaInput.addEventListener('input', () => updateCalculatedResults(varDefs));
+                    } else {
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.className = 'field-input';
+                        input.placeholder = def.example || def.description || '';
+                        if (def.isAuto) {
+                            const autoVal = getAutoValue(varName, def.description);
+                            if (autoVal) input.value = autoVal;
+                        }
+                        fg.appendChild(input);
+                        fieldElements[varName] = input;
+                        input.addEventListener('input', () => updateCalculatedResults(varDefs));
+                    }
+                    sec.appendChild(fg);
+                }
+            }
+
+            // Se nenhuma seção foi criada
+            if (form.children.length === 0) ensureSection('Geral');
+
+            updateCalculatedResults(varDefs);
+            document.getElementById('actionRow').style.display = 'flex';
+        }
+
+        function updateCalculatedResults(varDefs) {
+            const fieldMap = {};
+            // Coleta valores atuais
+            for (let varName of allVariablesOrdered) {
+                const def = varDefs[varName];
+                const el = fieldElements[varName];
+                if (!def) continue;
+                if (def.isCalculated) {
+                    // Pega o valor numérico do resultado (span)
+                    const resultSpan = el?.resultSpan;
+                    if (resultSpan && resultSpan.textContent !== '--' && !isNaN(parseFloat(resultSpan.textContent))) {
+                        fieldMap[varName] = resultSpan.textContent.trim();
+                    } else {
+                        fieldMap[varName] = '0';
+                    }
+                } else {
+                    if (el instanceof HTMLInputElement) {
+                        fieldMap[varName] = el.value.trim();
+                    }
+                }
+            }
+
+            // Recalcula na ordem
+            for (let varName of allVariablesOrdered) {
+                const def = varDefs[varName];
+                if (!def || !def.isCalculated) continue;
+                const el = fieldElements[varName];
+                if (!el || !el.formulaInput || !el.resultSpan) continue;
+
+                // Obtém a expressão do campo de fórmula (editável)
+                const currentFormula = el.formulaInput.value.trim();
+                const expr = extractCalcExpressionFromField(currentFormula) || def.calcExpression;
+
+                const result = evaluateExpression(expr, fieldMap);
+                let display = '--';
+                if (result !== '' && !isNaN(result)) {
+                    display = varName.endsWith('%') ? (result*100).toFixed(2)+'%' : Number(result).toFixed(2);
+                }
+                el.resultSpan.textContent = display;
+                fieldMap[varName] = display; // para dependentes
+            }
+        }
+
+        // ---------- GERAÇÃO DO MARKDOWN ----------
+        function generateOutputMarkdown() {
+            const lines = [];
+            for (let item of originalStructure) {
+                if (item.type === 'text') {
+                    lines.push(item.text);
+                } else if (item.type === 'variable') {
+                    const varName = item.name;
+                    const def = variableDefinitions[varName];
+                    if (!def) continue;
+                    let value;
+                    if (def.isCalculated) {
+                        const el = fieldElements[varName];
+                        if (el && el.formulaInput) {
+                            // Usa o valor atual do campo de fórmula (preserva edições)
+                            value = el.formulaInput.value.trim();
+                            if (!value) value = def.calcOriginal || `[calculo: ${def.calcExpression}]`;
+                        } else {
+                            value = def.calcOriginal;
+                        }
+                    } else {
+                        const input = fieldElements[varName];
+                        if (input instanceof HTMLInputElement) {
+                            value = input.value.trim();
+                            if (value === '') value = input.placeholder || def.example || def.description || '';
+                        } else {
+                            value = def.example || def.description || '';
+                        }
+                    }
+                    lines.push(`@${varName};${value}`);
+                }
+            }
+            return lines.join('\n');
+        }
+
+        // ---------- CARREGAR ----------
+        function loadMarkdown(mdText) {
+            if (!mdText.trim()) {
+                showToast('⚠️ Markdown vazio.');
+                return;
+            }
+            const { structure, varDefs, varOrder } = parseMarkdown(mdText);
+            if (varOrder.length === 0) {
+                showToast('⚠️ Nenhuma variável encontrada.');
+                document.getElementById('dynamicForm').innerHTML = '';
+                document.getElementById('actionRow').style.display = 'none';
+                document.getElementById('outputContainer').style.display = 'none';
+                return;
+            }
+            originalStructure = structure;
+            variableDefinitions = varDefs;
+            allVariablesOrdered = varOrder;
+            buildForm(structure, varDefs, varOrder);
+            document.getElementById('outputContainer').style.display = 'none';
+            showToast('✅ Parse concluído. Você pode editar fórmulas.');
+        }
+
+        // ---------- INTEGRAÇÃO PYWEBVIEW ----------
+        async function initWebview() {
+            if (window.pywebview) {
+                try {
+                    const content = await window.pywebview.api.get_initial_content();
+                    if (content) {
+                        document.getElementById('mdSource').value = content;
+                        loadMarkdown(content);
+                    }
+                } catch (e) {
+                    console.error("Erro ao carregar conteúdo inicial:", e);
+                }
+            }
+        }
+
+        // Modificar o botão de geração para também enviar ao backend
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            const md = generateOutputMarkdown();
+            document.getElementById('outputArea').value = md;
+            document.getElementById('outputContainer').style.display = 'flex';
+            document.getElementById('outputContainer').scrollIntoView({ behavior:'smooth' });
+            
+            if (window.pywebview) {
+                const response = await window.pywebview.api.save_markdown(md);
+                showToast(response.message);
+            } else {
+                showToast('✅ Markdown gerado (Modo Browser)');
+            }
+        });
+
+        // Esperar pywebview estar pronto
+        window.addEventListener('pywebviewready', initWebview);
+
+        // ---------- EVENTOS ----------
+        document.getElementById('loadBtn').addEventListener('click', () => {
+            loadMarkdown(document.getElementById('mdSource').value);
+        });
+        document.getElementById('loadExampleBtn').addEventListener('click', () => {
+            document.getElementById('mdSource').value = DEFAULT_MARKDOWN;
+            loadMarkdown(DEFAULT_MARKDOWN);
+        });
+
+        // Removido listener antigo do generateBtn (substituído pela versão async acima)
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            if (originalStructure.length && Object.keys(variableDefinitions).length) {
+                buildForm(originalStructure, variableDefinitions, allVariablesOrdered);
+                document.getElementById('outputContainer').style.display = 'none';
+                showToast('🔄 Formulário restaurado aos padrões.');
+            }
+        });
+        document.getElementById('copyBtn').addEventListener('click', () => {
+            const ta = document.getElementById('outputArea');
+            ta.select();
+            ta.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(ta.value).then(() => showToast('📋 Copiado!'));
+        });
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            clearTimeout(t._timeout);
+            t._timeout = setTimeout(() => t.classList.remove('show'), 2500);
+        }
+
+        // Inicialização
+        setTimeout(() => { 
+            if (!window.pywebview) {
+                document.getElementById('mdSource').value = DEFAULT_MARKDOWN;
+                loadMarkdown(DEFAULT_MARKDOWN);
+            }
+        }, 300);
+    })();
+</script>
+</body>
+</html>

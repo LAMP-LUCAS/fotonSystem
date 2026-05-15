@@ -1,0 +1,14 @@
+# FotonSystem Core Requirements (Server / Headless / Docker)
+pandas
+openpyxl
+python-pptx
+python-docx
+plyer
+pyinstaller
+colorama
+requests
+python-dotenv
+mcp
+watchdog
+chromadb
+sentence-transformers

@@ -1,10 +1,13 @@
 import pandas as pd
 import re
+from pathlib import Path
 from typing import Optional
+
 from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
 from foton_system.modules.clients.application.ports.client_repository_port import ClientRepositoryPort
 from foton_system.modules.shared.infrastructure.validators import validate_filename
+from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
 from foton_system.modules.shared.domain.exceptions import (
     InvalidAliasError,
     DatabaseLockError,
@@ -26,7 +29,72 @@ class ClientService:
         self.repository = repository
         self._config = config or Config()
 
+    def _get_template_sections(self):
+        """Loads and splits the unified template into Client and Service parts."""
+        template_path = PathManager.get_info_template_path()
+        client_part = ""
+        service_part = ""
+        
+        if not template_path.exists():
+            return self.CLIENT_TEMPLATE_STR, self.SERVICE_TEMPLATE_STR
+            
+        try:
+            with open(template_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                
+            # Split based on headers
+            parts = re.split(r'##\s*INFO-SERVICO\.md', content, flags=re.IGNORECASE)
+            client_part = parts[0]
+            if len(parts) > 1:
+                service_part = "## INFO-SERVICO.md" + parts[1]
+            else:
+                service_part = self.SERVICE_TEMPLATE_STR # Fallback if section missing
+                
+            return client_part, service_part
+        except Exception as e:
+            logger.error(f"Erro ao carregar template DNA: {e}")
+            return self.CLIENT_TEMPLATE_STR, self.SERVICE_TEMPLATE_STR
+
+    def resolve_client_path(self, client_name: str) -> Path:
+        """
+        Resolves a client name to a validated directory path.
+        Supports exact match and partial/fuzzy matching.
+        Raises ValueError if not found or ambiguous.
+        """
+        clients_dir = self._config.base_pasta_clientes
+        ignored = set(self._config.ignored_folders + ['.obsidian'])
+
+        if not clients_dir.exists():
+            raise ValueError(f"Diretório de clientes não encontrado: {clients_dir}")
+
+        # 1. Exact match
+        exact = clients_dir / client_name
+        if exact.exists() and exact.is_dir():
+            return exact
+
+        # 2. Case-insensitive / partial match
+        search = client_name.lower()
+        matches = []
+        for d in clients_dir.iterdir():
+            if d.is_dir() and d.name not in ignored:
+                if search in d.name.lower():
+                    matches.append(d)
+
+        if len(matches) == 1:
+            return matches[0]
+        elif len(matches) > 1:
+            names = [m.name for m in matches]
+            raise ValueError(
+                f"Nome de cliente ambíguo '{client_name}'. Encontrados {len(matches)} correspondências: {', '.join(names)}. "
+                f"Por favor, seja mais específico."
+            )
+        else:
+            raise ValueError(
+                f"Cliente '{client_name}' não encontrado. Use 'listar_clientes' para ver os clientes disponíveis."
+            )
+
     def sync_clients_db_from_folders(self):
+
         """Updates DB with clients found in folders but not in DB."""
         logger.info("Sincronizando base de clientes a partir das pastas...")
         try:
@@ -273,14 +341,20 @@ class ClientService:
         return files[0]
 
     def _read_file_content(self, path):
-        """Reads key-value pairs from MD file."""
+        """
+        Reads key-value pairs from MD file.
+        Supports preferred semicolon (;) and legacy colon (:).
+        """
         data = {}
         if not path.exists():
             return data
             
         with open(path, 'r', encoding='utf-8') as f:
             for line in f:
-                if ':' in line:
+                if ';' in line:
+                    key, value = line.split(';', 1)
+                    data[key.strip()] = value.strip()
+                elif ':' in line:
                     key, value = line.split(':', 1)
                     data[key.strip()] = value.strip()
         return data
@@ -294,88 +368,88 @@ Aqui tem todas as colunas da tabela de clientes e variáveis extra para personal
 
 Dados que serão utilizados nas propostas comerciais:
 
-@dataProposta: 
-@numeroProposta: 
-@nomeProposta: 
-@cidadeProposta: 
-@localProposta: 
-@geolocalizacaoProposta: 
-@nomeCliente: 
-@empregoCliente: 
-@estadoCivilCliente: 
-@cpfCnpjCliente: 
-@enderecoCliente: 
+@dataProposta; 
+@numeroProposta; 
+@nomeProposta; 
+@cidadeProposta; 
+@localProposta; 
+@geolocalizacaoProposta; 
+@nomeCliente; 
+@empregoCliente; 
+@estadoCivilCliente; 
+@cpfCnpjCliente; 
+@enderecoCliente; 
 """
 
     SERVICE_TEMPLATE_STR = """## INFO-SERVICO.md
 
-@TEMPLATE: 
+@TEMPLATE; 
 
 ### DADOS BÁSICOS
 
-@DataAtual: 
+@DataAtual; 
 
 ### DADOS DO CLIENTE - CONTRATO
 
 O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo tem os dados para a contratação do serviço:
 
-@nomeContrato: 
-@numeroContrato: 
-@nomeClienteContrato: 
-@estadoCivilClienteContrato: 
-@empregoClienteContrato: 
-@telefoneClienteContrato: 
-@emailClienteContrato: 
-@enderecoClienteContrato: 
-@cpfCnpjClienteContrato: 
+@nomeContrato; 
+@numeroContrato; 
+@nomeClienteContrato; 
+@estadoCivilClienteContrato; 
+@empregoClienteContrato; 
+@telefoneClienteContrato; 
+@emailClienteContrato; 
+@enderecoClienteContrato; 
+@cpfCnpjClienteContrato; 
 
 ### DADOS DO SERVIÇO
 
-@modalidadeServico: 
-@anoProjeto: 
-@demandaProposta: 
-@areaTotal: 
-@areaCoberta: 
-@areaDescoberta: 
-@detalhesProposta: 
-@estiloProjeto: 
-@ambientesProjeto: 
-@inProposta: 
-@lvProposta: 
-@anProposta: 
-@baProposta: 
-@prProposta: 
-@inSolucao: 
-@valorProposta: 
-@valorContrato: 
+@modalidadeServico; 
+@anoProjeto; 
+@demandaProposta; 
+@areaTotal; 
+@areaCoberta; 
+@areaDescoberta; 
+@detalhesProposta; 
+@estiloProjeto; 
+@ambientesProjeto; 
+@inProposta; 
+@lvProposta; 
+@anProposta; 
+@baProposta; 
+@prProposta; 
+@inSolucao; 
+@valorProposta; 
+@valorContrato; 
 
 #### DADOS PARA ESTIMATIVA DE CUSTO - PROPOSTA
 
-@projArqEng: 
-@procLegais: 
-@ACEqv: 
-@execcub: 
-@execInfra: 
-@execPais: 
-@execMob: 
-@totalParcial: 
-@totalExec: 
-@totalinss: 
-@totalGeral: 
-@ArqEng%: 
-@Legais%: 
-@precoCUB%: 
-@Parcial%: 
-@infra%: 
-@pais%: 
-@mob%: 
-@Exec%: 
-@inss%: 
+@projArqEng; 
+@procLegais; 
+@ACEqv; 
+@execcub; 
+@execInfra; 
+@execPais; 
+@execMob; 
+@totalParcial; 
+@totalExec; 
+@totalinss; 
+@totalGeral; 
+@ArqEng%; 
+@Legais%; 
+@precoCUB%; 
+@Parcial%; 
+@infra%; 
+@pais%; 
+@mob%; 
+@Exec%; 
+@inss%; 
 """
 
     def _write_formatted_file_content(self, path, data, template_str):
         """
-        Writes data to file using the template structure.
+        Writes data to file using the template structure with semicolon separator.
         Preserves existing values if not in data (for updates).
         """
         lines = template_str.split('\n')
@@ -386,13 +460,16 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
         
         for line in lines:
             stripped = line.strip()
-            if stripped.startswith('@') and ':' in stripped:
-                key = stripped.split(':')[0].strip()
+            # Handle both possible separators during template processing
+            sep = ';' if ';' in stripped else (':' if ':' in stripped else None)
+            
+            if stripped.startswith('@') and sep:
+                key = stripped.split(sep)[0].strip()
                 written_keys.add(key)
                 
                 # Value priority: Data (DB) > Existing File > Empty
                 value = data.get(key, "")
-                output_lines.append(f"{key}: {value}")
+                output_lines.append(f"{key}; {value}")
             else:
                 output_lines.append(line)
         
@@ -401,7 +478,7 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
         if extra_keys:
             output_lines.append("\n### VARIÁVEIS EXTRAS")
             for key in extra_keys:
-                output_lines.append(f"{key}: {data[key]}")
+                output_lines.append(f"{key}; {data[key]}")
         
         with open(path, 'w', encoding='utf-8') as f:
             f.write('\n'.join(output_lines))
@@ -411,6 +488,7 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
         logger.info("Exporting client data to files...")
         count = 0
         try:
+            client_template, _ = self._get_template_sections()
             df = self.repository.get_clients_dataframe()
             latest_df = df.groupby('Alias').last().reset_index()
 
@@ -459,7 +537,7 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
 
                 if should_create:
                     filename = self._generate_filename(cod, alias, ver, rev)
-                    self._write_formatted_file_content(folder / filename, file_data, self.CLIENT_TEMPLATE_STR)
+                    self._write_formatted_file_content(folder / filename, file_data, client_template)
                     count += 1
 
             logger.info(f"{count} arquivos de cliente exportados/atualizados.")
@@ -472,6 +550,7 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
         logger.info("Exporting service data to files...")
         count = 0
         try:
+            _, service_template = self._get_template_sections()
             df = self.repository.get_services_dataframe()
             latest_df = df.groupby(['AliasCliente', 'Alias']).last().reset_index()
 
@@ -517,7 +596,7 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
 
                 if should_create:
                     filename = self._generate_filename(cod, service_alias, ver, rev)
-                    self._write_formatted_file_content(folder / filename, file_data, self.SERVICE_TEMPLATE_STR)
+                    self._write_formatted_file_content(folder / filename, file_data, service_template)
                     count += 1
 
             logger.info(f"{count} arquivos de serviço exportados/atualizados.")

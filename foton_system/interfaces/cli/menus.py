@@ -8,7 +8,10 @@ from foton_system.modules.documents.infrastructure.adapters.python_docx_adapter 
 from foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter import PythonPPTXAdapter
 from foton_system.modules.productivity.pomodoro import PomodoroTimer
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
+from foton_system.modules.shared.infrastructure.services.tip_service import TipService
+from foton_system.modules.shared.infrastructure.services.environment_porter import get_porter
 from foton_system.interfaces.cli.ui_provider import UIProvider, get_ui_provider
+from foton_system.interfaces.cli.views.tui_layout import TUILayout
 from colorama import init, Fore, Style
 
 # Initialize colorama
@@ -25,7 +28,8 @@ class MenuSystem:
             ui_provider: UIProvider instance for TUI/GUI interactions.
                         If None, auto-detects based on environment.
         """
-        # UI Provider (TUI or GUI)
+        # Ambiente e Provedor de UI
+        self.porter = get_porter()
         self.ui = ui_provider or get_ui_provider('auto')
         
         # Dependency Injection Wiring
@@ -35,6 +39,8 @@ class MenuSystem:
         self.docx_adapter = PythonDocxAdapter()
         self.pptx_adapter = PythonPPTXAdapter()
         self.document_service = DocumentService(self.docx_adapter, self.pptx_adapter)
+
+        self.tip_service = TipService()
 
         # Ensure database exists to prevent pipeline errors
         self._ensure_database_exists()
@@ -94,58 +100,146 @@ class MenuSystem:
             logger.error(f"Erro ao verificar/criar base de dados: {e}", exc_info=True)
 
     def display_main_menu(self):
-        os.system('cls' if os.name == 'nt' else 'clear')
-        print(f"\n{Fore.CYAN}╔══════════════════════════════════════════════════════════╗")
-        print(f"║{Style.BRIGHT}{' FOTON SYSTEM '.center(58)}{Style.NORMAL}{Fore.CYAN}║")
-        print(f"╠══════════════════════════════════════════════════════════╣")
-        options = [
-            ("1", "Gerenciar Clientes"),
-            ("2", "Gerenciar Serviços"),
-            ("3", "Documentos (PPTX/DOCX)"),
-            ("4", "Produtividade (Pomodoro)"),
-            ("5", "Configurações do Sistema"),
-            ("6", "Instalação / Atalhos"),
-            ("7", "Implantação (Gerenciar Base de Dados)"),
-            ("8", "Modo Sentinela (Watcher)"),
-            ("0", "Sair")
+        TUILayout.clear()
+        TUILayout.print_header("FOTON SYSTEM")
+        
+        # Mapeamento Dinâmico de Opções
+        all_options = [
+            ("1", "Gerenciar Clientes", True),
+            ("2", "Gerenciar Serviços", True),
+            ("3", "Preencher Ficha (Interface)", self.porter.can_use_feature("webview")),
+            ("4", "Documentos (PPTX/DOCX)", True),
+            ("5", "Produtividade (Pomodoro)", True),
+            ("6", "Configurações do Sistema", True),
+            ("7", "Instalação / Atalhos", self.porter.can_use_feature("shortcuts")),
+            ("8", "Modo Sentinela (Watcher)", self.porter.can_use_feature("watcher")),
+            ("0", "Sair", True)
         ]
-        for key, label in options:
-            print(f"{Fore.CYAN}║ {Fore.YELLOW}{key}. {Fore.WHITE}{label.ljust(51)}{Fore.CYAN}║")
-        print(f"╚══════════════════════════════════════════════════════════╝")
+        
+        # Filtra opções disponíveis
+        active_options = [(k, l) for k, l, available in all_options if available]
+        
+        for key, label in active_options:
+            TUILayout.print_menu_option(key, label)
+        
+        # Rodapé Didático
+        try:
+            tip = self.tip_service.get_random_tip("GERAL")
+            TUILayout.print_tip(tip, "DICA")
+        except: pass
+
+        TUILayout.print_footer()
         return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
 
     def display_clients_menu(self):
-        self.print_header("--- Gerenciar Clientes ---")
-        print("1. Sincronizar Base (Pastas -> DB)")
-        print("2. Sincronizar Pastas (DB -> Pastas)")
-        print("3. Criar Novo Cliente")
-        print("4. Buscar Cliente")
-        print("5. Sincronizar Cadastro (DB <-> Arquivo)")
-        print("0. Voltar")
-        return input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
+        TUILayout.clear()
+        TUILayout.print_header("GERENCIAR CLIENTES")
+        
+        options = [
+            ("1", "Sincronizar Base (Pastas -> DB)"),
+            ("2", "Sincronizar Pastas (DB -> Pastas)"),
+            ("3", "Criar Novo Cliente"),
+            ("4", "Buscar Cliente"),
+            ("5", "Sincronizar Cadastro (DB <-> Arquivo)"),
+            ("0", "Voltar")
+        ]
+        for key, label in options:
+            TUILayout.print_menu_option(key, label)
+        
+        # Rodapé Didático Contextual
+        try:
+            tip = self.tip_service.get_random_tip("SSOT")
+            TUILayout.print_tip(tip, "CLIENTE")
+        except: pass
+
+        TUILayout.print_footer()
+        return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
 
     def display_services_menu(self):
-        self.print_header("--- Gerenciar Serviços ---")
-        print("1. Sincronizar Base (Pastas -> DB)")
-        print("2. Sincronizar Pastas (DB -> Pastas) [Todos]")
-        print("3. Sincronizar Pastas (DB -> Pastas) [Por Cliente]")
-        print("4. Sincronizar Cadastro (DB <-> Arquivo)")
-        print("0. Voltar")
-        return input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
+        TUILayout.clear()
+        TUILayout.print_header("GERENCIAR SERVIÇOS")
+        
+        options = [
+            ("1", "Sincronizar Base (Pastas -> DB)"),
+            ("2", "Sincronizar Pastas (DB -> Pastas) [Todos]"),
+            ("3", "Sincronizar Pastas (DB -> Pastas) [Por Cliente]"),
+            ("4", "Sincronizar Cadastro (DB <-> Arquivo)"),
+            ("0", "Voltar")
+        ]
+        for key, label in options:
+            TUILayout.print_menu_option(key, label)
+        
+        # Rodapé Didático Contextual
+        try:
+            tip = self.tip_service.get_random_tip("PRODUTIVIDADE")
+            TUILayout.print_tip(tip, "SERVIÇO")
+        except: pass
+
+        TUILayout.print_footer()
+        return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
 
     def display_documents_menu(self):
-        self.print_header("--- Documentos ---")
-        print("1. Gerar Proposta (PPTX)")
-        print("2. Gerar Contrato (DOCX)")
-        print("3. Validar Template (Pré-voo)")
-        print("0. Voltar")
-        return input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
+        TUILayout.clear()
+        TUILayout.print_header("DOCUMENTOS")
+        
+        options = [
+            ("1", "Gerar Proposta (PPTX)"),
+            ("2", "Gerar Contrato (DOCX)"),
+            ("3", "Validar Template (Pré-voo)"),
+            ("0", "Voltar")
+        ]
+        for key, label in options:
+            TUILayout.print_menu_option(key, label)
+            
+        # Rodapé Didático Contextual
+        try:
+            tip = self.tip_service.get_random_tip("FORMATACAO")
+            TUILayout.print_tip(tip, "DOCS")
+        except: pass
+
+        TUILayout.print_footer()
+        return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
 
     def display_productivity_menu(self):
-        self.print_header("--- Produtividade ---")
-        print("1. Iniciar Pomodoro")
-        print("0. Voltar")
-        return input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
+        TUILayout.clear()
+        TUILayout.print_header("PRODUTIVIDADE")
+        
+        options = [
+            ("1", "Iniciar Pomodoro"),
+            ("0", "Voltar")
+        ]
+        for key, label in options:
+            TUILayout.print_menu_option(key, label)
+            
+        # Rodapé Didático Contextual
+        try:
+            tip = self.tip_service.get_random_tip("GERAL")
+            TUILayout.print_tip(tip, "FOCO")
+        except: pass
+
+        TUILayout.print_footer()
+        return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
+
+    def display_settings_menu(self, config):
+        TUILayout.clear()
+        TUILayout.print_header("CONFIGURAÇÕES")
+        
+        # Exibe caminhos truncados para caber no menu se necessário
+        TUILayout.print_menu_option("1", f"Pasta Clientes: {os.path.basename(config.get('caminho_pastaClientes'))}")
+        TUILayout.print_menu_option("2", f"Pasta Templates: {os.path.basename(config.get('caminho_templates'))}")
+        TUILayout.print_menu_option("3", f"Base de Dados: {os.path.basename(config.get('caminho_baseDados'))}")
+        TUILayout.print_menu_option("4", "Ferramentas Administrativas")
+        TUILayout.print_menu_option("5", "Abrir Pasta do Sistema (Workspace)")
+        TUILayout.print_menu_option("0", "Voltar")
+        
+        # Rodapé Didático Contextual
+        try:
+            tip = self.tip_service.get_random_tip("SANDBOX")
+            TUILayout.print_tip(tip, "CONFIG")
+        except: pass
+
+        TUILayout.print_footer()
+        return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
 
     def run(self):
         try:
@@ -157,15 +251,15 @@ class MenuSystem:
                 elif choice == '2':
                     self.handle_services()
                 elif choice == '3':
-                    self.handle_documents()
+                    self.handle_webview_interface()
                 elif choice == '4':
-                    self.handle_productivity()
+                    self.handle_documents()
                 elif choice == '5':
-                    self.handle_settings()
+                    self.handle_productivity()
                 elif choice == '6':
-                    self.handle_installation()
+                    self.handle_settings()
                 elif choice == '7':
-                    self.handle_deployment()
+                    self.handle_installation()
                 elif choice == '8':
                     self.handle_watcher()
                 elif choice == '0':
@@ -178,13 +272,85 @@ class MenuSystem:
             self.print_warning("Interrupção detectada. Encerrando o sistema com segurança...")
             sys.exit()
 
+    def handle_webview_interface(self):
+        """Interface de preenchimento: Escolha entre Terminal ou Visual (Agnóstico)."""
+        from pathlib import Path
+        TUILayout.clear()
+        TUILayout.print_header("PREENCHIMENTO DE FICHA")
+        
+        data_file = self.ui.select_file("Selecione o Arquivo de Dados (.md)", extensions=[".md"])
+        if not data_file:
+            self.print_warning("Nenhum arquivo selecionado.")
+            return
+
+        data_path = Path(data_file)
+        
+        try:
+            with open(data_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            # Callback para salvar
+            def save_fn(new_content):
+                try:
+                    with open(data_path, "w", encoding="utf-8") as f:
+                        f.write(new_content)
+                    return True
+                except Exception as e:
+                    logger.error(f"Erro ao salvar: {e}")
+                    return False
+
+            # Obtém o filler adequado via Porteiro
+            filler = self.porter.get_form_filler()
+            
+            # Se for servidor, ele já avisará que é TUI
+            if self.porter.profile == SystemProfile.SERVER_HEADLESS:
+                 filler.open_form(content, save_fn)
+                 input("Pressione Enter para continuar...")
+                 return
+
+            # No Desktop, damos a opção de TUI ou Visual
+            print(f"\n{Fore.YELLOW}Escolha o modo de preenchimento:{Style.RESET_ALL}")
+            print("  [1] Terminal (Nativo)")
+            print("  [2] Interface Rica (Visual/Web)")
+            print("  [0] Cancelar")
+            
+            sub_choice = input(f"\n{Fore.YELLOW}>> Escolha: {Style.RESET_ALL}").strip()
+            
+            if sub_choice == '1':
+                from foton_system.modules.documents.application.use_cases.tui_form_filler_use_case import TUIFormFillerUseCase
+                tui_filler = TUIFormFillerUseCase(data_path)
+                if tui_filler.execute():
+                    self.print_success("\n✅ Ficha atualizada com sucesso via Terminal!")
+                    input("Pressione Enter para continuar...")
+            elif sub_choice == '2':
+                print(f"🚀 Iniciando interface para: {data_path.name}")
+                if not filler.open_form(content, save_fn):
+                     self.print_error("Falha ao abrir interface visual.")
+                     input("Enter...")
+            else:
+                self.print_warning("Operação cancelada.")
+                
+        except Exception as e:
+            self.print_error(f"Erro no pipeline de interface: {e}")
+            input("Pressione Enter para voltar...")
+
     def handle_installation(self):
         from foton_system.modules.shared.infrastructure.services.install_service import InstallService
-        self.print_header("--- Instalação ---")
-        print("Isso criará atalhos na Área de Trabalho e Menu Iniciar apontando para este executável.")
-        print("Também garantirá que a pasta de configuração do usuário exista.")
+        TUILayout.clear()
+        TUILayout.print_header("INSTALAÇÃO E ATALHOS")
         
-        if input("\nDeseja prosseguir? (S/N): ").upper() == 'S':
+        print(f"\n  {Fore.WHITE}Isso criará atalhos na Área de Trabalho e Menu Iniciar.")
+        print(f"  Garante também a pasta de configuração local.")
+        
+        # Dica Contextual
+        try:
+            tip = self.tip_service.get_random_tip("GERAL")
+            TUILayout.print_tip(tip, "SETUP")
+        except: pass
+        
+        TUILayout.print_footer()
+        
+        if input(f"\n{Fore.YELLOW}Deseja prosseguir? (S/N): {Style.RESET_ALL}").upper() == 'S':
             try:
                 InstallService().install()
                 self.print_success("Instalação realizada com sucesso!")
@@ -198,50 +364,75 @@ class MenuSystem:
             choice = self.display_clients_menu()
             if choice == '1':
                 self.client_service.sync_clients_db_from_folders()
+                input("Pressione Enter para continuar...")
             elif choice == '2':
                 self.client_service.sync_client_folders_from_db()
+                input("Pressione Enter para continuar...")
             elif choice == '3':
                 self.create_client_ui()
+                input("Pressione Enter para continuar...")
             elif choice == '4':
                 self.search_client_ui()
+                input("Pressione Enter para continuar...")
             elif choice == '5':
-                self.print_header("--- Sincronizar Cadastro (Clientes) ---")
-                print("1. Exportar (DB -> Arquivo)")
-                print("2. Importar (Arquivo -> DB)")
-                sub = input("Escolha: ")
-                if sub == '1':
-                    self.client_service.export_client_data()
-                elif sub == '2':
-                    self.client_service.import_client_data()
+                self.handle_client_sync_menu()
             elif choice == '0':
                 break
             else:
                 self.print_error("Opção inválida.")
+
+    def handle_client_sync_menu(self):
+        TUILayout.clear()
+        TUILayout.print_header("SINCRONIZAR CADASTRO (CLIENTES)")
+        TUILayout.print_menu_option("1", "Exportar (DB -> Arquivo INFO)")
+        TUILayout.print_menu_option("2", "Importar (Arquivo INFO -> DB)")
+        TUILayout.print_menu_option("0", "Voltar")
+        TUILayout.print_footer()
+        
+        sub = input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha: {Style.RESET_ALL}")
+        if sub == '1':
+            self.client_service.export_client_data()
+            input("Pressione Enter para continuar...")
+        elif sub == '2':
+            self.client_service.import_client_data()
+            input("Pressione Enter para continuar...")
 
     def handle_services(self):
         while True:
             choice = self.display_services_menu()
             if choice == '1':
                 self.client_service.sync_services_db_from_folders()
+                input("Pressione Enter para continuar...")
             elif choice == '2':
                 self.client_service.sync_service_folders_from_db()
+                input("Pressione Enter para continuar...")
             elif choice == '3':
                 alias = input("Digite o Alias do Cliente: ").strip()
                 if alias:
                     self.client_service.sync_service_folders_from_db(client_alias=alias)
+                input("Pressione Enter para continuar...")
             elif choice == '4':
-                self.print_header("--- Sincronizar Cadastro (Serviços) ---")
-                print("1. Exportar (DB -> Arquivo)")
-                print("2. Importar (Arquivo -> DB)")
-                sub = input("Escolha: ")
-                if sub == '1':
-                    self.client_service.export_service_data()
-                elif sub == '2':
-                    self.client_service.import_service_data()
+                self.handle_service_sync_menu()
             elif choice == '0':
                 break
             else:
                 self.print_error("Opção inválida.")
+
+    def handle_service_sync_menu(self):
+        TUILayout.clear()
+        TUILayout.print_header("SINCRONIZAR CADASTRO (SERVIÇOS)")
+        TUILayout.print_menu_option("1", "Exportar (DB -> Arquivo INFO)")
+        TUILayout.print_menu_option("2", "Importar (Arquivo INFO -> DB)")
+        TUILayout.print_menu_option("0", "Voltar")
+        TUILayout.print_footer()
+        
+        sub = input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha: {Style.RESET_ALL}")
+        if sub == '1':
+            self.client_service.export_service_data()
+            input("Pressione Enter para continuar...")
+        elif sub == '2':
+            self.client_service.import_service_data()
+            input("Pressione Enter para continuar...")
 
     def handle_documents(self):
         while True:
@@ -288,22 +479,14 @@ class MenuSystem:
                 try:
                     os.startfile(config.workspace_path)
                     self.print_success(f"Abrindo pasta: {config.workspace_path}")
+                    input("Pressione Enter para continuar...")
                 except Exception as e:
                     self.print_error(f"Erro ao abrir pasta: {e}")
+                    input("Pressione Enter para continuar...")
             elif choice == '0':
                 break
             else:
                 self.print_error("Opção inválida.")
-
-    def display_settings_menu(self, config):
-        self.print_header("--- Configurações ---")
-        print(f"1. Pasta de Clientes: {config.get('caminho_pastaClientes')}")
-        print(f"2. Pasta de Templates: {config.get('caminho_templates')}")
-        print(f"3. Base de Dados: {config.get('caminho_baseDados')}")
-        print("4. Ferramentas Administrativas")
-        print(f"5. Abrir Pasta do Sistema (Workspace): {config.workspace_path}")
-        print("0. Voltar")
-        return input(f"{Fore.YELLOW}Para alterar, digite o número da opção: {Style.RESET_ALL}")
 
     def update_setting_ui(self, config, key, title, is_file=False):
         print(f"\nSelecione o novo local para: {title}")
@@ -320,15 +503,19 @@ class MenuSystem:
             config.set(key, path)
             config.save()
             self.print_success(f"Configuração atualizada com sucesso!\nNovo valor: {path}")
+            input("Pressione Enter para continuar...")
         else:
             self.print_warning("Operação cancelada.")
+            input("Pressione Enter para continuar...")
 
 
     def create_client_ui(self):
-        self.print_header("--- Novo Cliente ---")
-        nome = input("Nome do Cliente: ")
-        alias = input("Alias (Apelido da Pasta): ")
-        telefone = input("Telefone: ")
+        TUILayout.clear()
+        TUILayout.print_header("NOVO CLIENTE")
+        print("\n  Preencha os dados básicos:\n")
+        nome = input("  Nome do Cliente: ")
+        alias = input("  Alias (Apelido): ")
+        telefone = input("  Telefone      : ")
 
         data = {
             'NomeCliente': nome,
@@ -338,21 +525,21 @@ class MenuSystem:
 
         try:
             self.client_service.create_client(data)
-            self.print_success("Cliente criado com sucesso!")
+            self.print_success("\n✅ Cliente criado com sucesso!")
         except ValueError as ve:
-            self.print_error(f"Erro de Validação: {ve}")
+            self.print_error(f"\n❌ Erro de Validação: {ve}")
         except Exception as e:
-            self.print_error(f"Erro ao criar cliente: {e}")
+            self.print_error(f"\n❌ Erro ao criar cliente: {e}")
 
     def search_client_ui(self):
-        self.print_header("--- Buscar Cliente ---")
-        term = input("Digite o nome ou alias para buscar: ").strip().lower()
+        TUILayout.clear()
+        TUILayout.print_header("BUSCAR CLIENTE")
+        term = input("\n  Digite o nome ou alias: ").strip().lower()
         if not term:
             return
 
         try:
             df = self.client_repo.get_clients_dataframe()
-            # Filter by Name or Alias (case insensitive)
             mask = (
                 df['NomeCliente'].astype(str).str.lower().str.contains(term, na=False) |
                 df['Alias'].astype(str).str.lower().str.contains(term, na=False)
@@ -360,59 +547,57 @@ class MenuSystem:
             results = df[mask]
 
             if results.empty:
-                self.print_warning("Nenhum cliente encontrado.")
+                self.print_warning("\n📭 Nenhum cliente encontrado.")
             else:
-                self.print_success(f"\n{len(results)} clientes encontrados:")
+                self.print_success(f"\n🔍 {len(results)} clientes encontrados:")
                 for _, row in results.iterrows():
-                    print(f"- {row['NomeCliente']} (Alias: {row['Alias']})")
+                    print(f"  - {row['NomeCliente']} (Alias: {row['Alias']})")
 
         except Exception as e:
-            self.print_error(f"Erro ao buscar clientes: {e}")
+            self.print_error(f"\n❌ Erro ao buscar clientes: {e}")
 
     def generate_document_ui(self, doc_type):
         from foton_system.modules.shared.infrastructure.config.config import Config
         from pathlib import Path
 
-        self.print_header(f"--- Gerar Documento ({doc_type.upper()}) ---")
+        TUILayout.clear()
+        TUILayout.print_header(f"GERAR DOCUMENTO ({doc_type.upper()})")
 
-        # 1. Select Client Folder via UI Provider (TUI or GUI)
-        print("Selecione a pasta do cliente...")
+        # 1. Select Client Folder
+        print("\n  Selecione a pasta do cliente...")
         client_folder = self.ui.select_directory("Selecione a Pasta do Cliente")
 
         if not client_folder:
-            self.print_warning("Nenhuma pasta selecionada.")
+            self.print_warning("  Operação cancelada.")
             return
 
         client_path = Path(client_folder)
-        print(f"Pasta selecionada: {client_path}")
-
-
+        
         # 2. Check/Create Data File Pipeline
         data_files = self.document_service.list_client_data_files(client_path)
-
         selected_file = None
 
         if data_files:
-            print("\nArquivos de dados encontrados:")
+            print("\n  Arquivos de dados encontrados:")
             for i, f in enumerate(data_files):
-                print(f"{i + 1}. {f.name}")
-            print(f"{len(data_files) + 1}. Criar novo arquivo")
+                print(f"  {i + 1}. {f.name}")
+            print(f"  {len(data_files) + 1}. Criar novo arquivo")
 
             try:
-                choice = int(input("Escolha uma opção: "))
+                choice = int(input("\n  Escolha uma opção: "))
                 if 1 <= choice <= len(data_files):
                     selected_file = data_files[choice - 1]
                 elif choice == len(data_files) + 1:
                     selected_file = self._create_new_data_file_ui(client_path)
                 else:
-                    self.print_error("Opção inválida.")
+                    self.print_error("  Opção inválida.")
                     return
             except ValueError:
-                self.print_error("Entrada inválida.")
+                self.print_error("  Entrada inválida.")
                 return
         else:
-            self.print_warning("\nNenhum arquivo de dados encontrado.")
-            create = input("Deseja criar um novo arquivo? (S/N): ").upper()
+            self.print_warning("\n  Nenhum arquivo de dados encontrado.")
+            create = input("  Deseja criar um novo arquivo? (S/N): ").upper()
             if create == 'S':
                 selected_file = self._create_new_data_file_ui(client_path)
             else:
@@ -421,31 +606,22 @@ class MenuSystem:
         if not selected_file:
             return
 
-        print(f"Arquivo selecionado: {selected_file.name}")
-
-        # Option to edit data file?
-        edit = input("Deseja abrir o arquivo de dados para edição antes de continuar? (S/N): ").upper()
-        if edit == 'S':
-            import os
-            os.startfile(selected_file)
-            input("Pressione Enter após salvar e fechar o arquivo de dados...")
-
         # 3. Select Template
         templates = self.document_service.list_templates(doc_type)
         if not templates:
-            self.print_warning("Nenhum template encontrado.")
+            self.print_warning("  Nenhum template encontrado.")
             return
 
-        print("\nSelecione o Template:")
+        print("\n  Selecione o Template:")
         template_name = self._select_from_list(templates)
         if not template_name:
             return
 
         template_path = Config().templates_path / template_name
 
-        # 4. Output Path (same as client folder)
+        # 4. Output Path
         default_output = f"Proposta_{client_path.name}"
-        output_name = input(f"Nome do arquivo de saída (padrão: {default_output}): ") or default_output
+        output_name = input(f"\n  Nome de saída (padrão: {default_output}): ") or default_output
         if doc_type == 'pptx' and not output_name.endswith('.pptx'):
             output_name += '.pptx'
         elif doc_type == 'docx' and not output_name.endswith('.docx'):
@@ -453,301 +629,201 @@ class MenuSystem:
 
         output_path = client_path / output_name
 
-        # Validate Keys before generation
-        missing = self.document_service.validate_template_keys(str(template_path), str(selected_file), doc_type)
-        if missing:
-            self.print_warning(f"\n[AVISO] As seguintes chaves estão no template mas não no arquivo de dados:")
-            for k in missing:
-                print(f" - {k}")
-
-            from foton_system.modules.shared.infrastructure.config.config import Config
-            if Config().clean_missing_variables:
-                print(f"Elas serão substituídas por '{Config().missing_variable_placeholder}'.")
-
-            confirm = input("Deseja continuar mesmo assim? (S/N): ").upper()
-            if confirm != 'S':
-                self.print_warning("Operação cancelada.")
-                return
-
         try:
             self.document_service.generate_document(str(template_path), str(selected_file), str(output_path), doc_type)   
-            self.print_success(f"Documento gerado com sucesso em: {output_path}")
-
-            # Open folder via UI Provider
+            self.print_success(f"\n✅ Sucesso! Gerado em: {output_path}")
             self.ui.open_folder(client_path)
-
+            input("\nPressione Enter para continuar...")
         except Exception as e:
-            self.print_error(f"Erro ao gerar documento: {e}")
-
+            self.print_error(f"\n❌ Erro ao gerar: {e}")
+            input("\nPressione Enter para continuar...")
 
     def _select_from_list(self, items):
         for i, item in enumerate(items):
-            print(f"{i + 1}. {item}")
+            print(f"  {i + 1}. {item}")
 
         try:
-            choice = int(input(f"{Fore.YELLOW}Digite o número da opção: {Style.RESET_ALL}"))
+            choice = int(input(f"\n  {Fore.YELLOW}Opção: {Style.RESET_ALL}"))
             if 1 <= choice <= len(items):
                 return items[choice - 1]
             else:
-                self.print_error("Opção inválida.")
+                self.print_error("  Opção inválida.")
                 return None
         except ValueError:
-            self.print_error("Entrada inválida.")
+            self.print_error("  Entrada inválida.")
             return None
 
     def _create_new_data_file_ui(self, client_path):
-        self.print_header("--- Criar Novo Arquivo de Dados ---")
-        print("Padrão: 02-{COD}_DOC_PC_{VER}_{REV}_{DESC}.md")
-
-        cod = input("Código do Serviço (COD) [ex: 001]: ")
+        print("\n  Padrão: 02-{COD}_DOC_PC_{VER}_{REV}_{DESC}.md")
+        cod = input("  Código (COD) [ex: 001]: ")
         if not cod:
-            self.print_error("Código é obrigatório.")
+            self.print_error("  Código é obrigatório.")
             return None
 
-        ver = input("Versão (VER) [padrão: 00]: ") or "00"
-        rev = input("Revisão (REV) [padrão: R00]: ") or "R00"
-        desc = input("Descrição (DESC) [padrão: PROPOSTA]: ") or "PROPOSTA"
+        ver = input("  Versão (VER) [00]: ") or "00"
+        rev = input("  Revisão (REV) [R00]: ") or "R00"
+        desc = input("  Descrição (DESC) [PROPOSTA]: ") or "PROPOSTA"
 
         return self.document_service.create_custom_data_file(client_path, cod, ver, rev, desc)
 
     def start_pomodoro_ui(self):
         from foton_system.modules.shared.infrastructure.config.config import Config
         config = Config()
+        TUILayout.clear()
+        TUILayout.print_header("TIMER POMODORO")
 
         try:
             # Load defaults
-            default_work = config.pomodoro_work_time
-            default_short = config.pomodoro_short_break
-            default_long = config.pomodoro_long_break
-            default_cycles = config.pomodoro_cycles
+            work = config.pomodoro_work_time
+            short = config.pomodoro_short_break
+            long = config.pomodoro_long_break
+            cycles = config.pomodoro_cycles
 
-            self.print_header("--- Iniciar Pomodoro ---")
-            print(f"Configuração Atual: Trabalho={default_work}m, Curta={default_short}m, Longa={default_long}m, Ciclos={default_cycles}")
-
-            # Linking
+            print(f"\n  Foco: {work}m | Pausa: {short}m | Ciclos: {cycles}")
+            
             client_alias = None
-            service_alias = None
-            link = input("Deseja vincular a um cliente? (S/N): ").upper()
+            link = input("\n  Vincular a um cliente? (S/N): ").upper()
             if link == 'S':
-                # Reuse search or list? Let's use search for quick access or list if empty
-                # For simplicity, let's ask for name/alias search
-                term = input("Digite o nome ou alias do cliente: ").strip()
+                term = input("  Nome/Alias: ").strip()
                 if term:
                     df = self.client_repo.get_clients_dataframe()
-                    mask = (
-                        df['NomeCliente'].astype(str).str.lower().str.contains(term.lower(), na=False) |
-                        df['Alias'].astype(str).str.lower().str.contains(term.lower(), na=False)
-                    )
-                    results = df[mask]
-                    if not results.empty:
-                        # Auto-select first or ask? Let's ask if multiple, or just take first for speed
-                        if len(results) > 1:
-                            print(f"{len(results)} clientes encontrados. Usando o primeiro: {results.iloc[0]['NomeCliente']}")
-                        client_alias = results.iloc[0]['Alias']
-                        self.print_success(f"Vinculado ao cliente: {client_alias}")
+                    mask = df['Alias'].str.lower().str.contains(term.lower(), na=False)
+                    res = df[mask]
+                    if not res.empty:
+                        client_alias = res.iloc[0]['Alias']
+                        self.print_success(f"  Vínculo: {client_alias}")
 
-                        service_input = input("Nome do Serviço (opcional): ").strip()
-                        if service_input:
-                            service_alias = service_input
-                    else:
-                        self.print_warning("Cliente não encontrado. Seguindo sem vínculo.")
-
-            # Custom overrides
-            change = input("Deseja alterar os tempos? (S/N): ").upper()
-            if change == 'S':
-                work = float(input(f"Tempo de trabalho (min) [{default_work}]: ") or default_work)
-                short = float(input(f"Pausa curta (min) [{default_short}]: ") or default_short)
-                long = float(input(f"Pausa longa (min) [{default_long}]: ") or default_long)
-                cycles = int(input(f"Ciclos [{default_cycles}]: ") or default_cycles)
-            else:
-                work, short, long, cycles = default_work, default_short, default_long, default_cycles
-
-            timer = PomodoroTimer(work, short, long, cycles, client_alias, service_alias)
+            timer = PomodoroTimer(work, short, long, cycles, client_alias)
             timer.run()
-        except ValueError:
-            self.print_error("Valores inválidos.")
-        except KeyboardInterrupt:
-            print("\n")
-            self.print_warning("Operação interrompida.")
+        except Exception as e:
+            self.print_error(f"Erro no timer: {e}")
 
     def handle_admin_tools(self):
         try:
             from foton_system.scripts.admin_launcher import main_menu
             main_menu()
-        except ImportError:
-            self.print_error("Erro: Launcher administrativo não encontrado.")
         except Exception as e:
-            self.print_error(f"Erro ao abrir ferramentas administrativas: {e}")
-    def handle_deployment(self):
-        """Menu para gerenciar a base de dados e implantação."""
-        try:
-            from foton_system.scripts.deployment_manager import DeploymentManager
-            manager = DeploymentManager()
-            manager.interactive_menu()
-        except ImportError:
-            self.print_error("Erro: Gerenciador de Deployment não encontrado.")
-        except Exception as e:
-            logger.error(f"Erro no menu de deployment: {e}", exc_info=True)
-            self.print_error(f"Erro ao abrir gerenciador de deployment: {e}")
+            self.print_error(f"Erro: {e}")
 
     def validate_template_ui(self):
-        """Interface de validação pré-voo de templates."""
         from foton_system.modules.shared.infrastructure.config.config import Config
         from pathlib import Path
+        TUILayout.clear()
+        TUILayout.print_header("VALIDAR TEMPLATE")
 
-        self.print_header("--- Validar Template (Pré-voo) ---")
-
-        # 1. Selecionar pasta do cliente
-        print("Selecione a pasta do cliente...")
-        client_folder = self.ui.select_directory("Selecione a Pasta do Cliente")
-        if not client_folder:
-            self.print_warning("Nenhuma pasta selecionada.")
-            return
+        print("\n  Selecione a pasta do cliente...")
+        client_folder = self.ui.select_directory("Selecione a Pasta")
+        if not client_folder: return
 
         client_path = Path(client_folder)
-        print(f"Pasta selecionada: {client_path}")
-
-        # 2. Selecionar arquivo de dados
         data_files = self.document_service.list_client_data_files(client_path)
         if not data_files:
-            self.print_warning("Nenhum arquivo de dados encontrado.")
+            self.print_warning("  Nenhum arquivo INFO encontrado.")
             return
 
-        print("\nArquivos de dados encontrados:")
-        selected_file = None
+        print("\n  Arquivos disponíveis:")
         for i, f in enumerate(data_files):
-            print(f"{i + 1}. {f.name}")
-
+            print(f"  {i+1}. {f.name}")
+        
         try:
-            choice = int(input("Escolha o arquivo de dados: "))
-            if 1 <= choice <= len(data_files):
-                selected_file = data_files[choice - 1]
-            else:
-                self.print_error("Opção inválida.")
-                return
-        except ValueError:
-            self.print_error("Entrada inválida.")
-            return
+            idx = int(input("\n  Escolha: ")) - 1
+            selected_file = data_files[idx]
+        except: return
 
-        # 3. Selecionar template
-        print("\nSelecione o tipo de documento:")
-        print("1. PPTX (Proposta)")
-        print("2. DOCX (Contrato)")
-        doc_choice = input("Escolha: ")
-        doc_type = 'pptx' if doc_choice == '1' else 'docx'
+        print("\n  Tipo: [1] PPTX | [2] DOCX")
+        doc_type = 'pptx' if input("  Escolha: ") == '1' else 'docx'
 
         templates = self.document_service.list_templates(doc_type)
-        if not templates:
-            self.print_warning("Nenhum template encontrado.")
-            return
-
-        print("\nSelecione o Template:")
+        print("\n  Templates:")
         template_name = self._select_from_list(templates)
-        if not template_name:
-            return
+        if not template_name: return
 
         template_path = Config().templates_path / template_name
-
-        # 4. Executar validação
         missing = self.document_service.validate_template_keys(str(template_path), str(selected_file), doc_type)
 
         if not missing:
-            self.print_success(f"\n✅ PRÉ-VOO OK! Template '{template_name}' está completo.")
-            self.print_success(f"   Todos os campos do template estão presentes em '{selected_file.name}'.")
+            self.print_success("\n✅ TUDO PRONTO! Variáveis validadas.")
         else:
-            self.print_warning(f"\n⚠️ PRÉ-VOO: {len(missing)} variáveis faltando:")
-            for k in missing:
-                print(f"   ❌ {k}")
-            print(f"\n📄 Template: {template_name}")
-            print(f"📋 Dados: {selected_file.name}")
+            self.print_warning(f"\n⚠️ FALTANDO {len(missing)} VARIÁVEIS:")
+            for k in missing: print(f"  ❌ {k}")
 
         input("\nPressione Enter para voltar...")
 
     def handle_watcher(self):
-        """Menu para gerenciar o modo Sentinela (Watcher) e base de conhecimento."""
-        self.print_header("--- Modo Sentinela (Watcher) ---")
-        print("Monitora mudanças nas pastas de clientes e sincroniza automaticamente.")
-        print("\n1. Ativar Watcher")
-        print("2. Desativar Watcher")
-        print("3. Indexar Base de Conhecimento (RAG)")
-        print("4. Consultar Conhecimento")
-        print("0. Voltar")
+        while True:
+            TUILayout.clear()
+            TUILayout.print_header("MODO SENTINELA (WATCHER)")
+            
+            options = [
+                ("1", "Ativar Watcher"),
+                ("2", "Desativar Watcher"),
+                ("3", "Indexar Base de Conhecimento (RAG)"),
+                ("4", "Consultar Conhecimento"),
+                ("0", "Voltar")
+            ]
+            for key, label in options:
+                TUILayout.print_menu_option(key, label)
 
-        choice = input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
-
-        if choice == '1':
-            self.print_warning("Iniciando Watcher...")
             try:
-                from foton_system.core.watcher.service import WatcherService
-                watcher = WatcherService()
-                watcher.start()
-                self.print_success("Watcher ativado com sucesso!")
-            except Exception as e:
-                logger.error(f"Erro ao ativar Watcher: {e}", exc_info=True)
-                self.print_error(f"Erro ao ativar Watcher: {e}")
-        elif choice == '2':
-            self.print_warning("Watcher desativado.")
-        elif choice == '3':
-            self._index_knowledge_ui()
-        elif choice == '4':
-            self._query_knowledge_ui()
-        elif choice != '0':
-            self.print_error("Opção inválida.")
+                tip = self.tip_service.get_random_tip("IA")
+                TUILayout.print_tip(tip, "SENTINELA")
+            except: pass
+
+            TUILayout.print_footer()
+            choice = input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha: {Style.RESET_ALL}").strip()
+
+            if choice == '1':
+                self.print_warning("  Iniciando Watcher...")
+                try:
+                    from foton_system.core.watcher.service import WatcherService
+                    watcher = WatcherService()
+                    watcher.start()
+                    self.print_success("  Watcher ativado!")
+                    input("Enter...")
+                except Exception as e:
+                    self.print_error(f"Erro: {e}")
+                    input("Enter...")
+            elif choice == '2':
+                self.print_warning("  Desativado.")
+                input("Enter...")
+            elif choice == '3':
+                self._index_knowledge_ui()
+            elif choice == '4':
+                self._query_knowledge_ui()
+            elif choice == '0':
+                break
 
     def _index_knowledge_ui(self):
-        """Interface para indexação da base de conhecimento."""
-        self.print_header("--- Indexar Base de Conhecimento ---")
-        print("Isso irá escanear todos os documentos (.md, .txt) e indexá-los")
-        print("para busca semântica (RAG).\n")
-
-        confirm = input("Deseja prosseguir? (S/N): ").upper()
-        if confirm != 'S':
-            self.print_warning("Operação cancelada.")
-            return
+        TUILayout.clear()
+        TUILayout.print_header("INDEXAR CONHECIMENTO")
+        print("\n  Escaneando documentos para RAG...")
+        if input("\n  Prosseguir? (S/N): ").upper() != 'S': return
 
         try:
             from foton_system.core.ops.op_index_knowledge import OpIndexKnowledge
-            op = OpIndexKnowledge(actor="CLI_User")
-            print("\n🧠 Indexando... (isso pode demorar na primeira vez)")
-            result = op.execute()
-            self.print_success(
-                f"\n✅ Base de Conhecimento Atualizada!\n"
-                f"   Arquivos processados: {result.get('files_scanned', 0)}\n"
-                f"   Chunks criados: {result.get('chunks_created', 0)}"
-            )
-        except ImportError:
-            self.print_error("RAG indisponível: instale 'chromadb' e 'sentence-transformers'.")
+            op = OpIndexKnowledge(actor="User")
+            res = op.execute()
+            self.print_success(f"\n✅ Indexado: {res.get('files_scanned')} arquivos.")
         except Exception as e:
-            logger.error(f"Erro ao indexar: {e}", exc_info=True)
-            self.print_error(f"Erro ao indexar: {e}")
-
-        input("Pressione Enter para voltar...")
+            self.print_error(f"Erro: {e}")
+        input("\nEnter...")
 
     def _query_knowledge_ui(self):
-        """Interface para consultar a base de conhecimento."""
-        self.print_header("--- Consultar Conhecimento ---")
-        query = input("Digite sua pergunta: ").strip()
-        if not query:
-            self.print_warning("Nenhuma pergunta fornecida.")
-            return
+        TUILayout.clear()
+        TUILayout.print_header("CONSULTAR CONHECIMENTO")
+        query = input("\n  Pergunta: ").strip()
+        if not query: return
 
         try:
             from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
-            op = OpQueryKnowledge(actor="CLI_User")
-            result = op.execute(query=query)
-
-            if result['status'] == 'EMPTY':
-                self.print_warning("📭 Nenhum resultado encontrado na base.")
+            op = OpQueryKnowledge(actor="User")
+            res = op.execute(query=query)
+            if res['status'] == 'EMPTY':
+                self.print_warning("  Nada encontrado.")
             else:
-                self.print_success(f"\n🔍 {result['total']} resultados para: \"{query}\"\n")
-                for i, r in enumerate(result['results'], 1):
-                    print(f"--- [{i}] Fonte: {r['source']} (Similaridade: {r['score']:.0%}) ---")
-                    print(f"{r['document'][:500]}")
-                    print()
-        except ImportError:
-            self.print_error("RAG indisponível: instale 'chromadb' e 'sentence-transformers'.")
+                for i, r in enumerate(res['results'], 1):
+                    print(f"\n  [{i}] {r['source']} ({r['score']:.0%})")
+                    print(f"  {r['document'][:200]}...")
         except Exception as e:
-            logger.error(f"Erro na consulta: {e}", exc_info=True)
             self.print_error(f"Erro: {e}")
-
-        input("Pressione Enter para voltar...")
+        input("\nEnter...")

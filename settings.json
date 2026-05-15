@@ -1,7 +1,7 @@
 {
-    "caminho_pastaClientes": "C:\\Users\\Lucas\\Documents\\FotonProjects",
-    "caminho_templates": "C:\\Users\\Lucas\\Documents\\FotonTemplates",
-    "caminho_baseDados": "C:\\Users\\Lucas\\Documents\\FotonSystem\\baseDados.xlsx",
+    "caminho_pastaClientes": "C:\\Users\\Lucas\\AppData\\Local\\Temp\\tmpua44214z\\CLIENTES",
+    "caminho_templates": "C:\\Users\\Lucas\\AppData\\Local\\Temp\\foton_e2e_test\\templates",
+    "caminho_baseDados": "C:\\Users\\Lucas\\AppData\\Local\\Temp\\foton_io_test\\appdata\\baseDados_io.xlsx",
     "ignored_folders": [
         "DOC",
         "ARQ",

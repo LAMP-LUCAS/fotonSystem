@@ -41,8 +41,16 @@ class PythonPPTXAdapter(DocumentServicePort):
 
     def _replace_in_text_frame(self, text_frame, replacements):
         for paragraph in text_frame.paragraphs:
+            self._consolidate_runs(paragraph)
             for run in paragraph.runs:
                 run.text = self._replace_keys_in_text(run.text, replacements)
+
+    def _consolidate_runs(self, paragraph):
+        text = "".join(run.text for run in paragraph.runs)
+        if '@' in text and len(paragraph.runs) > 1:
+            paragraph.runs[0].text = text
+            for run in paragraph.runs[1:]:
+                run.text = ""
 
     def _replace_in_table(self, table, replacements):
         for row in table.rows:
@@ -55,10 +63,10 @@ class PythonPPTXAdapter(DocumentServicePort):
         sorted_keys = sorted(replacements.keys(), key=len, reverse=True)
         
         for key in sorted_keys:
-            if key in text:
-                # Use regex to ensure we don't replace inside words/emails
-                pattern = r'(?<![\w.])' + re.escape(key) + r'(?!\.[a-z]{2,}\b)'
-                new_val = str(replacements[key])
-                text = re.sub(pattern, new_val, text)
+            # Use regex with IGNORECASE to ensure we match regardless of casing
+            # Also ensure we don't replace inside words/emails
+            pattern = r'(?<![\w.])' + re.escape(key) + r'(?!\.[a-z]{2,}\b)'
+            new_val = str(replacements[key])
+            text = re.sub(pattern, new_val, text, flags=re.IGNORECASE)
                 
         return text

@@ -102,11 +102,11 @@ class PythonDocxAdapter(DocumentServicePort):
         sorted_keys = sorted(replacements.keys(), key=len, reverse=True)
         
         for key in sorted_keys:
-            if key in text:
-                # Use regex to ensure we don't replace inside words/emails
-                pattern = r'(?<![\w.])' + re.escape(key) + r'(?!\.[a-z]{2,}\b)'
-                new_val = str(replacements[key])
-                text = re.sub(pattern, new_val, text)
+            # Use regex with IGNORECASE to ensure we match regardless of casing
+            # Also ensure we don't replace inside words/emails
+            pattern = r'(?<![\w.])' + re.escape(key) + r'(?!\.[a-z]{2,}\b)'
+            new_val = str(replacements[key])
+            text = re.sub(pattern, new_val, text, flags=re.IGNORECASE)
                 
         return text
 
