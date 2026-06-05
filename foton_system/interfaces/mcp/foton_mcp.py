@@ -177,34 +177,16 @@ def listar_clientes() -> str:
     """
     _logger.info("Tool called: listar_clientes")
     try:
-        config = _get_config()
-        clients_dir = config.base_pasta_clientes
-
-        if not clients_dir.exists():
-            return f"⚠️ Client directory not found: {clients_dir}"
-
-        ignored = set(config.ignored_folders + ['.obsidian'])
-
-        clients = sorted([
-            d.name for d in clients_dir.iterdir()
-            if d.is_dir() and d.name not in ignored
-        ])
+        clients = _get_factory().get_client_service().list_clients()
 
         if not clients:
             return "📭 No clients registered yet."
 
         output = f"📋 {len(clients)} client(s) found:\n"
         for c in clients:
-            client_path = clients_dir / c
-            info_files = list(client_path.glob("*INFO*.md"))
-            has_info = len(info_files) > 0
-            services = [
-                s.name for s in client_path.iterdir()
-                if s.is_dir() and s.name not in ignored
-            ]
-            marker = "📁" if has_info else "📂"
-            svc_txt = f", {len(services)} serviço(s)" if services else ""
-            output += f"  {marker} {c}{svc_txt}\n"
+            marker = "📁" if c['has_info'] else "📂"
+            svc_txt = f", {c['service_count']} serviço(s)" if c['service_count'] else ""
+            output += f"  {marker} {c['name']}{svc_txt}\n"
 
         return output
     except Exception as e:
@@ -253,25 +235,12 @@ def ler_ficha_cliente(cliente: str) -> str:
     """
     _logger.info(f"Tool called: ler_ficha_cliente(cliente={cliente})")
     try:
-        config = _get_config()
-        clients_dir = config.base_pasta_clientes
-        client_path = _resolve_client_path(clients_dir, cliente, config)
-
-        info_files = list(client_path.glob("*INFO*.md"))
-        if not info_files:
-            return (
-                f"⚠️ No INFO file found for client '{client_path.name}'.\n"
-                f"   Expected pattern: *INFO*.md in {client_path}"
-            )
-
-        info_file = sorted(info_files, key=lambda f: f.stat().st_mtime, reverse=True)[0]
-        content = info_file.read_text(encoding="utf-8")
-
+        result = _get_factory().get_client_service().read_client_info(cliente)
         return (
-            f"📋 Ficha do Cliente: {client_path.name}\n"
-            f"📄 Arquivo: {info_file.name}\n"
+            f"📋 Ficha do Cliente: {cliente}\n"
+            f"📄 Arquivo: {result['filename']}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"{content}"
+            f"{result['content']}"
         )
     except ValueError as e:
         return f"❌ {e}"
@@ -290,40 +259,11 @@ def atualizar_ficha_cliente(cliente: str, secao: str, conteudo: str) -> str:
     """
     _logger.info(f"Tool called: atualizar_ficha_cliente(cliente={cliente}, secao={secao})")
     try:
-        config = _get_config()
-        client_path = _resolve_client_path(config.base_pasta_clientes, cliente, config)
-
-        info_files = list(client_path.glob("*INFO*.md"))
-        if not info_files:
-            return f"⚠️ No INFO file found for '{client_path.name}'. Cannot update."
-
-        info_file = sorted(info_files, key=lambda f: f.stat().st_mtime, reverse=True)[0]
-
-        import shutil
-        backup = info_file.with_suffix('.md.bak')
-        shutil.copy2(info_file, backup)
-
-        content = info_file.read_text(encoding="utf-8")
-
-        section_header = f"## {secao}"
-        if section_header in content:
-            parts = content.split(section_header, 1)
-            after_header = parts[1]
-            next_section_idx = after_header.find("\n## ")
-            if next_section_idx == -1:
-                new_content = content + f"\n{conteudo}\n"
-            else:
-                insert_point = len(parts[0]) + len(section_header) + next_section_idx
-                new_content = content[:insert_point] + f"\n{conteudo}\n" + content[insert_point:]
-        else:
-            new_content = content.rstrip() + f"\n\n{section_header}\n{conteudo}\n"
-
-        info_file.write_text(new_content, encoding="utf-8")
-
+        backup_name = _get_factory().get_client_service().update_client_info(cliente, secao, conteudo)
         return (
-            f"✅ Ficha atualizada: {info_file.name}\n"
+            f"✅ Ficha atualizada: {cliente}\n"
             f"   Seção: {secao}\n"
-            f"   Backup: {backup.name}"
+            f"   Backup: {backup_name}"
         )
     except ValueError as e:
         return f"❌ {e}"
@@ -341,24 +281,15 @@ def listar_servicos_cliente(cliente: str) -> str:
     """
     _logger.info(f"Tool called: listar_servicos_cliente(cliente={cliente})")
     try:
-        config = _get_config()
-        client_path = _resolve_client_path(config.base_pasta_clientes, cliente, config)
-        ignored = set(config.ignored_folders + ['.obsidian'])
-
-        services = sorted([
-            d.name for d in client_path.iterdir()
-            if d.is_dir() and d.name not in ignored
-        ])
+        services = _get_factory().get_client_service().list_services(cliente)
 
         if not services:
-            return f"📭 No services found for client '{client_path.name}'."
+            return f"📭 No services found for client '{cliente}'."
 
-        output = f"📋 {len(services)} serviço(s) de {client_path.name}:\n"
+        output = f"📋 {len(services)} serviço(s) de {cliente}:\n"
         for svc in services:
-            svc_path = client_path / svc
-            subdirs = [s.name for s in svc_path.iterdir() if s.is_dir()]
-            file_count = sum(1 for f in svc_path.rglob('*') if f.is_file())
-            output += f"  📂 {svc} ({file_count} arquivo(s)) [{', '.join(subdirs)}]\n"
+            subdirs_str = ', '.join(svc['subdirs'])
+            output += f"  📂 {svc['name']} ({svc['file_count']} arquivo(s)) [{subdirs_str}]\n"
 
         return output
     except ValueError as e:
@@ -426,53 +357,19 @@ def resumo_financeiro_geral() -> str:
     """
     _logger.info("Tool called: resumo_financeiro_geral")
     try:
-        import csv
-        config = _get_config()
-        clients_dir = config.base_pasta_clientes
-
-        if not clients_dir.exists():
-            return f"⚠️ Client directory not found: {clients_dir}"
-
-        ignored = set(config.ignored_folders + ['.obsidian'])
-        results = []
-        total_income = 0.0
-        total_expense = 0.0
-
-        for d in sorted(clients_dir.iterdir()):
-            if not d.is_dir() or d.name in ignored:
-                continue
-
-            csv_file = d / "FINANCEIRO.csv"
-            if not csv_file.exists():
-                continue
-
-            income = 0.0
-            expense = 0.0
-            try:
-                with open(csv_file, 'r', encoding='utf-8') as f:
-                    reader = csv.DictReader(f)
-                    for row in reader:
-                        val = float(row.get('Valor', 0))
-                        if row.get('Tipo', '').upper() == 'ENTRADA':
-                            income += val
-                        else:
-                            expense += val
-            except Exception:
-                continue
-
-            balance = income - expense
-            total_income += income
-            total_expense += expense
-            results.append((d.name, income, expense, balance))
+        results = _get_factory().get_finance_service().get_firm_summary()
 
         if not results:
             return "📭 No financial data found."
 
+        total_income = sum(r['income'] for r in results)
+        total_expense = sum(r['expense'] for r in results)
+
         output = f"📊 Dashboard Financeiro ({len(results)} clientes):\n"
         output += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        for name, inc, exp, bal in results:
-            emoji = "🟢" if bal >= 0 else "🔴"
-            output += f"  {emoji} {name}: R$ {bal:,.2f} (E: {inc:,.2f} | S: {exp:,.2f})\n"
+        for r in results:
+            emoji = "🟢" if r['balance'] >= 0 else "🔴"
+            output += f"  {emoji} {r['name']}: R$ {r['balance']:,.2f} (E: {r['income']:,.2f} | S: {r['expense']:,.2f})\n"
 
         output += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         total_balance = total_income - total_expense
@@ -498,23 +395,22 @@ def listar_templates() -> str:
     """
     _logger.info("Tool called: listar_templates")
     try:
-        config = _get_config()
-        templates_dir = config.templates_path
+        result = _get_factory().get_document_service().list_templates()
+        if not result.success:
+            return f"❌ {result.message}"
 
-        if not templates_dir.exists():
-            return f"⚠️ Templates directory not found: {templates_dir}"
+        templates = result.templates or {}
+        pptx = templates.get('pptx', [])
+        docx = templates.get('docx', [])
 
-        pptx = sorted([f.name for f in templates_dir.glob("*.pptx")])
-        docx = sorted([f.name for f in templates_dir.glob("*.docx")])
-
-        output = f"📄 Templates disponíveis em: {templates_dir.name}\n"
+        output = "📄 Templates disponíveis:\n"
         if pptx:
             output += f"\n🟦 PPTX ({len(pptx)}):\n"
-            for t in pptx:
+            for t in sorted(pptx):
                 output += f"  • {t}\n"
         if docx:
             output += f"\n🟩 DOCX ({len(docx)}):\n"
-            for t in docx:
+            for t in sorted(docx):
                 output += f"  • {t}\n"
 
         if not pptx and not docx:
@@ -648,6 +544,58 @@ def validar_template(cliente: str, nome_template: str, arquivo_dados: str = "") 
 
 
 # ==============================================================================
+# DATA FILE TOOLS
+# ==============================================================================
+
+@mcp.tool()
+def listar_arquivos_dados(cliente: str) -> str:
+    """
+    Lists data files (.md, .txt) available for a client.
+    CONTEXT: These files contain key-value pairs used during document generation.
+    """
+    _logger.info(f"Tool called: listar_arquivos_dados(cliente={cliente})")
+    try:
+        client_path = _get_factory().get_client_service().resolve_client_path(cliente)
+        files = _get_factory().get_document_service().list_client_data_files(str(client_path))
+        if not files:
+            return f"📭 No data files found for '{cliente}'."
+        output = f"📄 {len(files)} data file(s) for {cliente}:\n"
+        for f in files:
+            output += f"  • {Path(f).name}\n"
+        return output
+    except ValueError as e:
+        return f"❌ {e}"
+    except Exception as e:
+        _logger.error(f"listar_arquivos_dados failed: {e}", exc_info=True)
+        return f"❌ Error: {e}"
+
+
+@mcp.tool()
+def criar_arquivo_dados(cliente: str, cod: str, descricao: str = "PROPOSTA") -> str:
+    """
+    Creates a custom data file for a client using the centralized template.
+    PARAMETERS:
+      cliente: Client name (supports fuzzy match)
+      cod: Document code (e.g., 'ABC123')
+      descricao: Description/short name (default 'PROPOSTA')
+    """
+    _logger.info(f"Tool called: criar_arquivo_dados(cliente={cliente}, cod={cod})")
+    try:
+        client_path = _get_factory().get_client_service().resolve_client_path(cliente)
+        result = _get_factory().get_document_service().create_custom_data_file(
+            str(client_path), cod, desc=descricao
+        )
+        if result:
+            return f"✅ Data file created: {Path(result).name}"
+        return "❌ Failed to create data file."
+    except ValueError as e:
+        return f"❌ {e}"
+    except Exception as e:
+        _logger.error(f"criar_arquivo_dados failed: {e}", exc_info=True)
+        return f"❌ Error: {e}"
+
+
+# ==============================================================================
 # KNOWLEDGE / RAG TOOLS
 # ==============================================================================
 
@@ -703,13 +651,7 @@ def sincronizar_base() -> str:
     """
     _logger.info("Tool called: sincronizar_base")
     try:
-        from foton_system.modules.sync.sync_service import SyncService
-        svc = SyncService()
-        result = svc.sync_dashboard()
-        # Bug #3 fix: sync_dashboard() now returns int (record count) or 0
-        # when empty. The previous code used ``if result`` which failed
-        # when the method returned a DataFrame (always truthy) and
-        # silently fell through to "No clients found" on success.
+        result = _get_factory().get_sync_service().sync_dashboard()
         if result is None or result == 0:
             return "⚠️ No clients found."
         return f"✅ Dashboard synchronized! Records: {result}"
@@ -724,15 +666,81 @@ def sincronizar_clientes() -> str:
     """
     _logger.info("Tool called: sincronizar_clientes")
     try:
-        from foton_system.modules.clients.application.use_cases.client_service import ClientService
-        from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
-        repo = ExcelClientRepository()
-        svc = ClientService(repo)
+        svc = _get_factory().get_client_service()
         svc.sync_clients_db_from_folders()
         svc.sync_services_db_from_folders()
         return "✅ Client & service databases synchronized!"
     except Exception as e:
         return f"❌ Client sync error: {e}"
+
+
+@mcp.tool()
+def sincronizar_pastas_clientes() -> str:
+    """
+    Creates client folders for entries in the database that are missing folders.
+    Reverse direction of 'sincronizar_clientes'.
+    """
+    _logger.info("Tool called: sincronizar_pastas_clientes")
+    try:
+        result = _get_factory().get_client_service().sync_client_folders_from_db()
+        return f"✅ {result}"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+@mcp.tool()
+def sincronizar_pastas_servicos(cliente: str = "") -> str:
+    """
+    Creates service folders for entries in the database that are missing folders.
+    PARAMETERS:
+      cliente: Optional client alias to filter (default: all clients)
+    """
+    _logger.info(f"Tool called: sincronizar_pastas_servicos(cliente={cliente})")
+    try:
+        alias = cliente if cliente.strip() else None
+        result = _get_factory().get_client_service().sync_service_folders_from_db(client_alias=alias)
+        return f"✅ {result}"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+@mcp.tool()
+def exportar_dados_clientes() -> str:
+    """
+    Exports client data from the database to MD files in client folders.
+    """
+    _logger.info("Tool called: exportar_dados_clientes")
+    try:
+        result = _get_factory().get_client_service().export_client_data()
+        return f"✅ {result}"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+@mcp.tool()
+def exportar_dados_servicos() -> str:
+    """
+    Exports service data from the database to MD files in service folders.
+    """
+    _logger.info("Tool called: exportar_dados_servicos")
+    try:
+        result = _get_factory().get_client_service().export_service_data()
+        return f"✅ {result}"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+@mcp.tool()
+def importar_dados_servicos() -> str:
+    """
+    Imports service data from MD files back into the database.
+    """
+    _logger.info("Tool called: importar_dados_servicos")
+    try:
+        result = _get_factory().get_client_service().import_service_data()
+        return f"✅ {result}"
+    except Exception as e:
+        return f"❌ Error: {e}"
 
 
 # ==============================================================================
@@ -835,6 +843,85 @@ def pipeline_emitir_documento(cliente: str, nome_template: str, dados_extras: di
         return output
     except Exception as e:
         return f"❌ Pipeline error: {e}"
+
+
+# ==============================================================================
+# INFRASTRUCTURE TOOLS
+# ==============================================================================
+
+@mcp.tool()
+def consultar_cub() -> str:
+    """
+    Returns the current CUB (Custo Unitário Básico) reference month and download URL.
+    CONTEXT: Used in document generation for construction cost estimates (@LinkCUB, @ReferenciaCUB).
+    """
+    _logger.info("Tool called: consultar_cub")
+    try:
+        from foton_system.modules.shared.infrastructure.services.cub_service import CubService
+        ref = CubService.get_reference_label()
+        url = CubService.get_dynamic_url()
+        return (
+            f"📊 CUB Reference\n"
+            f"   Mês: {ref}\n"
+            f"   URL: {url}\n"
+            f"   Fonte: SINDUSCON-GO"
+        )
+    except Exception as e:
+        _logger.error(f"consultar_cub failed: {e}", exc_info=True)
+        return f"❌ CUB error: {e}"
+
+
+@mcp.tool()
+def verificar_atualizacao() -> str:
+    """
+    Checks GitHub for a newer version of the Foton System.
+    PROTOCOL: Run periodically to ensure the system is up-to-date.
+    """
+    _logger.info("Tool called: verificar_atualizacao")
+    try:
+        from foton_system.modules.shared.infrastructure.services.update_service import UpdateChecker
+        from foton_system import __version__
+        has_update, latest, url = UpdateChecker.check_for_updates()
+        if has_update:
+            return (
+                f"🔄 Nova versão disponível!\n"
+                f"   Atual:    v{__version__}\n"
+                f"   Recente:  v{latest}\n"
+                f"   URL:      {url}"
+            )
+        return f"✅ Sistema atualizado (v{__version__})"
+    except Exception as e:
+        _logger.error(f"verificar_atualizacao failed: {e}", exc_info=True)
+        return f"❌ Update check error: {e}"
+
+
+@mcp.tool()
+def consultar_auditoria(limite: int = 10) -> str:
+    """
+    Shows the most recent audit events (POP operations).
+    PARAMETERS:
+      limite: Number of events to show (default 10)
+    """
+    _logger.info(f"Tool called: consultar_auditoria(limite={limite})")
+    try:
+        from foton_system.core.ops.audit_logger import AuditLogger
+        events = AuditLogger().get_recent_events(limit=limite)
+        if not events:
+            return "📭 No audit events found."
+
+        output = f"📋 Últimos {len(events)} eventos de auditoria:\n"
+        output += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        for e in events:
+            ts = e.get('timestamp', '?')
+            op = e.get('op', '?')
+            actor = e.get('actor', '?')
+            client = e.get('client_id', '?')
+            status = e.get('status', '?')
+            output += f"  [{ts}] {op} by {actor} → {client} [{status}]\n"
+        return output
+    except Exception as e:
+        _logger.error(f"consultar_auditoria failed: {e}", exc_info=True)
+        return f"❌ Audit error: {e}"
 
 
 # ==============================================================================

@@ -20,6 +20,14 @@ class ConfigProvider(Protocol):
     def base_pasta_clientes(self) -> Path: ...
     @property
     def templates_path(self) -> Path: ...
+    @property
+    def base_dados(self) -> Path: ...
+    @property
+    def ignored_folders(self) -> list: ...
+    @property
+    def clean_missing_variables(self) -> bool: ...
+    @property
+    def missing_variable_placeholder(self) -> str: ...
 
 
 class FinanceServiceProtocol(Protocol):
@@ -31,8 +39,29 @@ class FinanceServiceProtocol(Protocol):
 class DocumentServiceProtocol(Protocol):
     """Protocol for document operations."""
     def list_templates(self, doc_type: str) -> list: ...
+    def list_data_files(self) -> list: ...
+    def list_client_data_files(self, client_path) -> list: ...
+    def create_custom_data_file(self, client_path, cod, ver='00', rev='R00', desc='PROPOSTA'): ...
     def generate_document(self, template_path: str, data_path: str, output_path: str, doc_type: str) -> None: ...
     def validate_template_keys(self, template_path: str, data_path: str, doc_type: str) -> list: ...
+
+
+class ClientServiceProtocol(Protocol):
+    """Protocol for client operations."""
+    def resolve_client_path(self, client_name: str) -> Path: ...
+    def sync_clients_db_from_folders(self) -> None: ...
+    def sync_client_folders_from_db(self) -> None: ...
+    def sync_services_db_from_folders(self) -> None: ...
+    def sync_service_folders_from_db(self, client_alias=None) -> None: ...
+    def create_client(self, name: str, tax_id: str = '', email: str = '', phone: str = '', alias: str = '') -> dict: ...
+    def export_client_data(self) -> None: ...
+    def export_service_data(self) -> None: ...
+    def import_service_data(self) -> None: ...
+
+
+class SyncServiceProtocol(Protocol):
+    """Protocol for sync operations."""
+    def sync_dashboard(self) -> int: ...
 
 
 class KnowledgeStoreProtocol(Protocol):
@@ -123,33 +152,144 @@ class MCPClientService:
     DRY: this class is a thin adapter; all logic lives in ClientService.
     Its only responsibility is to expose a stable interface for the MCP
     tool layer (`foton_mcp.py`) without leaking domain details.
-
-    Used by `foton_mcp._resolve_client_path` (see bug #1 fix in
-    `foton_mcp.py:842-843`).
     """
 
-    def __init__(self, client_service):
-        # Import here to avoid circular import at module load
-        from foton_system.modules.clients.application.use_cases.client_service import (
-            ClientService,
-        )
-        if not isinstance(client_service, ClientService):
-            raise TypeError(
-                f"MCPClientService requires a ClientService instance, got {type(client_service).__name__}"
-            )
+    def __init__(self, client_service, config: Optional[ConfigProvider] = None):
         self._client = client_service
+        self._config = config
 
     def resolve_client_path(self, client_name: str) -> Path:
-        """Delegate to the underlying ClientService (no logic duplication)."""
+        """Delegate to the underlying ClientService."""
         return self._client.resolve_client_path(client_name)
+
+    def list_clients(self) -> list:
+        """List all clients with metadata (name, has_info, service_count)."""
+        clients_dir = self._config.base_pasta_clientes
+        ignored = set(self._config.ignored_folders + ['.obsidian'])
+
+        clients = []
+        for d in sorted(clients_dir.iterdir()):
+            if d.is_dir() and d.name not in ignored:
+                info_files = list(d.glob("*INFO*.md"))
+                services = [
+                    s.name for s in d.iterdir()
+                    if s.is_dir() and s.name not in ignored
+                ]
+                clients.append({
+                    'name': d.name,
+                    'has_info': len(info_files) > 0,
+                    'service_count': len(services),
+                    'services': services,
+                })
+        return clients
+
+    def read_client_info(self, client_name: str) -> dict:
+        """Read the INFO file content for a client.
+        Returns dict with 'filename', 'content' or raises ValueError.
+        """
+        client_path = self._client.resolve_client_path(client_name)
+        info_files = list(client_path.glob("*INFO*.md"))
+        if not info_files:
+            raise ValueError(
+                f"No INFO file found for '{client_path.name}'.\n"
+                f"Expected pattern: *INFO*.md in {client_path}"
+            )
+        info_file = sorted(info_files, key=lambda f: f.stat().st_mtime, reverse=True)[0]
+        content = info_file.read_text(encoding="utf-8")
+        return {'filename': info_file.name, 'content': content}
+
+    def update_client_info(self, client_name: str, section: str, content: str) -> str:
+        """Append content to a section of the client's INFO file. Returns backup filename."""
+        import shutil
+        client_path = self._client.resolve_client_path(client_name)
+        info_files = list(client_path.glob("*INFO*.md"))
+        if not info_files:
+            raise ValueError(f"No INFO file found for '{client_path.name}'.")
+        info_file = sorted(info_files, key=lambda f: f.stat().st_mtime, reverse=True)[0]
+
+        backup = info_file.with_suffix('.md.bak')
+        shutil.copy2(info_file, backup)
+
+        existing = info_file.read_text(encoding="utf-8")
+        section_header = f"## {section}"
+        if section_header in existing:
+            parts = existing.split(section_header, 1)
+            after_header = parts[1]
+            next_section_idx = after_header.find("\n## ")
+            if next_section_idx == -1:
+                new_content = existing + f"\n{content}\n"
+            else:
+                insert_point = len(parts[0]) + len(section_header) + next_section_idx
+                new_content = existing[:insert_point] + f"\n{content}\n" + existing[insert_point:]
+        else:
+            new_content = existing.rstrip() + f"\n\n{section_header}\n{content}\n"
+
+        info_file.write_text(new_content, encoding="utf-8")
+        return backup.name
+
+    def sync_clients_db_from_folders(self) -> str:
+        self._client.sync_clients_db_from_folders()
+        return "Client database synchronized with folders."
+
+    def sync_client_folders_from_db(self) -> str:
+        self._client.sync_client_folders_from_db()
+        return "Client folders synchronized with database."
+
+    def sync_services_db_from_folders(self) -> str:
+        self._client.sync_services_db_from_folders()
+        return "Service database synchronized with folders."
+
+    def sync_service_folders_from_db(self, client_alias=None) -> str:
+        self._client.sync_service_folders_from_db(client_alias=client_alias)
+        return "Service folders synchronized with database."
+
+    def export_client_data(self) -> str:
+        self._client.export_client_data()
+        return "Client data exported to files."
+
+    def export_service_data(self) -> str:
+        self._client.export_service_data()
+        return "Service data exported to files."
+
+    def import_service_data(self) -> str:
+        self._client.import_service_data()
+        return "Service data imported from files."
+
+    def create_client(self, name: str, tax_id: str = "", email: str = "",
+                      phone: str = "", alias: str = "") -> dict:
+        result = self._client.create_client(name, tax_id=tax_id, email=email,
+                                            phone=phone, alias=alias)
+        return {
+            'client_id': result.codigo,
+            'client_path': str(result.caminho),
+            'dados': result.dados,
+        }
+
+    def list_services(self, client_name: str) -> list:
+        """List sub-services for a client folder."""
+        client_path = self._client.resolve_client_path(client_name)
+        ignored = set((self._config.ignored_folders if self._config else []) + ['.obsidian'])
+        services = []
+        for d in sorted(client_path.iterdir()):
+            if d.is_dir() and d.name not in ignored:
+                subdirs = [s.name for s in d.iterdir() if s.is_dir()]
+                file_count = sum(1 for f in d.rglob('*') if f.is_file())
+                services.append({
+                    'name': d.name,
+                    'file_count': file_count,
+                    'subdirs': subdirs,
+                })
+        return services
 
 
 class MCPFinanceService:
     """Finance operations for MCP tools."""
     
-    def __init__(self, path_resolver: ClientPathResolver, finance_service: FinanceServiceProtocol):
+    def __init__(self, path_resolver: ClientPathResolver, finance_service: FinanceServiceProtocol,
+                 config: Optional[ConfigProvider] = None):
         self._resolver = path_resolver
         self._finance = finance_service
+        self._config = config
     
     def register_entry(self, client_name: str, description: str, value: float, 
                        entry_type: str = "ENTRADA") -> FinanceResult:
@@ -185,6 +325,47 @@ class MCPFinanceService:
             return FinanceResult(success=False, message=str(e))
         except Exception as e:
             return FinanceResult(success=False, message=f"Erro: {e}")
+
+    def get_firm_summary(self) -> list:
+        """Firm-wide financial dashboard.
+
+        Iterates all client folders and aggregates financial data
+        from each client's FINANCEIRO.csv file.
+        Returns list of dicts: {name, income, expense, balance}.
+        """
+        import csv
+        clients_dir = self._config.base_pasta_clientes
+        ignored = set((self._config.ignored_folders if self._config else []) + ['.obsidian'])
+
+        results = []
+        for d in sorted(clients_dir.iterdir()):
+            if not d.is_dir() or d.name in ignored:
+                continue
+            csv_file = d / "FINANCEIRO.csv"
+            if not csv_file.exists():
+                continue
+
+            income = 0.0
+            expense = 0.0
+            try:
+                with open(csv_file, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        val = float(row.get('Valor', 0))
+                        if row.get('Tipo', '').upper() == 'ENTRADA':
+                            income += val
+                        else:
+                            expense += val
+            except Exception:
+                continue
+
+            results.append({
+                'name': d.name,
+                'income': income,
+                'expense': expense,
+                'balance': income - expense,
+            })
+        return results
 
 
 class MCPDocumentService:
@@ -225,6 +406,18 @@ class MCPDocumentService:
     def validate_template_keys(self, template_path: str, data_path: str, doc_type: str) -> list:
         """Delegate key validation to the domain DocumentService."""
         return self._documents.validate_template_keys(template_path, data_path, doc_type)
+
+    def list_data_files(self) -> list:
+        """List available data files (JSON/TXT) in templates dir."""
+        return self._documents.list_data_files()
+
+    def list_client_data_files(self, client_path) -> list:
+        """List data files for a specific client."""
+        return self._documents.list_client_data_files(client_path)
+
+    def create_custom_data_file(self, client_path, cod: str, ver='00', rev='R00', desc='PROPOSTA'):
+        """Create a custom data file for a client."""
+        return self._documents.create_custom_data_file(client_path, cod, ver, rev, desc)
 
 
 class MCPKnowledgeService:
@@ -344,7 +537,7 @@ class MCPServiceFactory:
             injected = self._explicit_config
             repo = ExcelClientRepository(config=injected)
             domain_service = ClientService(repo, config=injected)
-            self._client_service = MCPClientService(domain_service)
+            self._client_service = MCPClientService(domain_service, config=self._get_config())
         return self._client_service
 
     def get_finance_service(self) -> MCPFinanceService:
@@ -352,10 +545,12 @@ class MCPServiceFactory:
         if self._finance_service is None:
             from foton_system.modules.finance.application.use_cases.finance_service import FinanceService
             from foton_system.modules.finance.infrastructure.repositories.csv_finance_repository import CSVFinanceRepository
-            
+
             repo = CSVFinanceRepository()
             finance = FinanceService(repo)
-            self._finance_service = MCPFinanceService(self._get_path_resolver(), finance)
+            self._finance_service = MCPFinanceService(
+                self._get_path_resolver(), finance, config=self._get_config()
+            )
         return self._finance_service
     
     def get_document_service(self) -> MCPDocumentService:
@@ -371,6 +566,11 @@ class MCPServiceFactory:
             self._document_service = MCPDocumentService(self._get_config(), doc_service)
         return self._document_service
     
+    def get_sync_service(self):
+        """Get or create a SyncService instance."""
+        from foton_system.modules.sync.sync_service import SyncService
+        return SyncService()
+
     def get_knowledge_service(self) -> MCPKnowledgeService:
         """Get or create knowledge service."""
         if self._knowledge_service is None:
