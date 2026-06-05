@@ -32,6 +32,7 @@ class DocumentServiceProtocol(Protocol):
     """Protocol for document operations."""
     def list_templates(self, doc_type: str) -> list: ...
     def generate_document(self, template_path: str, data_path: str, output_path: str, doc_type: str) -> None: ...
+    def validate_template_keys(self, template_path: str, data_path: str, doc_type: str) -> list: ...
 
 
 class KnowledgeStoreProtocol(Protocol):
@@ -220,6 +221,10 @@ class MCPDocumentService:
             )
         except Exception as e:
             return DocumentResult(success=False, message=f"Erro: {e}")
+
+    def validate_template_keys(self, template_path: str, data_path: str, doc_type: str) -> list:
+        """Delegate key validation to the domain DocumentService."""
+        return self._documents.validate_template_keys(template_path, data_path, doc_type)
 
 
 class MCPKnowledgeService:

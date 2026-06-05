@@ -41,9 +41,13 @@ class FakeDocumentService:
     """Fake document service for testing."""
     def __init__(self):
         self.templates = {'pptx': ['prop.pptx'], 'docx': ['contract.docx']}
-    
+        self.validation_results = ['@nomecliente', '@valorproposta']
+
     def list_templates(self, doc_type):
         return self.templates.get(doc_type, [])
+
+    def validate_template_keys(self, template_path, data_path, doc_type):
+        return self.validation_results
 
 
 class FakeKnowledgeStore:
@@ -192,6 +196,43 @@ class TestMCPDocumentService(unittest.TestCase):
             self.assertTrue(result.success)
             self.assertIn('pptx', result.templates)
             self.assertIn('prop.pptx', result.templates['pptx'])
+
+    def test_validate_template_keys_delegates_to_domain(self):
+        """validate_template_keys delegates to the domain DocumentService."""
+        from foton_system.interfaces.mcp.mcp_services import MCPDocumentService
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config = FakeConfig(templates_path=tmpdir)
+            docs = FakeDocumentService()
+
+            service = MCPDocumentService(config, docs)
+            result = service.validate_template_keys(
+                "/path/template.pptx", "/path/data.md", "pptx"
+            )
+
+            self.assertIsInstance(result, list)
+            self.assertIn('@nomecliente', result)
+            self.assertIn('@valorproposta', result)
+            self.assertEqual(len(result), 2)
+
+    def test_validate_template_keys_empty_results(self):
+        """Returns empty list when no keys are missing."""
+        from foton_system.interfaces.mcp.mcp_services import MCPDocumentService
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config = FakeConfig(templates_path=tmpdir)
+            docs = FakeDocumentService()
+            docs.validation_results = []
+
+            service = MCPDocumentService(config, docs)
+            result = service.validate_template_keys(
+                "/path/template.docx", "/path/data.md", "docx"
+            )
+
+            self.assertIsInstance(result, list)
+            self.assertEqual(result, [])
 
 
 class TestMCPKnowledgeService(unittest.TestCase):
