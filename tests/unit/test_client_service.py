@@ -154,30 +154,33 @@ class TestClientServiceValidation(unittest.TestCase):
         """Client creation fails for invalid characters in alias."""
         repo = FakeClientRepository()
         service = ClientService(repo)
-        
+
         with self.assertRaises(ValueError) as context:
-            service.create_client({'NomeCliente': 'João', 'Alias': 'Client<>Name'})
-        
+            service.create_client(name='João', alias='Client<>Name')
+
         self.assertIn('inválidos', str(context.exception))
 
     def test_create_client_rejects_reserved_names(self):
         """Client creation fails for Windows reserved names."""
         repo = FakeClientRepository()
         service = ClientService(repo)
-        
+
         with self.assertRaises(ValueError) as context:
-            service.create_client({'NomeCliente': 'Printer', 'Alias': 'CON'})
-        
+            service.create_client(name='Printer', alias='CON')
+
         self.assertIn('inválidos', str(context.exception))
 
     def test_create_client_accepts_valid_input(self):
         """Client creation succeeds for valid input."""
         repo = FakeClientRepository()
         service = ClientService(repo)
-        
-        result = service.create_client({'NomeCliente': 'Maria Santos', 'Alias': '001_Maria_Santos'})
-        
-        self.assertIn('CodCliente', result)
+
+        result = service.create_client(name='Maria Santos', alias='001_Maria_Santos')
+
+        # Bug #2 fix: create_client now returns CreatedClient dataclass
+        self.assertTrue(hasattr(result, 'codigo'))
+        self.assertTrue(result.codigo)
+        self.assertTrue(hasattr(result, 'caminho'))
         self.assertEqual(len(repo._clients), 1)
 
 
