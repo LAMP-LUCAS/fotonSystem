@@ -1,5 +1,6 @@
 import pandas as pd
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -15,6 +16,19 @@ from foton_system.modules.shared.domain.exceptions import (
 )
 
 logger = setup_logger()
+
+
+@dataclass
+class CreatedClient:
+    """Result envelope returned by ``ClientService.create_client``.
+
+    MCP tool layer (see ``op_create_client.py:66-72``) reads ``.codigo``
+    and ``.caminho`` from this object; tests assert on both fields.
+    """
+
+    codigo: str
+    caminho: Path
+    dados: dict
 
 
 class ClientService:
@@ -250,30 +264,51 @@ class ClientService:
         
         return code
 
-    def create_client(self, data):
-        """Adds a new client to the database."""
+    def create_client(self, name: str, tax_id: str = "", email: str = "",
+                      phone: str = "", alias: str = "") -> CreatedClient:
+        """Adds a new client to the database.
+
+        Bug #2 fix: the previous signature ``create_client(self, data)``
+        took a dict and the values used different keys (``NomeCliente``,
+        ``Alias``). The MCP ``op_create_client.py`` use case calls this
+        method with kwargs (``name=``, ``tax_id=``, ``email=``,
+        ``phone=``, ``alias=``), which raised ``TypeError`` at runtime.
+
+        Returns:
+            CreatedClient with ``codigo`` (str), ``caminho`` (Path), and
+            ``dados`` (dict) for backward compatibility.
+        """
         try:
-            # Validation
-            if not validate_filename(data.get('NomeCliente', '')):
+            if not validate_filename(name):
                 raise ValueError("Nome do cliente contém caracteres inválidos ou é reservado.")
-            if not validate_filename(data.get('Alias', '')):
+            if alias and not validate_filename(alias):
                 raise ValueError("Alias do cliente contém caracteres inválidos ou é reservado.")
 
             db_clients = self.repository.get_clients_dataframe()
-            
-            # Generate code if not provided
-            if 'CodCliente' not in data or not data['CodCliente']:
-                data['CodCliente'] = self.generate_client_code(data.get('NomeCliente', ''))
 
-            new_row = pd.DataFrame([data])
+            codigo = self.generate_client_code(name)
+
+            dados = {
+                "CodCliente": codigo,
+                "NomeCliente": name,
+                "NIF": tax_id,
+                "Email": email,
+                "Telefone": phone,
+                "Alias": alias,
+            }
+
+            new_row = pd.DataFrame([dados])
             updated_df = pd.concat([db_clients, new_row], ignore_index=True)
-            
-            # Format columns
+
             updated_df = self._format_columns(updated_df)
-            
+
             self.repository.save_clients(updated_df)
-            logger.info(f"Cliente {data.get('NomeCliente')} criado com sucesso.")
-            return data
+
+            caminho = self._config.base_pasta_clientes / name
+            caminho.mkdir(parents=True, exist_ok=True)
+
+            logger.info(f"Cliente {name} ({codigo}) criado com sucesso em {caminho}.")
+            return CreatedClient(codigo=codigo, caminho=caminho, dados=dados)
         except Exception as e:
             logger.error(f"Erro ao criar cliente: {e}")
             raise

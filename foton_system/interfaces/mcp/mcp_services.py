@@ -116,6 +116,33 @@ class KnowledgeResult:
     sources: list
 
 
+class MCPClientService:
+    """MCP wrapper for the domain ClientService.
+
+    DRY: this class is a thin adapter; all logic lives in ClientService.
+    Its only responsibility is to expose a stable interface for the MCP
+    tool layer (`foton_mcp.py`) without leaking domain details.
+
+    Used by `foton_mcp._resolve_client_path` (see bug #1 fix in
+    `foton_mcp.py:842-843`).
+    """
+
+    def __init__(self, client_service):
+        # Import here to avoid circular import at module load
+        from foton_system.modules.clients.application.use_cases.client_service import (
+            ClientService,
+        )
+        if not isinstance(client_service, ClientService):
+            raise TypeError(
+                f"MCPClientService requires a ClientService instance, got {type(client_service).__name__}"
+            )
+        self._client = client_service
+
+    def resolve_client_path(self, client_name: str) -> Path:
+        """Delegate to the underlying ClientService (no logic duplication)."""
+        return self._client.resolve_client_path(client_name)
+
+
 class MCPFinanceService:
     """Finance operations for MCP tools."""
     
@@ -242,38 +269,79 @@ class MCPKnowledgeService:
 
 class MCPServiceFactory:
     """Factory for creating MCP services with proper dependencies."""
-    
+
     _instance: Optional['MCPServiceFactory'] = None
-    
-    def __init__(self):
+
+    def __init__(self, config=None):
+        """Initialise the factory.
+
+        Args:
+            config: Optional config to use. If None, the real ``Config``
+                singleton is used. Pass a mock config in tests to avoid
+                hitting the real ``Config.__new__`` (which uses ``super()``
+                with an explicit class reference and breaks under patching).
+        """
         self._finance_service: Optional[MCPFinanceService] = None
         self._document_service: Optional[MCPDocumentService] = None
         self._knowledge_service: Optional[MCPKnowledgeService] = None
         self._path_resolver: Optional[ClientPathResolver] = None
-    
+        self._client_service: Optional[MCPClientService] = None
+        self._explicit_config = config
+
     @classmethod
-    def get_instance(cls) -> 'MCPServiceFactory':
+    def get_instance(cls, config=None) -> 'MCPServiceFactory':
         """Get or create singleton instance."""
         if cls._instance is None:
-            cls._instance = cls()
+            cls._instance = cls(config=config)
         return cls._instance
-    
+
     @classmethod
     def reset(cls):
         """Reset singleton (for testing)."""
         cls._instance = None
-    
+
     def _get_config(self):
-        """Lazy-load config."""
+        """Lazy-load config (use injected config if available)."""
+        if self._explicit_config is not None:
+            return self._explicit_config
         from foton_system.modules.shared.infrastructure.config.config import Config
         return Config()
-    
+
     def _get_path_resolver(self) -> ClientPathResolver:
-        """Get or create path resolver."""
+        """Get or create path resolver (private alias)."""
         if self._path_resolver is None:
             self._path_resolver = ClientPathResolver(self._get_config())
         return self._path_resolver
-    
+
+    def get_path_resolver(self) -> ClientPathResolver:
+        """Public alias for the path resolver (used by MCP tool layer)."""
+        return self._get_path_resolver()
+
+    def get_client_service(self) -> MCPClientService:
+        """Get or create the MCP client service (lazy singleton).
+
+        Bug #1 fix: this method was missing. `foton_mcp._resolve_client_path`
+        calls `factory.get_client_service()` (foton_mcp.py:842) and used to
+        crash with AttributeError.
+
+        The factory's injected config (if any) is forwarded to both the
+        ``ExcelClientRepository`` and ``ClientService`` so the domain
+        service uses the same paths as the rest of the factory (no drift
+        between layers).
+        """
+        if self._client_service is None:
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import (
+                ExcelClientRepository,
+            )
+            from foton_system.modules.clients.application.use_cases.client_service import (
+                ClientService,
+            )
+            injected = self._explicit_config
+            repo = ExcelClientRepository(config=injected)
+            domain_service = ClientService(repo, config=injected)
+            self._client_service = MCPClientService(domain_service)
+        return self._client_service
+
     def get_finance_service(self) -> MCPFinanceService:
         """Get or create finance service."""
         if self._finance_service is None:

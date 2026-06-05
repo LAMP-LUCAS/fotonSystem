@@ -706,7 +706,13 @@ def sincronizar_base() -> str:
         from foton_system.modules.sync.sync_service import SyncService
         svc = SyncService()
         result = svc.sync_dashboard()
-        return f"✅ Dashboard synchronized! Records: {len(result)}" if result else "⚠️ No clients found."
+        # Bug #3 fix: sync_dashboard() now returns int (record count) or 0
+        # when empty. The previous code used ``if result`` which failed
+        # when the method returned a DataFrame (always truthy) and
+        # silently fell through to "No clients found" on success.
+        if result is None or result == 0:
+            return "⚠️ No clients found."
+        return f"✅ Dashboard synchronized! Records: {result}"
     except Exception as e:
         return f"❌ Sync error: {e}"
 
