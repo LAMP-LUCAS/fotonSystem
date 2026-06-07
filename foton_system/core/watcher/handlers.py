@@ -49,10 +49,11 @@ class FotonFileSystemEventHandler(FileSystemEventHandler):
     """
 
     def __init__(self) -> None:
+        """Inicializa o handler com debounce e flag de disponibilidade RAG."""
         self.last_triggered: dict[str, float] = {}
         self.debounce_seconds: float = 2.0
         self._op_indexer = None
-        self._rag_available: Optional[bool] = None  # Cached availability check
+        self._rag_available: Optional[bool] = None
 
     def _is_rag_available(self) -> bool:
         """Check if RAG/VectorStore dependencies are available."""
@@ -74,17 +75,15 @@ class FotonFileSystemEventHandler(FileSystemEventHandler):
         return self._rag_available
 
     def _should_process(self, event) -> bool:
-        """Filtra e debounce eventos de sistema de arquivos."""
+        """Filtra eventos por tipo (diretório), extensão (.md/.txt) e aplica debounce."""
         if event.is_directory:
             return False
 
         path = Path(event.src_path)
 
-        # Filtrar extensões relevantes para RAG e sugestões
         if path.suffix.lower() not in ['.md', '.txt']:
             return False
 
-        # Debounce: Previne eventos duplicados (comum em editores Windows)
         now = time.time()
         last = self.last_triggered.get(event.src_path, 0)
         if now - last < self.debounce_seconds:
@@ -120,21 +119,21 @@ class FotonFileSystemEventHandler(FileSystemEventHandler):
             logger.info(f"Sugestão proativa emitida para: {path.name} em {client_folder}")
 
     def on_modified(self, event) -> None:
-        """Trata eventos de modificação de arquivo."""
+        """Callback acionado em modificação de arquivo — dispara análise e reindexação."""
         if self._should_process(event):
             print(f"👀 Watcher detectou modificação: {Path(event.src_path).name}")
             self._analyze_for_suggestions(event.src_path)
             self._trigger_index(event.src_path)
 
     def on_created(self, event) -> None:
-        """Trata eventos de criação de arquivo."""
+        """Callback acionado em criação de arquivo — dispara análise e reindexação."""
         if self._should_process(event):
             print(f"👀 Watcher detectou criação: {Path(event.src_path).name}")
             self._analyze_for_suggestions(event.src_path)
             self._trigger_index(event.src_path)
 
     def _trigger_index(self, file_path: str) -> None:
-        """Dispara reindexação no banco vetorial (se RAG disponível)."""
+        """Dispara reindexação no banco vetorial via OpIndexKnowledge (se RAG disponível)."""
         if not self._is_rag_available():
             logger.debug(f"Arquivo ignorado (RAG indisponível): {file_path}")
             return

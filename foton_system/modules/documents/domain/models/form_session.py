@@ -18,15 +18,15 @@ class FormField:
     hint: str = ""
 
 class FormSession:
-    def __init__(self):
+    def __init__(self) -> None:
         self.fields: List[FormField] = []
         self.cursor: int = 0
         self.structure: List[Dict[str, Any]] = []
-        self.var_pattern = re.compile(r'^@([\w%]+);\s*(.*)$')
-        self.calc_pattern = re.compile(r'^\[calculo:\s*(.*?)\]\s*(.*)$')
-        self.hint_pattern = re.compile(r'(?:por exemplo|exemplo)\s*:?\s*(.+)$', re.IGNORECASE)
+        self.var_pattern: re.Pattern = re.compile(r'^@([\w%]+);\s*(.*)$')
+        self.calc_pattern: re.Pattern = re.compile(r'^\[calculo:\s*(.*?)\]\s*(.*)$')
+        self.hint_pattern: re.Pattern = re.compile(r'(?:por exemplo|exemplo)\s*:?\s*(.+)$', re.IGNORECASE)
 
-    def parse_markdown(self, md_text: str):
+    def parse_markdown(self, md_text: str) -> None:
         self.fields = []
         self.structure = []
         lines = md_text.splitlines()
@@ -71,7 +71,7 @@ class FormSession:
         self.cursor = 0
         self.recalculate_all()
 
-    def update_current(self, value: str):
+    def update_current(self, value: str) -> None:
         if not value.strip(): return
         f = self.get_current_field()
         if f and not f.is_calculated:
@@ -82,13 +82,13 @@ class FormSession:
     def get_current_field(self) -> Optional[FormField]:
         return self.fields[self.cursor] if self.fields else None
 
-    def next(self):
+    def next(self) -> None:
         if self.cursor < len(self.fields) - 1: self.cursor += 1
 
-    def prev(self):
+    def prev(self) -> None:
         if self.cursor > 0: self.cursor -= 1
 
-    def recalculate_all(self):
+    def recalculate_all(self) -> None:
         var_map = {f.name: f.current_value for f in self.fields}
         for f in self.fields:
             if f.is_calculated:

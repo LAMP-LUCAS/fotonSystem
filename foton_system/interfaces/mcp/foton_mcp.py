@@ -1247,6 +1247,63 @@ def _resolve_client_path(clients_dir: Path, cliente: str, config) -> Path:
 
 
 # ==============================================================================
+# MCP RESOURCES
+# ==============================================================================
+
+@mcp.resource("foton://clientes/{nome}/INFO")
+def resource_cliente_info(nome: str) -> str:
+    """Retorna o conteúdo do Centro de Verdade (INFO-*.md) de um cliente."""
+    try:
+        result = _get_factory().get_client_service().read_client_info(nome)
+        return result['content']
+    except ValueError as e:
+        return f"❌ {e}"
+    except Exception as e:
+        _logger.error(f"resource_cliente_info failed: {e}", exc_info=True)
+        return f"❌ Error: {e}"
+
+
+@mcp.resource("foton://clientes/{nome}/servicos")
+def resource_cliente_servicos(nome: str) -> str:
+    """Retorna a lista de serviços de um cliente."""
+    try:
+        services = _get_factory().get_client_service().list_services(nome)
+        if not services:
+            return f"📭 No services found for client '{nome}'."
+        output = f"📋 {len(services)} serviço(s) de {nome}:\n"
+        for svc in services:
+            subdirs_str = ', '.join(svc['subdirs'])
+            output += f"  📂 {svc['name']} ({svc['file_count']} arquivo(s)) [{subdirs_str}]\n"
+        return output
+    except ValueError as e:
+        return f"❌ {e}"
+    except Exception as e:
+        _logger.error(f"resource_cliente_servicos failed: {e}", exc_info=True)
+        return f"❌ Error: {e}"
+
+
+@mcp.resource("foton://financeiro/resumo")
+def resource_financeiro_resumo() -> str:
+    """Retorna o dashboard financeiro geral do escritório."""
+    try:
+        summary = _get_factory().get_finance_service().get_general_summary()
+        total_entradas = summary.get('total_entradas', 0)
+        total_saidas = summary.get('total_saidas', 0)
+        saldo = total_entradas - total_saidas
+        return (
+            f"📊 Resumo Financeiro Geral\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"  ✅ Entradas: R$ {total_entradas:,.2f}\n"
+            f"  ❌ Saídas:   R$ {total_saidas:,.2f}\n"
+            f"  {'🟢' if saldo >= 0 else '🔴'} Saldo:    R$ {saldo:,.2f}\n"
+            f"  📁 Clientes: {summary.get('total_clientes', 0)}\n"
+        )
+    except Exception as e:
+        _logger.error(f"resource_financeiro_resumo failed: {e}", exc_info=True)
+        return f"❌ Error: {e}"
+
+
+# ==============================================================================
 # SERVER RUN
 # ==============================================================================
 

@@ -474,12 +474,12 @@ _logger.info(f"Bootstrap completed in {_elapsed:.2f}s")
 
 ## Critérios de Aceitação da Sprint
 
-- [ ] **Fase 1:** Zero path traversal risks, temp files limpos, `except` narrowed, `dados_extras` validado
+- [x] **Fase 1:** Zero path traversal risks, temp files limpos, `except` narrowed, `dados_extras` validado
 - [x] **Fase 2:** `client_service.py` fatorado em 3 arquivos + facade, `__init__.py` em módulos faltantes, scripts unificados
-- [ ] **Fase 3:** Max length validation em todas as tools, log rotation, request correlation ID, circuit breaker para ChromaDB, `DocsMcp.md` atualizado, testes de path traversal adicionados
-- [ ] **Fase 4:** SKILL.md com RAG+Watcher, CHANGELOG.md criado, `.opencode/` configurado, skills granulares criados
-- [ ] **Fase 5:** Type hints completos, docstrings adicionadas, resources MCP (opcional), benchmark de inicialização
-- [ ] **Regressão zero:** 237+ testes passando SEMPRE após cada fase
+- [x] **Fase 3:** Max length validation em todas as tools, log rotation, request correlation ID, circuit breaker para ChromaDB, `DocsMcp.md` atualizado, testes de path traversal adicionados
+- [x] **Fase 4:** SKILL.md com RAG+Watcher, CHANGELOG.md criado, skills granulares criados
+- [x] **Fase 5:** Type hints completos, docstrings adicionadas, resources MCP (opcional), benchmark de inicialização
+- [x] **Regressão zero:** 262 testes passando SEMPRE após cada fase
 
 ---
 
