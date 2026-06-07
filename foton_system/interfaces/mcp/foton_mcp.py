@@ -19,6 +19,9 @@ import json
 import subprocess
 import time
 import logging
+import logging.handlers
+import uuid
+import functools
 
 # --- CRITICAL: PATH PATCHING (Must be FIRST) ---
 def _ensure_import_path():
@@ -77,8 +80,10 @@ try:
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "foton_mcp.log"
 
-    # File handler only — never attach a StreamHandler to stdout
-    _handler = logging.FileHandler(str(log_file), encoding="utf-8")
+    # File handler with rotation — never attach a StreamHandler to stdout
+    _handler = logging.handlers.RotatingFileHandler(
+        str(log_file), maxBytes=5*1024*1024, backupCount=3, encoding="utf-8"
+    )
     _handler.setFormatter(logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     ))
@@ -104,6 +109,67 @@ except Exception as e:
 # --- MCP SERVER INSTANCE ---
 mcp = FastMCP("Foton Architecture System")
 _logger.info("FastMCP initialized.")
+
+
+# ==============================================================================
+# HELPERS: Validation + Correlation ID
+# ==============================================================================
+
+_MAX_LENGTHS = {
+    'nome': 200,
+    'apelido': 100,
+    'pergunta': 5000,
+    'descricao': 500,
+    'conteudo': 50000,
+    'cod': 50,
+    'nome_template': 200,
+    'cliente': 200,
+    'secao': 100,
+    'pasta_alvo': 500,
+    'nif': 20,
+    'email': 200,
+    'telefone': 30,
+}
+
+def _validate_str(value: str, field_name: str) -> None:
+    """Validate string length. Raises ValueError if too long."""
+    max_len = _MAX_LENGTHS.get(field_name)
+    if max_len is not None and len(value) > max_len:
+        raise ValueError(
+            f"'{field_name}' exceeds max length ({max_len}): "
+            f"got {len(value)} characters"
+        )
+
+
+def _log_tool_call(func):
+    """Decorator: adds correlation ID + entry/exit logging + auto string validation."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        req_id = str(uuid.uuid4())[:8]
+        _logger.info(f"[req-{req_id}] Tool called: {func.__name__}")
+
+        import inspect
+        try:
+            sig = inspect.signature(func)
+            bound = sig.bind(*args, **kwargs)
+            bound.apply_defaults()
+            for param_name, param_value in bound.arguments.items():
+                if isinstance(param_value, str) and param_value:
+                    _validate_str(param_value, param_name)
+        except ValueError as e:
+            _logger.warning(f"[req-{req_id}] Validation failed: {e}")
+            return f"❌ {e}"
+        except TypeError:
+            pass
+
+        try:
+            result = func(*args, **kwargs)
+            _logger.info(f"[req-{req_id}] Tool completed: {func.__name__}")
+            return result
+        except Exception:
+            _logger.error(f"[req-{req_id}] Tool failed: {func.__name__}", exc_info=True)
+            raise
+    return wrapper
 
 
 # ==============================================================================
@@ -141,16 +207,17 @@ def _get_config():
 # ==============================================================================
 
 @mcp.tool()
+@_log_tool_call
 def ping() -> str:
     """
     Verifies that the Foton MCP server is responsive.
     PROTOCOL: Use this as the very first tool call to ensure the link is active.
     """
-    _logger.info("Tool called: ping")
     return f"🟢 FOTON MCP Online (pid={__import__('os').getpid()}, ts={int(time.time())})"
 
 
 @mcp.tool()
+@_log_tool_call
 def info_sistema() -> str:
     """
     Provides a comprehensive diagnostic of the Foton system's environment.
@@ -158,7 +225,6 @@ def info_sistema() -> str:
     template availability, and active business rules (like missing variable placeholders).
     Returns path configurations and module availability.
     """
-    _logger.info("Tool called: info_sistema")
     try:
         config = _get_config()
         clients_dir = config.base_pasta_clientes
@@ -206,13 +272,13 @@ def info_sistema() -> str:
 # ==============================================================================
 
 @mcp.tool()
+@_log_tool_call
 def listar_clientes() -> str:
     """
     Lists all registered clients in the architecture firm.
     PROTOCOL: Always call this before performing any operation on a client you're not 100% sure exists.
     OUTPUT: Indicates if the client has a "Center of Truth" (📁 = has INFO file) and the count of sub-services.
     """
-    _logger.info("Tool called: listar_clientes")
     try:
         clients = _get_factory().get_client_service().list_clients()
 
@@ -235,13 +301,13 @@ def listar_clientes() -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def cadastrar_cliente(nome: str, apelido: str = "", nif: str = "", email: str = "", telefone: str = "") -> str:
     """
     Creates a new client folder and master record.
     SAFETY: Use 'pipeline_novo_cliente' instead for a safer, non-duplicate workflow.
     Logic: Creates standard folders (ADMINISTRATIVO, FINANCEIRO, PROJETOS) and initial INFO and FINANCEIRO files.
     """
-    _logger.info(f"Tool called: cadastrar_cliente(nome={nome})")
     try:
         from foton_system.modules.clients.application.use_cases.client_service import ClientService
         normalized = ClientService.normalize_client_name(nome)
@@ -269,6 +335,7 @@ def cadastrar_cliente(nome: str, apelido: str = "", nif: str = "", email: str = 
 
 
 @mcp.tool()
+@_log_tool_call
 def ler_ficha_cliente(cliente: str) -> str:
     """
     Reads the 'Center of Truth' (INFO-*.md) for a client.
@@ -276,7 +343,6 @@ def ler_ficha_cliente(cliente: str) -> str:
     technical decisions, and meeting notes needed to understand the client's current state.
     RESOLUTION: Support fuzzy/partial client name matching.
     """
-    _logger.info(f"Tool called: ler_ficha_cliente(cliente={cliente})")
     try:
         result = _get_factory().get_client_service().read_client_info(cliente)
         return (
@@ -293,6 +359,7 @@ def ler_ficha_cliente(cliente: str) -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def atualizar_ficha_cliente(cliente: str, secao: str, conteudo: str) -> str:
     """
     Appends information to a specific section of the client's Center of Truth.
@@ -300,7 +367,6 @@ def atualizar_ficha_cliente(cliente: str, secao: str, conteudo: str) -> str:
     SAFETY: Automatically creates a .bak backup before modifying.
     Sections: Use Markdown headers (e.g., 'Notas de Reunião').
     """
-    _logger.info(f"Tool called: atualizar_ficha_cliente(cliente={cliente}, secao={secao})")
     try:
         backup_name = _get_factory().get_client_service().update_client_info(cliente, secao, conteudo)
         return (
@@ -316,13 +382,13 @@ def atualizar_ficha_cliente(cliente: str, secao: str, conteudo: str) -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def listar_servicos_cliente(cliente: str) -> str:
     """
     Lists sub-projects/services within a client's main folder.
     CONTEXT: Each service represents a distinct project (e.g., 'Reforma Apto 502').
     Ignores system folders like '01_ADMINISTRATIVO'.
     """
-    _logger.info(f"Tool called: listar_servicos_cliente(cliente={cliente})")
     try:
         services = _get_factory().get_client_service().list_services(cliente)
 
@@ -343,6 +409,7 @@ def listar_servicos_cliente(cliente: str) -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def criar_estrutura_servico(cliente: str, nome: str) -> str:
     """
     Creates the full folder structure for a new service under a client.
@@ -351,7 +418,6 @@ def criar_estrutura_servico(cliente: str, nome: str) -> str:
       cliente: Client name (supports fuzzy match)
       nome: Service name
     """
-    _logger.info(f"Tool called: criar_estrutura_servico(cliente={cliente}, nome={nome})")
     try:
         from foton_system.modules.clients.application.use_cases.client_service import ClientService
         normalized = ClientService.normalize_client_name(nome)
@@ -391,13 +457,13 @@ def criar_estrutura_servico(cliente: str, nome: str) -> str:
 # ==============================================================================
 
 @mcp.tool()
+@_log_tool_call
 def registrar_financeiro(cliente: str, descricao: str, valor: float, tipo: str = "ENTRADA") -> str:
     """
     Records a financial entry (income/expense) in the client's ledger.
     TYPES: 'ENTRADA' (credit) or 'SAIDA' (debit).
     Value: Always pass a positive float.
     """
-    _logger.info(f"Tool called: registrar_financeiro(cliente={cliente}, valor={valor})")
     try:
         from foton_system.core.ops.op_finance_entry import OpFinanceEntry
         op = OpFinanceEntry(actor="Agent_MCP")
@@ -419,11 +485,11 @@ def registrar_financeiro(cliente: str, descricao: str, valor: float, tipo: str =
 
 
 @mcp.tool()
+@_log_tool_call
 def consultar_financeiro(cliente: str) -> str:
     """
     Returns the financial balance and transaction summary for a specific client.
     """
-    _logger.info(f"Tool called: consultar_financeiro(cliente={cliente})")
     try:
         service = _get_factory().get_finance_service()
         result = service.get_summary(cliente)
@@ -447,12 +513,12 @@ def consultar_financeiro(cliente: str) -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def resumo_financeiro_geral() -> str:
     """
     Firm-wide financial dashboard. 
     CONTEXT: Use this for high-level business intelligence to identify profitable clients or cash-flow issues.
     """
-    _logger.info("Tool called: resumo_financeiro_geral")
     try:
         results = _get_factory().get_finance_service().get_firm_summary()
 
@@ -488,12 +554,12 @@ def resumo_financeiro_geral() -> str:
 # ==============================================================================
 
 @mcp.tool()
+@_log_tool_call
 def listar_templates() -> str:
     """
     Lists all available document templates (DOCX for contracts, PPTX for proposals).
     PROTOCOL: Show this to the user to let them choose the document type they want to generate.
     """
-    _logger.info("Tool called: listar_templates")
     try:
         result = _get_factory().get_document_service().list_templates()
         if not result.success:
@@ -526,12 +592,12 @@ def listar_templates() -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def listar_documentos_cliente(cliente: str, servico: str = "") -> str:
     """
     Lists existing files for a client or specific service.
     CONTEXT: Use this to check if a document was already generated before creating a duplicate.
     """
-    _logger.info(f"Tool called: listar_documentos_cliente(cliente={cliente}, servico={servico})")
     try:
         config = _get_config()
         client_path = _resolve_client_path(config.base_pasta_clientes, cliente, config)
@@ -575,6 +641,7 @@ def listar_documentos_cliente(cliente: str, servico: str = "") -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def gerar_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -> str:
     """
     Merging Engine: Template + Client Data = Generated Document.
@@ -584,7 +651,6 @@ def gerar_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -
     3. The file is saved with prefix 'GERADO_' in the client's folder.
     CASE-INSENSITIVITY: Variables are matched regardless of casing (@CLIENTE == @cliente).
     """
-    _logger.info(f"Tool called: gerar_documento(cliente={cliente}, template={nome_template})")
     try:
         _validate_dados_extras(dados_extras)
         from foton_system.core.ops.op_doc_gen import OpGenerateDocument
@@ -606,6 +672,7 @@ def gerar_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -
 
 
 @mcp.tool()
+@_log_tool_call
 def validar_template(cliente: str, nome_template: str, arquivo_dados: str = "") -> str:
     """
     Pre-flight validation: Checks if the INFO files provide all variables required by the template.
@@ -613,7 +680,6 @@ def validar_template(cliente: str, nome_template: str, arquivo_dados: str = "") 
     PROTOCOL: Mandatory check before calling 'gerar_documento'.
     AGNOSTICISM: Searches the entire folder hierarchy for information.
     """
-    _logger.info(f"Tool called: validar_template(cliente={cliente}, template={nome_template})")
     try:
         config = _get_config()
         factory = _get_factory()
@@ -657,12 +723,12 @@ def validar_template(cliente: str, nome_template: str, arquivo_dados: str = "") 
 # ==============================================================================
 
 @mcp.tool()
+@_log_tool_call
 def listar_arquivos_dados(cliente: str) -> str:
     """
     Lists data files (.md, .txt) available for a client.
     CONTEXT: These files contain key-value pairs used during document generation.
     """
-    _logger.info(f"Tool called: listar_arquivos_dados(cliente={cliente})")
     try:
         client_path = _get_factory().get_client_service().resolve_client_path(cliente)
         files = _get_factory().get_document_service().list_client_data_files(str(client_path))
@@ -680,6 +746,7 @@ def listar_arquivos_dados(cliente: str) -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def criar_arquivo_dados(cliente: str, cod: str, descricao: str = "PROPOSTA") -> str:
     """
     Creates a custom data file for a client using the centralized template.
@@ -688,7 +755,6 @@ def criar_arquivo_dados(cliente: str, cod: str, descricao: str = "PROPOSTA") -> 
       cod: Document code (e.g., 'ABC123')
       descricao: Description/short name (default 'PROPOSTA')
     """
-    _logger.info(f"Tool called: criar_arquivo_dados(cliente={cliente}, cod={cod})")
     try:
         client_path = _get_factory().get_client_service().resolve_client_path(cliente)
         result = _get_factory().get_document_service().create_custom_data_file(
@@ -718,12 +784,12 @@ print(json.dumps(res, ensure_ascii=False))
 """
 
 @mcp.tool()
+@_log_tool_call
 def consultar_conhecimento(pergunta: str) -> str:
     """
     Semantic search (RAG) across past projects and reference materials.
     CONTEXT: Use this to find 'How did we solve X for client Y before?' or 'What are the rules for Z?'.
     """
-    _logger.info(f"Tool called: consultar_conhecimento(pergunta='{pergunta[:50]}...')")
     try:
         # When frozen (PyInstaller), delegate to system Python which has chromadb globally
         if getattr(sys, 'frozen', False):
@@ -798,12 +864,12 @@ def consultar_conhecimento(pergunta: str) -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def indexar_conhecimento(pasta_alvo: str = "") -> str:
     """
     Updates the semantic database by indexing documents.
     PROTOCOL: Run this after adding many new files or manually updating INFO files to ensure RAG stays current.
     """
-    _logger.info(f"Tool called: indexar_conhecimento(alvo={pasta_alvo})")
     try:
         from foton_system.core.ops.op_index_knowledge import OpIndexKnowledge
         op = OpIndexKnowledge(actor="Agent_MCP")
@@ -823,11 +889,11 @@ def indexar_conhecimento(pasta_alvo: str = "") -> str:
 # ==============================================================================
 
 @mcp.tool()
+@_log_tool_call
 def sincronizar_base() -> str:
     """
     Syncs the Excel Master Dashboard with the filesystem.
     """
-    _logger.info("Tool called: sincronizar_base")
     try:
         result = _get_factory().get_sync_service().sync_dashboard()
         if result is None or result == 0:
@@ -840,11 +906,11 @@ def sincronizar_base() -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def sincronizar_clientes() -> str:
     """
     Discovers new client/service folders and adds them to the Excel database.
     """
-    _logger.info("Tool called: sincronizar_clientes")
     try:
         svc = _get_factory().get_client_service()
         svc.sync_clients_db_from_folders()
@@ -857,12 +923,12 @@ def sincronizar_clientes() -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def sincronizar_pastas_clientes() -> str:
     """
     Creates client folders for entries in the database that are missing folders.
     Reverse direction of 'sincronizar_clientes'.
     """
-    _logger.info("Tool called: sincronizar_pastas_clientes")
     try:
         result = _get_factory().get_client_service().sync_client_folders_from_db()
         return f"✅ {result}"
@@ -873,13 +939,13 @@ def sincronizar_pastas_clientes() -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def sincronizar_pastas_servicos(cliente: str = "") -> str:
     """
     Creates service folders for entries in the database that are missing folders.
     PARAMETERS:
       cliente: Optional client alias to filter (default: all clients)
     """
-    _logger.info(f"Tool called: sincronizar_pastas_servicos(cliente={cliente})")
     try:
         alias = cliente if cliente.strip() else None
         result = _get_factory().get_client_service().sync_service_folders_from_db(client_alias=alias)
@@ -893,11 +959,11 @@ def sincronizar_pastas_servicos(cliente: str = "") -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def exportar_dados_clientes() -> str:
     """
     Exports client data from the database to MD files in client folders.
     """
-    _logger.info("Tool called: exportar_dados_clientes")
     try:
         result = _get_factory().get_client_service().export_client_data()
         return f"✅ {result}"
@@ -908,11 +974,11 @@ def exportar_dados_clientes() -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def exportar_dados_servicos() -> str:
     """
     Exports service data from the database to MD files in service folders.
     """
-    _logger.info("Tool called: exportar_dados_servicos")
     try:
         result = _get_factory().get_client_service().export_service_data()
         return f"✅ {result}"
@@ -923,11 +989,11 @@ def exportar_dados_servicos() -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def importar_dados_servicos() -> str:
     """
     Imports service data from MD files back into the database.
     """
-    _logger.info("Tool called: importar_dados_servicos")
     try:
         result = _get_factory().get_client_service().import_service_data()
         return f"✅ {result}"
@@ -942,13 +1008,13 @@ def importar_dados_servicos() -> str:
 # ==============================================================================
 
 @mcp.tool()
+@_log_tool_call
 def configurar_agente() -> str:
     """
     Automates the formal installation of the Foton AI Skill into the Gemini CLI.
     Copies the SKILL.md from the repository to the local .gemini/skills folder.
     AI RECOMMENDED: Run this to enable specialized architectural reasoning from the repository source.
     """
-    _logger.info("Tool called: configurar_agente")
     try:
         config = _get_config()
         # Source is in the repository
@@ -987,13 +1053,13 @@ def configurar_agente() -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def pipeline_novo_cliente(nome: str, apelido: str = "", nif: str = "", email: str = "", telefone: str = "") -> str:
 
     """
     SAFE workflow to create a client while checking for duplicates.
     AI RECOMMENDED: Always prefer this over 'cadastrar_cliente'.
     """
-    _logger.info(f"Tool called: pipeline_novo_cliente(nome={nome})")
     try:
         from foton_system.modules.clients.application.use_cases.client_service import ClientService
         normalized = ClientService.normalize_client_name(nome)
@@ -1015,13 +1081,13 @@ def pipeline_novo_cliente(nome: str, apelido: str = "", nif: str = "", email: st
 
 
 @mcp.tool()
+@_log_tool_call
 def pipeline_emitir_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -> str:
     """
     SAFE pre-flight report before document generation.
     AI RECOMMENDED: Always run this before 'gerar_documento' to provide a summary to the user.
     Logic: Validates variables AND checks for existing generated files to avoid duplicates.
     """
-    _logger.info(f"Tool called: pipeline_emitir_documento(cliente={cliente}, template={nome_template})")
     try:
         _validate_dados_extras(dados_extras)
         svc = _get_factory().get_client_service()
@@ -1054,12 +1120,12 @@ def pipeline_emitir_documento(cliente: str, nome_template: str, dados_extras: di
 # ==============================================================================
 
 @mcp.tool()
+@_log_tool_call
 def consultar_cub() -> str:
     """
     Returns the current CUB (Custo Unitário Básico) reference month and download URL.
     CONTEXT: Used in document generation for construction cost estimates (@LinkCUB, @ReferenciaCUB).
     """
-    _logger.info("Tool called: consultar_cub")
     try:
         from foton_system.modules.shared.infrastructure.services.cub_service import CubService
         ref = CubService.get_reference_label()
@@ -1079,12 +1145,12 @@ def consultar_cub() -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def verificar_atualizacao() -> str:
     """
     Checks GitHub for a newer version of the Foton System.
     PROTOCOL: Run periodically to ensure the system is up-to-date.
     """
-    _logger.info("Tool called: verificar_atualizacao")
     try:
         from foton_system.modules.shared.infrastructure.services.update_service import UpdateChecker
         from foton_system import __version__
@@ -1106,13 +1172,13 @@ def verificar_atualizacao() -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def consultar_auditoria(limite: int = 10) -> str:
     """
     Shows the most recent audit events (POP operations).
     PARAMETERS:
       limite: Number of events to show (default 10)
     """
-    _logger.info(f"Tool called: consultar_auditoria(limite={limite})")
     try:
         from foton_system.core.ops.audit_logger import AuditLogger
         events = AuditLogger().get_recent_events(limit=limite)

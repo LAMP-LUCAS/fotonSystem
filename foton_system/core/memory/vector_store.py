@@ -8,19 +8,85 @@ DESIGN NOTES:
 - Singleton para evitar múltiplas instâncias do modelo em memória
 - Graceful degradation: falha na inicialização é logada mas não impede o sistema
 - Persistência local em %LOCALAPPDATA%/FotonSystem/memory_db
+- Circuit breaker: após 3 falhas consecutivas no ChromaDB, entra em OPEN por 60s
 """
 
 import os
 import sys
+import time
 import logging
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable
 
 logger = logging.getLogger(__name__)
 
 # Modelo otimizado para português brasileiro
 EMBEDDING_MODEL = 'paraphrase-multilingual-MiniLM-L12-v2'
 COLLECTION_NAME = 'foton_knowledge_base'
+
+
+class CircuitBreakerOpenError(RuntimeError):
+    """Raised when the circuit breaker is OPEN and refuses a call."""
+
+
+class CircuitBreaker:
+    """
+    Circuit breaker for external service calls (e.g. ChromaDB).
+
+    States:
+        CLOSED  — normal operation, calls pass through
+        OPEN    — failures exceeded threshold, calls are refused
+        HALF_OPEN — after timeout, one probe call is allowed
+
+    Threshold: 3 consecutive failures → OPEN
+    Recovery:  60s in OPEN → HALF_OPEN → 1 probe → CLOSED or back to OPEN
+    """
+
+    def __init__(self, failure_threshold: int = 3, recovery_timeout: float = 60.0):
+        self._state = "CLOSED"
+        self._failure_count = 0
+        self._failure_threshold = failure_threshold
+        self._recovery_timeout = recovery_timeout
+        self._last_failure_time = 0.0
+        self._last_exception: Optional[str] = None
+
+    @property
+    def state(self) -> str:
+        return self._state
+
+    @property
+    def last_exception(self) -> Optional[str]:
+        return self._last_exception
+
+    def call(self, func: Callable, *args: Any, **kwargs: Any) -> Any:
+        if self._state == "OPEN":
+            if time.time() - self._last_failure_time >= self._recovery_timeout:
+                self._state = "HALF_OPEN"
+                logger.info("Circuit breaker HALF_OPEN — allowing probe call")
+            else:
+                raise CircuitBreakerOpenError(
+                    f"Circuit breaker is OPEN (retry in {self._recovery_timeout - (time.time() - self._last_failure_time):.0f}s)"
+                )
+
+        try:
+            result = func(*args, **kwargs)
+            self._last_exception = None
+            if self._state == "HALF_OPEN":
+                self._state = "CLOSED"
+                self._failure_count = 0
+                logger.info("Circuit breaker CLOSED — probe call succeeded")
+            return result
+        except Exception as e:
+            self._failure_count += 1
+            self._last_exception = f"{type(e).__name__}: {e}"
+            if self._state == "HALF_OPEN" or self._failure_count >= self._failure_threshold:
+                self._state = "OPEN"
+                self._last_failure_time = time.time()
+                logger.warning(
+                    f"Circuit breaker OPEN after {self._failure_count} failures "
+                    f"(next retry in {self._recovery_timeout:.0f}s): {self._last_exception}"
+                )
+            raise
 
 
 class VectorStore:
@@ -69,6 +135,7 @@ class VectorStore:
                 metadata={"hnsw:space": "cosine"}
             )
 
+            self._breaker = CircuitBreaker()
             self._initialized = True
             logger.info(f"VectorStore inicializado em {self.db_path}")
 
@@ -148,6 +215,37 @@ class VectorStore:
         if not DependencyManager.install_plugin("ai_pack", AI_PACK_PACKAGES):
             raise RuntimeError("Falha ao instalar pacotes de IA.")
 
+    def _do_add_documents(
+        self,
+        documents: List[str],
+        metadatas: List[Dict[str, Any]],
+        ids: List[str]
+    ) -> None:
+        """Actual ChromaDB upsert (unprotected)."""
+        embeddings = self.embedder.encode(documents).tolist()
+        self.collection.upsert(
+            embeddings=embeddings,
+            documents=documents,
+            metadatas=metadatas,
+            ids=ids
+        )
+
+    def _do_query(self, query_text: str, n_results: int = 5) -> Dict[str, Any]:
+        """Actual ChromaDB query (unprotected)."""
+        query_embedding = self.embedder.encode([query_text]).tolist()
+        return self.collection.query(
+            query_embeddings=query_embedding,
+            n_results=n_results
+        )
+
+    def _do_delete(self, ids: List[str]) -> None:
+        """Actual ChromaDB delete (unprotected)."""
+        self.collection.delete(ids=ids)
+
+    def _do_count(self) -> int:
+        """Actual ChromaDB count (unprotected)."""
+        return self.collection.count()
+
     def add_documents(
         self,
         documents: List[str],
@@ -156,6 +254,7 @@ class VectorStore:
     ) -> None:
         """
         Gera embeddings e insere/atualiza documentos no banco vetorial.
+        Protegido por circuit breaker — retorna silenciosamente se indisponível.
 
         Args:
             documents: Lista de textos a serem indexados
@@ -164,19 +263,15 @@ class VectorStore:
         """
         if not documents:
             return
-
-        embeddings = self.embedder.encode(documents).tolist()
-
-        self.collection.upsert(
-            embeddings=embeddings,
-            documents=documents,
-            metadatas=metadatas,
-            ids=ids
-        )
+        try:
+            self._breaker.call(self._do_add_documents, documents, metadatas, ids)
+        except CircuitBreakerOpenError:
+            logger.warning("add_documents skipped — ChromaDB unavailable (circuit OPEN)")
 
     def query(self, query_text: str, n_results: int = 5) -> Dict[str, Any]:
         """
         Busca semântica na base de conhecimento.
+        Protegido por circuit breaker — retorna vazio se indisponível.
 
         Args:
             query_text: Pergunta ou termo de busca em linguagem natural
@@ -185,17 +280,28 @@ class VectorStore:
         Returns:
             Dicionário com 'documents', 'metadatas', 'distances' e 'ids'
         """
-        query_embedding = self.embedder.encode([query_text]).tolist()
-
-        return self.collection.query(
-            query_embeddings=query_embedding,
-            n_results=n_results
-        )
+        try:
+            return self._breaker.call(self._do_query, query_text, n_results)
+        except CircuitBreakerOpenError:
+            logger.warning("query skipped — ChromaDB unavailable (circuit OPEN)")
+            return {
+                "documents": [[]],
+                "metadatas": [[]],
+                "distances": [[]],
+                "ids": [[]]
+            }
 
     def delete(self, ids: List[str]) -> None:
         """Remove documentos do banco vetorial pelos seus IDs."""
-        self.collection.delete(ids=ids)
+        try:
+            self._breaker.call(self._do_delete, ids)
+        except CircuitBreakerOpenError:
+            logger.warning("delete skipped — ChromaDB unavailable (circuit OPEN)")
 
     def count(self) -> int:
         """Retorna a quantidade de documentos indexados."""
-        return self.collection.count()
+        try:
+            return self._breaker.call(self._do_count)
+        except CircuitBreakerOpenError:
+            logger.warning("count skipped — ChromaDB unavailable (circuit OPEN)")
+            return 0
