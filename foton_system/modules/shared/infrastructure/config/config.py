@@ -62,7 +62,10 @@ class Config:
 
     @property
     def ignored_folders(self):
-        return self.get('ignored_folders', [])
+        configured = self.get('ignored_folders', [])
+        functional = [self.folder_doc, self.folder_adm, self.folder_op]
+        deduped = list(dict.fromkeys(configured + functional))
+        return deduped
 
     @property
     def clean_missing_variables(self):
@@ -71,6 +74,26 @@ class Config:
     @property
     def missing_variable_placeholder(self):
         return self.get('missing_variable_placeholder', "---")
+
+    @property
+    def folder_doc(self):
+        fc = self.get('folder_conventions', {})
+        return fc.get('doc', '00_DOC')
+
+    @property
+    def folder_adm(self):
+        fc = self.get('folder_conventions', {})
+        return fc.get('adm', '01_ADM')
+
+    @property
+    def folder_op(self):
+        fc = self.get('folder_conventions', {})
+        return fc.get('op', '02_OPERACAO')
+
+    @property
+    def folder_op_phases(self):
+        fc = self.get('folder_conventions', {})
+        return fc.get('op_phases', ['EP', 'AP', 'EXE', 'REL'])
 
     @property
     def pomodoro_work_time(self):

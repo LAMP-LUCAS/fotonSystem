@@ -41,14 +41,14 @@ class TestMenuUI(unittest.TestCase):
     def test_navigation_to_settings(self):
         """Valida a navegação para o menu de configurações."""
         # Mock inputs: 5 (Configurações), 0 (Voltar), 0 (Sair)
-        with patch('builtins.input', side_effect=['5', '0', '0']), \
+        with patch('builtins.input', side_effect=['6', '0', '0']), \
              patch('builtins.print') as mock_print:
             with self.assertRaises(SystemExit):
                 self.menu.run()
             
             printed_content = "".join([call.args[0] for call in mock_print.call_args_list if call.args])
             self.assertIn("Configurações", printed_content)
-            self.assertIn("Pasta de Clientes", printed_content)
+            self.assertIn("Pasta Clientes:", printed_content)
 
 if __name__ == '__main__':
     unittest.main()

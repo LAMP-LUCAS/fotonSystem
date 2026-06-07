@@ -14,6 +14,9 @@ ARCHITECTURE NOTES:
 from mcp.server.fastmcp import FastMCP
 from pathlib import Path
 import sys
+import os
+import json
+import subprocess
 import time
 import logging
 
@@ -32,6 +35,37 @@ def _ensure_import_path():
             sys.path.insert(0, root_str)
 
 _ensure_import_path()
+
+def _find_project_root() -> Path:
+    """Retorna o diretório raiz do projeto (onde foton_system/ está)."""
+    if getattr(sys, 'frozen', False):
+        # Inside frozen EXE: look for the real project source on OneDrive
+        candidates = [
+            Path.home() / "OneDrive" / "LAMP_ARQUITETURA" / "fotonSystem",
+            Path(os.environ.get("USERPROFILE", "")) / "OneDrive" / "LAMP_ARQUITETURA" / "fotonSystem",
+            Path("C:\\Users") / os.environ.get("USERNAME", "Lucas") / "OneDrive" / "LAMP_ARQUITETURA" / "fotonSystem",
+        ]
+        for c in candidates:
+            if (c / "foton_system" / "__init__.py").exists():
+                return c
+    p = Path(__file__).resolve()
+    for parent in p.parents:
+        if (parent / "foton_system" / "__init__.py").exists():
+            return parent
+    return p.parents[3]
+
+def _find_system_python() -> Path:
+    """Retorna o caminho do Python do sistema (não o frozen) para subprocess RAG."""
+    candidates = [
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Python" / "Python312" / "python.exe",
+        Path.home() / "AppData" / "Local" / "Programs" / "Python" / "Python312" / "python.exe",
+        Path("C:\\Program Files") / "Python312" / "python.exe",
+        Path("C:\\Python312") / "python.exe",
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    return candidates[0]
 
 # --- LOGGING SETUP (file only, never stdout) ---
 from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
@@ -160,6 +194,9 @@ def info_sistema() -> str:
             f"  📝 Placeholder: '{config.missing_variable_placeholder}'\n"
         )
         return output
+    except OSError as e:
+        _logger.error(f"info_sistema I/O error: {e}", exc_info=True)
+        return f"❌ File system error: {e}"
     except Exception as e:
         return f"❌ Error retrieving system info: {e}"
 
@@ -189,6 +226,9 @@ def listar_clientes() -> str:
             output += f"  {marker} {c['name']}{svc_txt}\n"
 
         return output
+    except OSError as e:
+        _logger.error(f"listar_clientes I/O error: {e}", exc_info=True)
+        return f"❌ File system error: {e}"
     except Exception as e:
         _logger.error(f"listar_clientes failed: {e}", exc_info=True)
         return f"❌ Error listing clients: {e}"
@@ -203,10 +243,12 @@ def cadastrar_cliente(nome: str, apelido: str = "", nif: str = "", email: str = 
     """
     _logger.info(f"Tool called: cadastrar_cliente(nome={nome})")
     try:
+        from foton_system.modules.clients.application.use_cases.client_service import ClientService
+        normalized = ClientService.normalize_client_name(nome)
         from foton_system.core.ops.op_create_client import OpCreateClient
         op = OpCreateClient(actor="Agent_MCP")
         result = op.execute(
-            name=nome,
+            name=normalized,
             alias=apelido if apelido else None,
             nif=nif,
             email=email,
@@ -214,7 +256,8 @@ def cadastrar_cliente(nome: str, apelido: str = "", nif: str = "", email: str = 
         )
         return (
             f"✅ Cliente criado com sucesso (POP Auditado)\n"
-            f"   Nome: {nome}\n"
+            f"   Nome original: {nome}\n"
+            f"   Nome normalizado: {normalized}\n"
             f"   Pasta: {result['client_path']}\n"
             f"   Código: {result['client_id']}"
         )
@@ -299,6 +342,50 @@ def listar_servicos_cliente(cliente: str) -> str:
         return f"❌ Error listing services: {e}"
 
 
+@mcp.tool()
+def criar_estrutura_servico(cliente: str, nome: str) -> str:
+    """
+    Creates the full folder structure for a new service under a client.
+    Includes {DOC}, {ADM}, {OP} with configurable op phases.
+    PARAMETERS:
+      cliente: Client name (supports fuzzy match)
+      nome: Service name
+    """
+    _logger.info(f"Tool called: criar_estrutura_servico(cliente={cliente}, nome={nome})")
+    try:
+        from foton_system.modules.clients.application.use_cases.client_service import ClientService
+        normalized = ClientService.normalize_client_name(nome)
+        config = _get_config()
+        svc = _get_factory().get_client_service()
+        client_path = svc.resolve_client_path(cliente)
+        service_path = client_path / normalized
+        if service_path.exists():
+            return f"⚠️ Service '{normalized}' already exists under '{cliente}'."
+        service_path.mkdir(parents=True)
+        (service_path / config.folder_doc).mkdir()
+        (service_path / config.folder_adm).mkdir()
+        op_path = service_path / config.folder_op
+        op_path.mkdir()
+        for phase in config.folder_op_phases:
+            (op_path / phase).mkdir()
+        from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+        template_path = PathManager.get_info_template_path()
+        if template_path.exists():
+            import shutil
+            shutil.copy(template_path, service_path / "INFO-SERVICO.md")
+        return (
+            f"✅ Estrutura de serviço criada: '{normalized}' em '{cliente}'\n"
+            f"   📁 {config.folder_doc}/\n"
+            f"   📁 {config.folder_adm}/\n"
+            f"   📁 {config.folder_op}/ ({', '.join(config.folder_op_phases)})"
+        )
+    except ValueError as e:
+        return f"❌ {e}"
+    except Exception as e:
+        _logger.error(f"criar_estrutura_servico failed: {e}", exc_info=True)
+        return f"❌ Error creating service structure: {e}"
+
+
 # ==============================================================================
 # FINANCIAL TOOLS
 # ==============================================================================
@@ -321,6 +408,11 @@ def registrar_financeiro(cliente: str, descricao: str, valor: float, tipo: str =
             type=tipo
         )
         return f"✅ {result['message']} (POP Auditado)"
+    except ValueError as e:
+        return f"❌ Invalid data: {e}"
+    except OSError as e:
+        _logger.error(f"registrar_financeiro I/O: {e}", exc_info=True)
+        return f"❌ File system error: {e}"
     except Exception as e:
         _logger.error(f"registrar_financeiro failed: {e}", exc_info=True)
         return f"❌ Error: {e}"
@@ -344,6 +436,11 @@ def consultar_financeiro(cliente: str) -> str:
                 f"   Saldo:    R$ {result.balance:.2f}"
             )
         return f"❌ {result.message}"
+    except ValueError as e:
+        return f"❌ Invalid client: {e}"
+    except OSError as e:
+        _logger.error(f"consultar_financeiro I/O: {e}", exc_info=True)
+        return f"❌ File system error: {e}"
     except Exception as e:
         _logger.error(f"consultar_financeiro failed: {e}", exc_info=True)
         return f"❌ Error: {e}"
@@ -378,6 +475,9 @@ def resumo_financeiro_geral() -> str:
             f"(Rec: R$ {total_income:,.2f} | Desp: R$ {total_expense:,.2f})"
         )
         return output
+    except OSError as e:
+        _logger.error(f"resumo_financeiro_geral I/O: {e}", exc_info=True)
+        return f"❌ File system error: {e}"
     except Exception as e:
         _logger.error(f"resumo_financeiro_geral failed: {e}", exc_info=True)
         return f"❌ Error: {e}"
@@ -417,6 +517,9 @@ def listar_templates() -> str:
             return "📭 No templates found."
 
         return output
+    except OSError as e:
+        _logger.error(f"listar_templates I/O: {e}", exc_info=True)
+        return f"❌ File system error: {e}"
     except Exception as e:
         _logger.error(f"listar_templates failed: {e}", exc_info=True)
         return f"❌ Error: {e}"
@@ -483,6 +586,7 @@ def gerar_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -
     """
     _logger.info(f"Tool called: gerar_documento(cliente={cliente}, template={nome_template})")
     try:
+        _validate_dados_extras(dados_extras)
         from foton_system.core.ops.op_doc_gen import OpGenerateDocument
         op = OpGenerateDocument(actor="Agent_MCP")
         result = op.execute(
@@ -494,6 +598,8 @@ def gerar_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -
             f"✅ Documento Gerado (POP Auditado)\n"
             f"   Arquivo: {result['output_path']}"
         )
+    except ValueError as e:
+        return f"❌ Invalid dados_extras: {e}"
     except Exception as e:
         _logger.error(f"gerar_documento failed: {e}", exc_info=True)
         return f"❌ Erro POP: {e}"
@@ -515,9 +621,10 @@ def validar_template(cliente: str, nome_template: str, arquivo_dados: str = "") 
         svc = factory.get_client_service()
         client_path = svc.resolve_client_path(cliente)
 
-        template_path = config.templates_path / nome_template
+        safe_name = Path(nome_template).name
+        template_path = config.templates_path / safe_name
         if not template_path.exists():
-            return f"❌ Template not found: {nome_template}"
+            return f"❌ Template not found: {safe_name}"
 
         doc_type = template_path.suffix.lstrip('.').lower()
         if arquivo_dados:
@@ -539,6 +646,8 @@ def validar_template(cliente: str, nome_template: str, arquivo_dados: str = "") 
         for key in missing:
             output += f"   ❌ {key}\n"
         return output
+    except OSError as e:
+        return f"❌ File access error: {e}"
     except Exception as e:
         return f"❌ Validation error: {e}"
 
@@ -599,6 +708,15 @@ def criar_arquivo_dados(cliente: str, cod: str, descricao: str = "PROPOSTA") -> 
 # KNOWLEDGE / RAG TOOLS
 # ==============================================================================
 
+_RAG_WRAPPER = r"""import sys, json
+sys.path.insert(0, r"{PROJECT_ROOT}")
+sys.stdout.reconfigure(encoding='utf-8')
+from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
+op = OpQueryKnowledge(actor="Agent_MCP")
+res = op.execute(query=sys.argv[1])
+print(json.dumps(res, ensure_ascii=False))
+"""
+
 @mcp.tool()
 def consultar_conhecimento(pergunta: str) -> str:
     """
@@ -607,18 +725,74 @@ def consultar_conhecimento(pergunta: str) -> str:
     """
     _logger.info(f"Tool called: consultar_conhecimento(pergunta='{pergunta[:50]}...')")
     try:
-        from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
-        op = OpQueryKnowledge(actor="Agent_MCP")
-        result = op.execute(query=pergunta)
+        # When frozen (PyInstaller), delegate to system Python which has chromadb globally
+        if getattr(sys, 'frozen', False):
+            import tempfile
+            project_root = _find_project_root()
+            system_python = _find_system_python()
+            code = _RAG_WRAPPER.replace("{PROJECT_ROOT}", str(project_root))
+            tmp_dir = Path(tempfile.mkdtemp(prefix="foton_rag_"))
+            script_path = tmp_dir / "_rag_run.py"
+            script_path.write_text(code, encoding='utf-8')
+            clean_env = {
+                "PATH": os.environ.get("PATH", ""),
+                "USERPROFILE": os.environ.get("USERPROFILE", ""),
+                "LOCALAPPDATA": os.environ.get("LOCALAPPDATA", ""),
+                "APPDATA": os.environ.get("APPDATA", ""),
+                "SYSTEMROOT": os.environ.get("SYSTEMROOT", ""),
+                "HOMEDRIVE": os.environ.get("HOMEDRIVE", ""),
+                "HOMEPATH": os.environ.get("HOMEPATH", ""),
+                "HF_HOME": str(Path.home() / ".cache" / "huggingface"),
+                "PYTHONIOENCODING": "utf-8",
+            }
+            _logger.debug(f"Running subprocess: {system_python} {script_path} {pergunta[:50]}")
+            _logger.debug(f"Project root: {project_root}")
+            _logger.debug(f"Script file exists: {script_path.exists()}, size: {script_path.stat().st_size if script_path.exists() else 0}")
+            try:
+                result = subprocess.run(
+                    [str(system_python), str(script_path), pergunta],
+                    stdin=subprocess.DEVNULL, capture_output=True,
+                    text=True, encoding='utf-8', timeout=120,
+                    env=clean_env, creationflags=subprocess.CREATE_NO_WINDOW
+                )
+            except OSError as e:
+                _logger.error(f"Subprocess OSError: {e}")
+                return f"❌ Knowledge query failed to start: {e}"
+            finally:
+                import shutil
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+            _logger.debug(f"Subprocess done: rc={result.returncode}, out={len(result.stdout)}, err={len(result.stderr)}")
+            if result.returncode != 0:
+                full_stderr = result.stderr if result.stderr else "(empty)"
+                _logger.error(f"Subprocess failed (full): {full_stderr}")
+                return f"❌ Knowledge query error: {full_stderr[:500]}"
+            if not result.stdout:
+                return "❌ Knowledge query returned empty response."
+            try:
+                data = json.loads(result.stdout)
+            except json.JSONDecodeError as e:
+                _logger.error(f"JSON parse error: {e}, stdout={result.stdout[:200]}")
+                return f"❌ Knowledge query parse error: {e}"
+        else:
+            from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
+            op = OpQueryKnowledge(actor="Agent_MCP")
+            data = op.execute(query=pergunta)
 
-        if result["status"] == "EMPTY":
+        if data.get("status") == "EMPTY":
             return "📭 No relevant knowledge found."
 
         output = []
-        for i, r in enumerate(result["results"], 1):
+        for i, r in enumerate(data.get("results", []), 1):
             output.append(f"--- [{i}] Source: {r['source']} (Similarity: {r['score']:.0%}) ---\n{r['document']}\n")
 
         return "\n".join(output)
+    except subprocess.TimeoutExpired as e:
+        stderr_snippet = (e.stderr[-500:] if e.stderr else "(empty)").replace("\n", " | ")
+        _logger.error(f"Subprocess timed out. stderr tail: {stderr_snippet}")
+        return f"❌ Knowledge query timed out after 120s."
+    except (OSError, subprocess.SubprocessError) as e:
+        _logger.error(f"consultar_conhecimento subprocess error: {e}", exc_info=True)
+        return f"❌ Knowledge query failed: {e}"
     except Exception as e:
         return f"❌ Knowledge query error: {e}"
 
@@ -636,6 +810,10 @@ def indexar_conhecimento(pasta_alvo: str = "") -> str:
         kwargs = {"target_path": pasta_alvo} if pasta_alvo.strip() else {}
         result = op.execute(**kwargs)
         return f"✅ Knowledge base updated! Files: {result['files_scanned']}, Chunks: {result['chunks_created']}"
+    except ValueError as e:
+        return f"❌ Invalid parameters: {e}"
+    except OSError as e:
+        return f"❌ File access error: {e}"
     except Exception as e:
         return f"❌ Indexing error: {e}"
 
@@ -655,6 +833,8 @@ def sincronizar_base() -> str:
         if result is None or result == 0:
             return "⚠️ No clients found."
         return f"✅ Dashboard synchronized! Records: {result}"
+    except OSError as e:
+        return f"❌ File access error: {e}"
     except Exception as e:
         return f"❌ Sync error: {e}"
 
@@ -670,6 +850,8 @@ def sincronizar_clientes() -> str:
         svc.sync_clients_db_from_folders()
         svc.sync_services_db_from_folders()
         return "✅ Client & service databases synchronized!"
+    except OSError as e:
+        return f"❌ File access error: {e}"
     except Exception as e:
         return f"❌ Client sync error: {e}"
 
@@ -684,6 +866,8 @@ def sincronizar_pastas_clientes() -> str:
     try:
         result = _get_factory().get_client_service().sync_client_folders_from_db()
         return f"✅ {result}"
+    except OSError as e:
+        return f"❌ File access error: {e}"
     except Exception as e:
         return f"❌ Error: {e}"
 
@@ -700,6 +884,10 @@ def sincronizar_pastas_servicos(cliente: str = "") -> str:
         alias = cliente if cliente.strip() else None
         result = _get_factory().get_client_service().sync_service_folders_from_db(client_alias=alias)
         return f"✅ {result}"
+    except ValueError as e:
+        return f"❌ Invalid client name: {e}"
+    except OSError as e:
+        return f"❌ File access error: {e}"
     except Exception as e:
         return f"❌ Error: {e}"
 
@@ -713,6 +901,8 @@ def exportar_dados_clientes() -> str:
     try:
         result = _get_factory().get_client_service().export_client_data()
         return f"✅ {result}"
+    except OSError as e:
+        return f"❌ File access error: {e}"
     except Exception as e:
         return f"❌ Error: {e}"
 
@@ -726,6 +916,8 @@ def exportar_dados_servicos() -> str:
     try:
         result = _get_factory().get_client_service().export_service_data()
         return f"✅ {result}"
+    except OSError as e:
+        return f"❌ File access error: {e}"
     except Exception as e:
         return f"❌ Error: {e}"
 
@@ -739,6 +931,8 @@ def importar_dados_servicos() -> str:
     try:
         result = _get_factory().get_client_service().import_service_data()
         return f"✅ {result}"
+    except OSError as e:
+        return f"❌ File access error: {e}"
     except Exception as e:
         return f"❌ Error: {e}"
 
@@ -782,6 +976,9 @@ def configurar_agente() -> str:
             f"   Destino: {target_skill_file}\n"
             f"   ⚠️ IMPORTANTE: Execute o comando '/skills reload' no chat para ativar a expertise."
         )
+    except (OSError, PermissionError) as e:
+        _logger.error(f"configurar_agente file error: {e}", exc_info=True)
+        return f"❌ File access error: {e}"
     except Exception as e:
         _logger.error(f"configurar_agente failed: {e}", exc_info=True)
         return f"❌ Erro ao configurar skill: {e}"
@@ -798,17 +995,21 @@ def pipeline_novo_cliente(nome: str, apelido: str = "", nif: str = "", email: st
     """
     _logger.info(f"Tool called: pipeline_novo_cliente(nome={nome})")
     try:
+        from foton_system.modules.clients.application.use_cases.client_service import ClientService
+        normalized = ClientService.normalize_client_name(nome)
         factory = _get_factory()
         svc = factory.get_client_service()
         
         try:
-            exists = svc.resolve_client_path(nome)
+            exists = svc.resolve_client_path(normalized)
             return f"⚠️ PIPELINE STOPPED — A similar client already exists: {exists.name}. Use 'ler_ficha_cliente' to verify."
         except ValueError:
             pass 
 
         result = cadastrar_cliente(nome, apelido, nif, email, telefone)
         return result
+    except OSError as e:
+        return f"❌ File access error: {e}"
     except Exception as e:
         return f"❌ Pipeline error: {e}"
 
@@ -822,6 +1023,7 @@ def pipeline_emitir_documento(cliente: str, nome_template: str, dados_extras: di
     """
     _logger.info(f"Tool called: pipeline_emitir_documento(cliente={cliente}, template={nome_template})")
     try:
+        _validate_dados_extras(dados_extras)
         svc = _get_factory().get_client_service()
         client_path = svc.resolve_client_path(cliente)
 
@@ -841,6 +1043,8 @@ def pipeline_emitir_documento(cliente: str, nome_template: str, dados_extras: di
 
         output += "\nPROTOCOL: Review this report and confirm with the user before calling 'gerar_documento'."
         return output
+    except ValueError as e:
+        return f"❌ Invalid dados_extras: {e}"
     except Exception as e:
         return f"❌ Pipeline error: {e}"
 
@@ -866,6 +1070,9 @@ def consultar_cub() -> str:
             f"   URL: {url}\n"
             f"   Fonte: SINDUSCON-GO"
         )
+    except (OSError, ConnectionError) as e:
+        _logger.error(f"consultar_cub network error: {e}", exc_info=True)
+        return f"❌ CUB connection error: {e}"
     except Exception as e:
         _logger.error(f"consultar_cub failed: {e}", exc_info=True)
         return f"❌ CUB error: {e}"
@@ -890,6 +1097,9 @@ def verificar_atualizacao() -> str:
                 f"   URL:      {url}"
             )
         return f"✅ Sistema atualizado (v{__version__})"
+    except (OSError, ConnectionError) as e:
+        _logger.error(f"verificar_atualizacao network error: {e}", exc_info=True)
+        return f"❌ Network error: {e}"
     except Exception as e:
         _logger.error(f"verificar_atualizacao failed: {e}", exc_info=True)
         return f"❌ Update check error: {e}"
@@ -919,9 +1129,43 @@ def consultar_auditoria(limite: int = 10) -> str:
             status = e.get('status', '?')
             output += f"  [{ts}] {op} by {actor} → {client} [{status}]\n"
         return output
+    except ValueError as e:
+        return f"❌ Invalid parameter: {e}"
+    except OSError as e:
+        _logger.error(f"consultar_auditoria I/O: {e}", exc_info=True)
+        return f"❌ File access error: {e}"
     except Exception as e:
         _logger.error(f"consultar_auditoria failed: {e}", exc_info=True)
         return f"❌ Audit error: {e}"
+
+
+# ==============================================================================
+# HELPER: dados_extras Validation
+# ==============================================================================
+
+_MAX_DADOS_EXTRAS_KEYS = 50
+
+def _validate_dados_extras(dados_extras: dict) -> None:
+    """Validates dados_extras schema. Raises ValueError on invalid data."""
+    if not isinstance(dados_extras, dict):
+        raise ValueError("dados_extras must be a dict")
+
+    if len(dados_extras) > _MAX_DADOS_EXTRAS_KEYS:
+        raise ValueError(
+            f"dados_extras exceeds max keys ({_MAX_DADOS_EXTRAS_KEYS}): "
+            f"got {len(dados_extras)} keys"
+        )
+
+    for k, v in dados_extras.items():
+        if not isinstance(k, str):
+            raise ValueError(f"dados_extras keys must be strings, got {type(k).__name__}")
+        if not k.strip():
+            raise ValueError("dados_extras keys cannot be empty")
+        if isinstance(v, (dict, list)):
+            raise ValueError(
+                f"dados_extras values must be str/int/float, "
+                f"got {type(v).__name__} for key '{k}'"
+            )
 
 
 # ==============================================================================

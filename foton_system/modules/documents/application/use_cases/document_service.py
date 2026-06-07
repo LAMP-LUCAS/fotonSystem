@@ -211,15 +211,16 @@ class DocumentService:
             dirs_to_check.reverse()
 
             for folder in dirs_to_check:
-                # Find any *INFO*.md file in the folder, regardless of folder name
                 info_files = list(folder.glob("*INFO*.md"))
                 if info_files:
-                    # Sort by modification time to get the most recent if multiple exist
-                    info_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
-                    info_file = info_files[0]
+                    canonical = [f for f in info_files if f.name.upper() in ('INFO-CLIENTE.MD', 'INFO-SERVICO.MD')]
+                    if canonical:
+                        info_file = canonical[0]
+                    else:
+                        info_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+                        info_file = info_files[0]
                     logger.info(f"Carregando contexto de: {info_file.name} em {folder.name}")
                     folder_data = self._parse_md_data(info_file)
-                    # Lowercase keys for case-insensitive matching
                     normalized_folder_data = {k.lower(): v for k, v in folder_data.items()}
                     data.update(normalized_folder_data)
 
@@ -314,6 +315,16 @@ class DocumentService:
             logger.warning(f"CHAVES FALTANDO: {missing_keys}")
 
         return missing_keys
+
+    def get_generated_doc_path(self, service_path: Path, template_name: str) -> Path:
+        template_stem = Path(template_name).stem.upper()
+        tipo = "GERAL"
+        for prefix in ["PROPOSTA", "CONTRATO", "MEMORIAL", "RECIBO"]:
+            if template_stem.startswith(prefix):
+                tipo = prefix
+                break
+        folder_doc = self._config.folder_doc
+        return service_path / folder_doc / "GERADOS" / tipo / template_name
 
     def _log_generation(self, output_path, doc_type, template_path, data_path):
         try:

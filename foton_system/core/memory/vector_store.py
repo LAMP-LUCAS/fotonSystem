@@ -10,6 +10,8 @@ DESIGN NOTES:
 - Persistência local em %LOCALAPPDATA%/FotonSystem/memory_db
 """
 
+import os
+import sys
 import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional
@@ -39,46 +41,29 @@ class VectorStore:
 
     def _initialize(self) -> None:
         """Inicializa ChromaDB e modelo de embeddings."""
+        from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
+
         try:
-            from foton_system.infrastructure.dependency_manager import DependencyManager
-            from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
+            self._try_import_packages()
+        except ImportError:
+            self._try_install_ai_pack()
+            self._try_import_packages()
 
-            # 1. Verificar/Instalar dependências de IA
-            AI_PACK_PACKAGES = ["chromadb", "sentence-transformers", "torch", "transformers"]
-            if not DependencyManager.is_plugin_installed("ai_pack", "chromadb"):
-                print("\n🤖 O módulo de Memória Semântica (IA) não está instalado.")
-                choice = input("👉 Deseja instalar o AI Pack agora? (~800MB) [s/N]: ")
-                if choice.lower() == 's':
-                    if not DependencyManager.install_plugin("ai_pack", AI_PACK_PACKAGES):
-                        raise Exception("Falha ao instalar pacotes de IA.")
-                else:
-                    logger.info("Usuário optou por não instalar o AI Pack.")
-                    return
-
-            # 2. Adicionar o VENV ao sys.path dinamicamente
-            ai_path = DependencyManager.get_plugin_python_path("ai_pack")
-            if ai_path and ai_path not in sys.path:
-                sys.path.append(ai_path)
-
+        try:
             import chromadb
             from sentence_transformers import SentenceTransformer
 
-            # 3. Caminho seguro de persistência (Local AppData)
             config_dir = BootstrapService.get_user_config_dir()
             self.db_path: Path = config_dir / "memory_db"
             self.db_path.mkdir(parents=True, exist_ok=True)
 
-            # 2. Reduzir logs verbosos do ChromaDB
             logging.getLogger("chromadb").setLevel(logging.ERROR)
 
-            # 3. Cliente persistente local
             self.client = chromadb.PersistentClient(path=str(self.db_path))
 
-            # 4. Modelo de embeddings multilíngue (PT-BR otimizado)
             logger.info(f"Carregando modelo de embeddings: {EMBEDDING_MODEL}")
             self.embedder = SentenceTransformer(EMBEDDING_MODEL)
 
-            # 5. Coleção com similaridade cosseno
             self.collection = self.client.get_or_create_collection(
                 name=COLLECTION_NAME,
                 metadata={"hnsw:space": "cosine"}
@@ -93,6 +78,75 @@ class VectorStore:
         except Exception as e:
             logger.error(f"Falha ao inicializar VectorStore: {e}")
             raise
+
+    def _try_import_packages(self) -> None:
+        """Tenta importar chromadb e sentence_transformers (global, VENV, ou fallback)."""
+        from foton_system.infrastructure.dependency_manager import DependencyManager
+
+        tried = []
+
+        # Try global site-packages FIRST (clean, no VENV interference)
+        for base in (sys.base_exec_prefix, sys.exec_prefix):
+            site_pkgs = Path(base) / "Lib" / "site-packages"
+            if site_pkgs.exists() and str(site_pkgs) not in sys.path:
+                sys.path.insert(0, str(site_pkgs))
+                tried.append(f"system:{site_pkgs}")
+
+        for ver in ("Python312", "Python313", "Python311"):
+            for base in (Path(os.environ.get("LOCALAPPDATA", "C:\\Users\\Default")) / "Programs" / "Python",
+                         Path("C:\\Program Files") / "Python",
+                         Path("C:\\Python")):
+                site_pkgs = base / ver / "Lib" / "site-packages"
+                if site_pkgs.exists() and str(site_pkgs) not in sys.path:
+                    sys.path.insert(0, str(site_pkgs))
+                    tried.append(f"common:{site_pkgs}")
+
+        try:
+            import chromadb
+            from sentence_transformers import SentenceTransformer
+            return
+        except Exception:
+            pass
+
+        # Fallback: VENV site-packages (last resort, might have broken torch)
+        ai_path = DependencyManager.get_plugin_python_path("ai_pack")
+        if ai_path and str(ai_path) not in sys.path:
+            sys.path.insert(0, str(ai_path))
+            tried.append(f"venv:{ai_path}")
+
+        try:
+            import chromadb
+            from sentence_transformers import SentenceTransformer
+            return
+        except Exception:
+            pass
+
+        raise ImportError(
+            f"Não foi possível importar chromadb/sentence_transformers. "
+            f"Caminhos tentados: {tried}"
+        )
+
+    def _try_install_ai_pack(self) -> None:
+        """Tenta instalar o AI Pack interativamente (CLI) ou aborta (MCP)."""
+        from foton_system.infrastructure.dependency_manager import DependencyManager
+
+        AI_PACK_PACKAGES = ["chromadb", "sentence-transformers", "torch", "transformers"]
+
+        if "--mcp" in sys.argv:
+            raise RuntimeError(
+                "Módulo de Memória Semântica (IA) não instalado. "
+                "Execute o Foton em modo CLI e escolha 's' para instalar "
+                "o AI Pack (~800MB) quando solicitado."
+            )
+
+        print("\n🤖 O módulo de Memória Semântica (IA) não está instalado.")
+        choice = input("👉 Deseja instalar o AI Pack agora? (~800MB) [s/N]: ")
+        if choice.lower() != 's':
+            logger.info("Usuário optou por não instalar o AI Pack.")
+            raise ImportError("AI Pack não instalado.")
+
+        if not DependencyManager.install_plugin("ai_pack", AI_PACK_PACKAGES):
+            raise RuntimeError("Falha ao instalar pacotes de IA.")
 
     def add_documents(
         self,

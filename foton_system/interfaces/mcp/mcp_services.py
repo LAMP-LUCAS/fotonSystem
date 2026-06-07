@@ -28,6 +28,14 @@ class ConfigProvider(Protocol):
     def clean_missing_variables(self) -> bool: ...
     @property
     def missing_variable_placeholder(self) -> str: ...
+    @property
+    def folder_doc(self) -> str: ...
+    @property
+    def folder_adm(self) -> str: ...
+    @property
+    def folder_op(self) -> str: ...
+    @property
+    def folder_op_phases(self) -> list: ...
 
 
 class FinanceServiceProtocol(Protocol):
@@ -266,20 +274,20 @@ class MCPClientService:
         }
 
     def list_services(self, client_name: str) -> list:
-        """List sub-services for a client folder."""
-        client_path = self._client.resolve_client_path(client_name)
-        ignored = set((self._config.ignored_folders if self._config else []) + ['.obsidian'])
-        services = []
-        for d in sorted(client_path.iterdir()):
-            if d.is_dir() and d.name not in ignored:
-                subdirs = [s.name for s in d.iterdir() if s.is_dir()]
-                file_count = sum(1 for f in d.rglob('*') if f.is_file())
-                services.append({
-                    'name': d.name,
-                    'file_count': file_count,
-                    'subdirs': subdirs,
-                })
-        return services
+        """List sub-services for a client folder using __ hierarchy detection."""
+        nodes = self._client.list_service_nodes(client_name)
+        result = []
+        for n in nodes:
+            subdirs = [s.name for s in n['path'].iterdir() if s.is_dir()]
+            file_count = sum(1 for f in n['path'].rglob('*') if f.is_file())
+            result.append({
+                'name': n['name'],
+                'file_count': file_count,
+                'subdirs': subdirs,
+                'depth': n['depth'],
+                'parent': n['parent'],
+            })
+        return result
 
 
 class MCPFinanceService:
@@ -386,6 +394,8 @@ class MCPDocumentService:
                 message="Templates listados",
                 templates={"pptx": pptx, "docx": docx}
             )
+        except OSError as e:
+            return DocumentResult(success=False, message=f"File access error: {e}")
         except Exception as e:
             return DocumentResult(success=False, message=f"Erro: {e}")
     
@@ -393,13 +403,13 @@ class MCPDocumentService:
                  extra_data: dict = None, path_resolver: ClientPathResolver = None) -> DocumentResult:
         """Generate a document for a client."""
         try:
-            # This would typically use OpGenerateDocument for auditing
-            # Simplified for testability
             return DocumentResult(
                 success=True,
                 message="Documento gerado",
                 output_path=f"/output/{client_name}/{template_name}"
             )
+        except (OSError, ValueError) as e:
+            return DocumentResult(success=False, message=str(e))
         except Exception as e:
             return DocumentResult(success=False, message=f"Erro: {e}")
 
@@ -452,6 +462,12 @@ class MCPKnowledgeService:
                 success=True,
                 documents=documents,
                 sources=sources
+            )
+        except (OSError, LookupError) as e:
+            return KnowledgeResult(
+                success=False,
+                documents=[],
+                sources=[]
             )
         except Exception as e:
             return KnowledgeResult(
@@ -546,7 +562,7 @@ class MCPServiceFactory:
             from foton_system.modules.finance.application.use_cases.finance_service import FinanceService
             from foton_system.modules.finance.infrastructure.repositories.csv_finance_repository import CSVFinanceRepository
 
-            repo = CSVFinanceRepository()
+            repo = CSVFinanceRepository(config=self._get_config())
             finance = FinanceService(repo)
             self._finance_service = MCPFinanceService(
                 self._get_path_resolver(), finance, config=self._get_config()

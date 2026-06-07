@@ -59,7 +59,7 @@ class TestMenuNavigation(unittest.TestCase):
     def test_clients_menu_sync_db_from_folders(self):
         """Option 1 calls sync_clients_db_from_folders."""
         menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['1', '0']), \
+        with patch('builtins.input', side_effect=['1', '', '0']), \
              patch.object(menu.client_service, 'sync_clients_db_from_folders') as mock_sync:
             menu.handle_clients()
             mock_sync.assert_called_once()

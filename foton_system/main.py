@@ -22,6 +22,10 @@ def _start_mcp():
     CRITICAL: This function must produce ZERO stdout output before mcp.run().
     All diagnostics go to stderr or log file.
     """
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8')
     _ensure_path()
     from foton_system.interfaces.mcp.foton_mcp import run_server
     run_server()

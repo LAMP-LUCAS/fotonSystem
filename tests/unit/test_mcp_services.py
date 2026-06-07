@@ -33,6 +33,44 @@ class FakeClientService:
                 return info['path']
         raise ValueError(f"Client '{client_name}' not found.")
 
+    @staticmethod
+    def normalize_client_name(name):
+        if not name:
+            return ""
+        import unicodedata, re
+        normalized = unicodedata.normalize('NFKD', name)
+        normalized = normalized.encode('ascii', 'ignore').decode('ascii')
+        normalized = normalized.upper()
+        normalized = re.sub(r'[-\s]+', '_', normalized)
+        normalized = re.sub(r'[^A-Z0-9_]', '', normalized)
+        normalized = re.sub(r'_+', '_', normalized)
+        normalized = normalized.strip('_')
+        return normalized
+
+    def list_service_nodes(self, client_name):
+        client_path = self.resolve_client_path(client_name)
+        if not client_path.exists():
+            return []
+        ignored = set()
+        nodes = []
+        for entry in sorted(client_path.iterdir()):
+            if not entry.is_dir():
+                continue
+            if entry.name.startswith('_'):
+                continue
+            if entry.name in ignored:
+                continue
+            parts = entry.name.split('__')
+            depth = len(parts) - 1
+            parent = parts[0] if depth >= 1 else None
+            nodes.append({
+                'name': entry.name,
+                'path': entry,
+                'depth': depth,
+                'parent': parent,
+            })
+        return nodes
+
     def sync_clients_db_from_folders(self):
         pass
 
@@ -354,6 +392,36 @@ class TestMCPClientService(unittest.TestCase):
             names = [s['name'] for s in services]
             self.assertIn('Reforma', names)
             self.assertIn('Projeto', names)
+
+    def test_list_services_returns_depth_and_parent(self):
+        """list_services returns depth/parent for __ hierarchy."""
+        from foton_system.interfaces.mcp.mcp_services import MCPClientService
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            client_dir = Path(tmpdir) / 'TestClient'
+            client_dir.mkdir()
+            (client_dir / 'REFORMA').mkdir()
+            (client_dir / 'REFORMA__AMPLIACAO').mkdir()
+
+            config = FakeConfig(base_path=tmpdir)
+            domain = FakeClientService()
+            domain.clients['TestClient'] = {'path': client_dir}
+            svc = MCPClientService(domain, config=config)
+
+            services = svc.list_services('TestClient')
+            svc_map = {s['name']: s for s in services}
+            self.assertEqual(svc_map['REFORMA']['depth'], 0)
+            self.assertIsNone(svc_map['REFORMA']['parent'])
+            self.assertEqual(svc_map['REFORMA__AMPLIACAO']['depth'], 1)
+            self.assertEqual(svc_map['REFORMA__AMPLIACAO']['parent'], 'REFORMA')
+
+    def test_normalize_client_name_delegates_to_static(self):
+        """normalize_client_name is a static method on ClientService."""
+        from foton_system.modules.clients.application.use_cases.client_service import ClientService
+        self.assertEqual(ClientService.normalize_client_name("João Silva"), "JOAO_SILVA")
+        self.assertEqual(ClientService.normalize_client_name("ANTONIO-FERREIRA"), "ANTONIO_FERREIRA")
+        self.assertEqual(ClientService.normalize_client_name(""), "")
 
 
 class TestMCPFinanceService(unittest.TestCase):
