@@ -1,4 +1,4 @@
-# 🚀 FOTON System v1.3.1: Headless Resilience Patch
+# 🚀 FOTON System v1.3.2: Hotfix - Instalation Windows
 
 Esta atualização de patch traz melhorias críticas de **resiliência e agnosticismo de sistema operacional**, tornando o **FOTON System** plenamente compatível com ambientes de servidor (**Headless**), VPS, homeServers e Containers Docker.
 
