@@ -23,7 +23,7 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
 | 5 — Arquitetura | ✅ | 2026-06-08 |
 | 6 — Robustez | ✅ | 2026-06-08 |
 | 7 — Qualidade agêntica | ✅ | 2026-06-08 |
-| 8 — Testes | ⏳ | — |
+| 8 — Testes | ✅ | 2026-06-08 |
 
 ---
 
@@ -97,4 +97,13 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
   🔧 7.2: listar_clientes(limite=0) — mostra N de M quando limite > 0
   🔧 7.3: pipeline_novo_cliente verifica NIF duplicado nos INFO-CLIENTE.md existentes
   ✅ Testes: 293/293 passed (zero regressão)
+
+[2026-06-08] Fase 8 — Cobertura de Testes (TipService + AuditLogger)
+  Δ arquivos: +tests/unit/test_tip_service.py (5 testes — indexação, fallback, docs ausentes, pattern, non-md),
+               +tests/unit/test_audit_logger.py (4 testes — JSONL, get_events, permissão negada, append múltiplo)
+  🔧 8.1: TipService — testes para get_random_tip (com contexto, fallback, docs_dir ausente),
+           _index_tips (captura [!DIDACTIC:...], ignora não-.md)
+  🔧 8.2: AuditLogger — testes para log_event (escreve JSONL), get_recent_events (lista), PermissionError tratado, append
+  📊 Baseline: 293 → 302 testes
+  ✅ Testes: 302/302 passed (zero regressão)
 ```
