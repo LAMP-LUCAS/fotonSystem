@@ -42,6 +42,7 @@ class FinanceServiceProtocol(Protocol):
     """Protocol for finance operations."""
     def add_entry(self, client_path: Path, description: str, value: float, entry_type: str) -> dict: ...
     def get_summary(self, client_path: Path) -> dict: ...
+    def get_firm_summary(self, client_paths: list) -> list: ...
 
 
 class DocumentServiceProtocol(Protocol):
@@ -65,6 +66,9 @@ class ClientServiceProtocol(Protocol):
     def export_client_data(self) -> None: ...
     def export_service_data(self) -> None: ...
     def import_service_data(self) -> None: ...
+    def list_clients(self) -> list: ...
+    def read_client_info(self, client_name: str) -> dict: ...
+    def update_client_info(self, client_name: str, section: str, content: str) -> str: ...
 
 
 class SyncServiceProtocol(Protocol):
@@ -171,69 +175,16 @@ class MCPClientService:
         return self._client.resolve_client_path(client_name)
 
     def list_clients(self) -> list:
-        """List all clients with metadata (name, has_info, service_count)."""
-        clients_dir = self._config.base_pasta_clientes
-        ignored = set(self._config.ignored_folders + ['.obsidian'])
-
-        clients = []
-        for d in sorted(clients_dir.iterdir()):
-            if d.is_dir() and d.name not in ignored:
-                info_files = list(d.glob("*INFO*.md"))
-                services = [
-                    s.name for s in d.iterdir()
-                    if s.is_dir() and s.name not in ignored
-                ]
-                clients.append({
-                    'name': d.name,
-                    'has_info': len(info_files) > 0,
-                    'service_count': len(services),
-                    'services': services,
-                })
-        return clients
+        """Delegate to the underlying ClientService."""
+        return self._client.list_clients()
 
     def read_client_info(self, client_name: str) -> dict:
-        """Read the INFO file content for a client.
-        Returns dict with 'filename', 'content' or raises ValueError.
-        """
-        client_path = self._client.resolve_client_path(client_name)
-        info_files = list(client_path.glob("*INFO*.md"))
-        if not info_files:
-            raise ValueError(
-                f"No INFO file found for '{client_path.name}'.\n"
-                f"Expected pattern: *INFO*.md in {client_path}"
-            )
-        info_file = sorted(info_files, key=lambda f: f.stat().st_mtime, reverse=True)[0]
-        content = info_file.read_text(encoding="utf-8")
-        return {'filename': info_file.name, 'content': content}
+        """Delegate to the underlying ClientService."""
+        return self._client.read_client_info(client_name)
 
     def update_client_info(self, client_name: str, section: str, content: str) -> str:
-        """Append content to a section of the client's INFO file. Returns backup filename."""
-        import shutil
-        client_path = self._client.resolve_client_path(client_name)
-        info_files = list(client_path.glob("*INFO*.md"))
-        if not info_files:
-            raise ValueError(f"No INFO file found for '{client_path.name}'.")
-        info_file = sorted(info_files, key=lambda f: f.stat().st_mtime, reverse=True)[0]
-
-        backup = info_file.with_suffix('.md.bak')
-        shutil.copy2(info_file, backup)
-
-        existing = info_file.read_text(encoding="utf-8")
-        section_header = f"## {section}"
-        if section_header in existing:
-            parts = existing.split(section_header, 1)
-            after_header = parts[1]
-            next_section_idx = after_header.find("\n## ")
-            if next_section_idx == -1:
-                new_content = existing + f"\n{content}\n"
-            else:
-                insert_point = len(parts[0]) + len(section_header) + next_section_idx
-                new_content = existing[:insert_point] + f"\n{content}\n" + existing[insert_point:]
-        else:
-            new_content = existing.rstrip() + f"\n\n{section_header}\n{content}\n"
-
-        info_file.write_text(new_content, encoding="utf-8")
-        return backup.name
+        """Delegate to the underlying ClientService."""
+        return self._client.update_client_info(client_name, section, content)
 
     def sync_clients_db_from_folders(self) -> str:
         self._client.sync_clients_db_from_folders()
@@ -337,43 +288,19 @@ class MCPFinanceService:
     def get_firm_summary(self) -> list:
         """Firm-wide financial dashboard.
 
-        Iterates all client folders and aggregates financial data
-        from each client's FINANCEIRO.csv file.
+        Enumerates client folders via config, then delegates aggregation
+        to the domain FinanceService.
         Returns list of dicts: {name, income, expense, balance}.
         """
-        import csv
         clients_dir = self._config.base_pasta_clientes
         ignored = set((self._config.ignored_folders if self._config else []) + ['.obsidian'])
 
-        results = []
+        client_paths = []
         for d in sorted(clients_dir.iterdir()):
-            if not d.is_dir() or d.name in ignored:
-                continue
-            csv_file = d / "FINANCEIRO.csv"
-            if not csv_file.exists():
-                continue
+            if d.is_dir() and d.name not in ignored:
+                client_paths.append(d)
 
-            income = 0.0
-            expense = 0.0
-            try:
-                with open(csv_file, 'r', encoding='utf-8') as f:
-                    reader = csv.DictReader(f)
-                    for row in reader:
-                        val = float(row.get('Valor', 0))
-                        if row.get('Tipo', '').upper() == 'ENTRADA':
-                            income += val
-                        else:
-                            expense += val
-            except Exception:
-                continue
-
-            results.append({
-                'name': d.name,
-                'income': income,
-                'expense': expense,
-                'balance': income - expense,
-            })
-        return results
+        return self._finance.get_firm_summary(client_paths)
 
 
 class MCPDocumentService:

@@ -56,6 +56,18 @@ class ClientService:
             tax_id=tax_id, email=email, phone=phone, alias=alias
         )
 
+    def list_clients(self) -> list:
+        ignored = set(self._config.ignored_folders + ['.obsidian'])
+        return client_query.list_clients(self._config.base_pasta_clientes, ignored)
+
+    def read_client_info(self, client_name: str) -> dict:
+        client_path = self.resolve_client_path(client_name)
+        return client_crud.read_client_info_file(client_path)
+
+    def update_client_info(self, client_name: str, section: str, content: str) -> str:
+        client_path = self.resolve_client_path(client_name)
+        return client_crud.update_client_info_file(client_path, section, content)
+
     def sync_clients_db_from_folders(self):
         client_crud.sync_clients_db_from_folders(self.repository)
 

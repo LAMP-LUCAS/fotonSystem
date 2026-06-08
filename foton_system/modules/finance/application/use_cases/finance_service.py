@@ -54,3 +54,25 @@ class FinanceService:
             'total_saidas': saidas,
             'saldo': entradas - saidas
         }
+
+    def get_firm_summary(self, client_paths: list) -> list:
+        """Aggregate financial summaries across multiple clients.
+
+        Each entry: {name, income, expense, balance}.
+        Clients without any financial data are omitted.
+        """
+        results = []
+        for p in client_paths:
+            try:
+                summary = self.get_summary(p)
+            except Exception:
+                continue
+            if summary.get('total_entradas', 0) == 0 and summary.get('total_saidas', 0) == 0:
+                continue
+            results.append({
+                'name': p.name,
+                'income': summary['total_entradas'],
+                'expense': summary['total_saidas'],
+                'balance': summary['saldo'],
+            })
+        return results

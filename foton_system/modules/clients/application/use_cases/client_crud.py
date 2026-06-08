@@ -100,6 +100,57 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
 """
 
 
+def read_client_info_file(client_path: Path) -> dict:
+    """Read the content of the most recent INFO file in a client directory.
+
+    Returns {'filename': str, 'content': str}.
+    Raises ValueError if no INFO file is found.
+    """
+    info_files = list(client_path.glob("*INFO*.md"))
+    if not info_files:
+        raise ValueError(
+            f"No INFO file found for '{client_path.name}'.\n"
+            f"Expected pattern: *INFO*.md in {client_path}"
+        )
+    info_file = sorted(info_files, key=lambda f: f.stat().st_mtime, reverse=True)[0]
+    content = info_file.read_text(encoding="utf-8")
+    return {'filename': info_file.name, 'content': content}
+
+
+def update_client_info_file(client_path: Path, section: str, content: str) -> str:
+    """Append content to a section of a client INFO file. Creates backup.
+
+    Returns the backup filename.
+    Raises ValueError if no INFO file is found.
+    """
+    import shutil
+    info_files = list(client_path.glob("*INFO*.md"))
+    if not info_files:
+        raise ValueError(f"No INFO file found for '{client_path.name}'.")
+
+    info_file = sorted(info_files, key=lambda f: f.stat().st_mtime, reverse=True)[0]
+
+    backup = info_file.with_suffix('.md.bak')
+    shutil.copy2(info_file, backup)
+
+    existing = info_file.read_text(encoding="utf-8")
+    section_header = f"## {section}"
+    if section_header in existing:
+        parts = existing.split(section_header, 1)
+        after_header = parts[1]
+        next_section_idx = after_header.find("\n## ")
+        if next_section_idx == -1:
+            new_content = existing + f"\n{content}\n"
+        else:
+            insert_point = len(parts[0]) + len(section_header) + next_section_idx
+            new_content = existing[:insert_point] + f"\n{content}\n" + existing[insert_point:]
+    else:
+        new_content = existing.rstrip() + f"\n\n{section_header}\n{content}\n"
+
+    info_file.write_text(new_content, encoding="utf-8")
+    return backup.name
+
+
 def get_template_sections(config: Config):
     template_path = PathManager.get_info_template_path()
     client_part = ""

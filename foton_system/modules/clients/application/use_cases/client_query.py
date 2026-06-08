@@ -66,6 +66,34 @@ def list_service_nodes(client_name: str, clients_dir: Path, ignored: Optional[Se
     return nodes
 
 
+def list_clients(clients_dir: Path, ignored: Optional[set] = None) -> list:
+    """List all client folders with metadata.
+
+    Returns list of dicts: {name, has_info, service_count, services}.
+    """
+    if ignored is None:
+        ignored = {'.obsidian'}
+
+    if not clients_dir.exists():
+        return []
+
+    clients = []
+    for d in sorted(clients_dir.iterdir()):
+        if d.is_dir() and d.name not in ignored:
+            info_files = list(d.glob("*INFO*.md"))
+            services = [
+                s.name for s in d.iterdir()
+                if s.is_dir() and s.name not in ignored
+            ]
+            clients.append({
+                'name': d.name,
+                'has_info': len(info_files) > 0,
+                'service_count': len(services),
+                'services': services,
+            })
+    return clients
+
+
 def generate_client_code(name: str, existing_codes: set) -> Optional[str]:
     if not name:
         return None

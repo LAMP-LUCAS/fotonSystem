@@ -23,9 +23,10 @@ class FakeConfig:
 
 class FakeClientService:
     """Fake domain ClientService for testing MCPClientService."""
-    def __init__(self):
+    def __init__(self, config=None):
         self.clients = {}
         self.services = {}
+        self._config = config
 
     def resolve_client_path(self, client_name):
         for name, info in self.clients.items():
@@ -96,12 +97,76 @@ class FakeClientService:
     def import_service_data(self):
         pass
 
+    def list_clients(self):
+        if not self._config:
+            return []
+        ignored = set(self._config.ignored_folders + ['.obsidian'])
+        base = self._config.base_pasta_clientes
+        if not base.exists():
+            return []
+        clients = []
+        for d in sorted(base.iterdir()):
+            if d.is_dir() and d.name not in ignored:
+                info_files = list(d.glob("*INFO*.md"))
+                services = [
+                    s.name for s in d.iterdir()
+                    if s.is_dir() and s.name not in ignored
+                ]
+                clients.append({
+                    'name': d.name,
+                    'has_info': len(info_files) > 0,
+                    'service_count': len(services),
+                    'services': services,
+                })
+        return clients
+
+    def read_client_info(self, client_name):
+        client_path = self.resolve_client_path(client_name)
+        info_files = list(client_path.glob("*INFO*.md"))
+        if not info_files:
+            raise ValueError(
+                f"No INFO file found for '{client_path.name}'.\n"
+                f"Expected pattern: *INFO*.md in {client_path}"
+            )
+        info_file = sorted(info_files, key=lambda f: f.stat().st_mtime, reverse=True)[0]
+        content = info_file.read_text(encoding="utf-8")
+        return {'filename': info_file.name, 'content': content}
+
+    def update_client_info(self, client_name, section, content):
+        import shutil
+        client_path = self.resolve_client_path(client_name)
+        info_files = list(client_path.glob("*INFO*.md"))
+        if not info_files:
+            raise ValueError(f"No INFO file found for '{client_path.name}'.")
+        info_file = sorted(info_files, key=lambda f: f.stat().st_mtime, reverse=True)[0]
+
+        backup = info_file.with_suffix('.md.bak')
+        shutil.copy2(info_file, backup)
+
+        existing = info_file.read_text(encoding="utf-8")
+        section_header = f"## {section}"
+        if section_header in existing:
+            parts = existing.split(section_header, 1)
+            after_header = parts[1]
+            next_section_idx = after_header.find("\n## ")
+            if next_section_idx == -1:
+                new_content = existing + f"\n{content}\n"
+            else:
+                insert_point = len(parts[0]) + len(section_header) + next_section_idx
+                new_content = existing[:insert_point] + f"\n{content}\n" + existing[insert_point:]
+        else:
+            new_content = existing.rstrip() + f"\n\n{section_header}\n{content}\n"
+
+        info_file.write_text(new_content, encoding="utf-8")
+        return backup.name
+
 
 class FakeFinanceService:
     """Fake finance service for testing."""
     def __init__(self):
         self.entries = []
         self.summary = {'saldo': 0.0, 'total_entradas': 0.0, 'total_saidas': 0.0}
+        self._by_path = {}
 
     def add_entry(self, client_path, description, value, entry_type):
         self.entries.append((client_path, description, value, entry_type))
@@ -111,10 +176,26 @@ class FakeFinanceService:
         else:
             self.summary['total_saidas'] += value
             self.summary['saldo'] -= value
-        return self.summary.copy()
+        result = self.summary.copy()
+        self._by_path[str(client_path)] = result
+        return result
 
     def get_summary(self, client_path):
-        return self.summary.copy()
+        return self._by_path.get(str(client_path), self.summary.copy())
+
+    def get_firm_summary(self, client_paths):
+        results = []
+        for p in client_paths:
+            s = self.get_summary(p)
+            if s['total_entradas'] == 0 and s['total_saidas'] == 0:
+                continue
+            results.append({
+                'name': p.name,
+                'income': s['total_entradas'],
+                'expense': s['total_saidas'],
+                'balance': s['saldo'],
+            })
+        return results
 
 
 class FakeDocumentService:
@@ -235,7 +316,7 @@ class TestMCPClientService(unittest.TestCase):
             (Path(tmpdir) / 'Alpha').mkdir()
             (Path(tmpdir) / 'Beta').mkdir()
             config = FakeConfig(base_path=tmpdir)
-            domain = FakeClientService()
+            domain = FakeClientService(config=config)
             svc = MCPClientService(domain, config=config)
 
             clients = svc.list_clients()
@@ -252,7 +333,7 @@ class TestMCPClientService(unittest.TestCase):
             (Path(tmpdir) / 'Alpha').mkdir()
             (Path(tmpdir) / 'DOC').mkdir()
             config = FakeConfig(base_path=tmpdir)
-            domain = FakeClientService()
+            domain = FakeClientService(config=config)
             svc = MCPClientService(domain, config=config)
 
             clients = svc.list_clients()
@@ -483,27 +564,25 @@ class TestMCPFinanceService(unittest.TestCase):
             self.assertEqual(result.balance, 500.0)
 
     def test_get_firm_summary(self):
-        """Returns firm-wide financial summary."""
+        """Returns firm-wide financial summary via service delegation."""
         from foton_system.interfaces.mcp.mcp_services import MCPFinanceService, ClientPathResolver
         import tempfile
-        import csv
 
         with tempfile.TemporaryDirectory() as tmpdir:
             client_dir = Path(tmpdir) / 'Alpha'
             client_dir.mkdir()
-            csv_path = client_dir / 'FINANCEIRO.csv'
-            with open(csv_path, 'w', newline='', encoding='utf-8') as f:
-                w = csv.writer(f)
-                w.writerow(['Data', 'Descricao', 'Tipo', 'Valor'])
-                w.writerow(['2026-01-01', 'Pagamento', 'ENTRADA', '1000'])
-                w.writerow(['2026-01-02', 'Compra', 'SAIDA', '200'])
 
             config = FakeConfig(base_path=tmpdir)
             resolver = ClientPathResolver(config)
             finance = FakeFinanceService()
-            svc = MCPFinanceService(resolver, finance, config=config)
 
+            # Seed data via service (not raw CSV) — the whole point of DRY
+            finance.add_entry(client_dir, 'Pagamento', 1000.0, 'ENTRADA')
+            finance.add_entry(client_dir, 'Compra', 200.0, 'SAIDA')
+
+            svc = MCPFinanceService(resolver, finance, config=config)
             results = svc.get_firm_summary()
+
             self.assertEqual(len(results), 1)
             self.assertEqual(results[0]['name'], 'Alpha')
             self.assertEqual(results[0]['income'], 1000.0)
