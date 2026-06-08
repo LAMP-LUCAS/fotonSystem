@@ -10,6 +10,19 @@ Bem-vindo ao modo mais raiz e eficiente do **FOTON System**! O modo TUI (Termina
 
 ---
 
+## Paradigma Duplo
+
+O FOTON System oferece duas interfaces sobre o mesmo domain layer:
+
+| Interface | Para quem | Como iniciar |
+|-----------|-----------|--------------|
+| **TUI** (você está aqui) | Humanos via terminal | `foton --tui` |
+| **MCP** (agentes de IA) | Claude, Gemini e outros LLMs | `foton --mcp` |
+
+A TUI é ideal para operação manual e exploração interativa. Para automação por agentes de IA (RAG, watcher, batch), use o MCP — veja [[DocsMcp]].
+
+---
+
 ## 💎 Design e Responsividade
 
 A interface do Foton agora é **Dinâmica e Adaptável**. Graças ao motor `TUILayout`, o sistema detecta o tamanho da sua janela e ajusta o enquadramento automaticamente.

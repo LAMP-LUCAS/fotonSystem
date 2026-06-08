@@ -50,6 +50,10 @@ def safety_entry():
         from foton_system.modules.shared.infrastructure.services.sandbox_service import SandboxService
         SandboxService.initialize_sandbox()
 
+    # ── TUI MODE: Strip flag so it doesn't conflict with CLI argparse ──
+    if "--tui" in sys.argv:
+        sys.argv = [a for a in sys.argv if a != "--tui"]
+
     # ── MCP MODE: Must be checked FIRST — zero stdout before mcp.run() ──
     if "--mcp" in sys.argv:
         _start_mcp()

@@ -18,6 +18,40 @@ O MCP não é apenas um conjunto de ferramentas; é um protocolo que permite que
 
 ---
 
+## 1.1 Paradigma Duplo: Interface Humana vs Interface de Agente
+
+O FOTON System opera em **dois paradigmas** sobre o mesmo domain layer:
+
+| Interface | Público | Inicialização |
+|-----------|---------|---------------|
+| **TUI** (modo terminal) | Humanos via teclado | `foton --tui` |
+| **MCP** (Model Context Protocol) | Agentes de IA (Claude, Gemini) | `foton --mcp` |
+
+### Para humanos (TUI)
+
+A interface terminal oferece os mesmos workflows fundamentais — clientes, documentos, financeiro — através de menus numerados. Ideal para operação rápida sem depender de interface gráfica.
+
+```
+python -m foton_system.main --tui
+```
+
+**Limitações da TUI vs MCP:**
+- Sem RAG (busca semântica) — use `consultar_conhecimento` via MCP
+- Sem watcher proativo de arquivos
+- Menos tolerante a automação em lote
+
+### Para agentes (MCP)
+
+30+ ferramentas expostas via protocolo MCP, listadas na seção 3. Agentes operam como secretários virtuais: leem centros de verdade, geram documentos, consultam financeiro.
+
+```
+python -m foton_system.entry --mcp
+```
+
+> Para detalhes completos sobre a TUI, veja [[TuiGuide]].
+
+---
+
 ## 2. Configuração
 
 O MCP respeita as configurações globais do FotonSystem definidas em:
