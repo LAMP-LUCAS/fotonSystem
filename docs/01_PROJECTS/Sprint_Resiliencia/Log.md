@@ -21,7 +21,7 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
 | 3 — Bugs e placebos | ✅ | 2026-06-08 |
 | 4 — Vapor removal | ✅ | 2026-06-08 |
 | 5 — Arquitetura | ✅ | 2026-06-08 |
-| 6 — Robustez | ⏳ | — |
+| 6 — Robustez | ✅ | 2026-06-08 |
 | 7 — Qualidade agêntica | ⏳ | — |
 | 8 — Testes | ⏳ | — |
 
@@ -76,5 +76,17 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
   🔧 5.4: SyncService.sync_dashboard usa DocumentService._parse_md_data static (sem DocumentService(None,None))
   🔧 5.5: document_service.create_custom_data_file aceita info_template_path param;
            client_crud.get_template_sections importa PathManager localmente
+  ✅ Testes: 293/293 passed (zero regressão)
+
+[2026-06-08] Fase 6 — Robustez e UX (JSON Schema, sync loops, --reset-config, webview)
+  Δ arquivos: ~modules/shared/infrastructure/config/config.py (_validate_settings + schema),
+               ~interfaces/cli/menus.py (handle_client_sync_menu e handle_service_sync_menu com while True),
+               ~interfaces/cli/main.py (--reset-config recria via BootstrapService.initialize()),
+               ~interfaces/webview_bridge.py (remove fallback PathManager.get_app_dir() morto)
+  🔧 6.1: _validate_settings() checa tipos de chaves críticas, substitui inválidos por default
+  🔧 6.2: handle_client_sync_menu + handle_service_sync_menu agora com while True (0 + inválido tratados)
+  🔧 6.3: --reset-config remove + recria settings.json imediatamente via BootstrapService.initialize()
+  🔧 6.4: webview_bridge.remove fallback PathManager.get_app_dir() — nunca existiu, primeiro caminho
+           `__file__.parent / "fotonInfoInterface.html"` funciona em dev e frozen
   ✅ Testes: 293/293 passed (zero regressão)
 ```

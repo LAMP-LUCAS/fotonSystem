@@ -221,8 +221,9 @@ def main():
         config_path = PathManager.get_settings_path()
         if config_path.exists():
             config_path.unlink()
-            print(f"✅ Configuração removida: {config_path}")
-        print("⚙️ Uma nova configuração será criada na próxima execução.")
+        from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
+        BootstrapService.initialize()
+        print(f"✅ Configuração recriada com defaults em: {config_path}")
         sys.exit(0)
     
     # --- HEAVY INITIALIZATION STARTS HERE ---

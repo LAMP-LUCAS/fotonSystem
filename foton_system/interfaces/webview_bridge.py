@@ -52,12 +52,8 @@ def open_info_interface(content: str = "", save_fn=None):
 
     api = WebViewBridge(content, save_fn)
     
-    # Localizar o arquivo HTML
+    # Localizar o arquivo HTML (sempre ao lado do .py em dev e frozen)
     html_path = Path(__file__).resolve().parent / "fotonInfoInterface.html"
-    
-    if not html_path.exists():
-        from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
-        html_path = PathManager.get_app_dir() / "assets" / "fotonInfoInterface.html"
 
     if not html_path.exists():
         print(f"❌ Erro: Interface HTML não encontrada. Tentando modo browser...")
@@ -83,10 +79,6 @@ def open_info_interface(content: str = "", save_fn=None):
 def _open_in_browser(content: str):
     """Fallback: Abre o HTML no navegador padrão."""
     html_path = Path(__file__).resolve().parent / "fotonInfoInterface.html"
-    if not html_path.exists():
-        from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
-        html_path = PathManager.get_app_dir() / "assets" / "fotonInfoInterface.html"
-    
     if html_path.exists():
         webbrowser.open(f"file:///{html_path.resolve()}")
         print("✅ Interface aberta no navegador.")

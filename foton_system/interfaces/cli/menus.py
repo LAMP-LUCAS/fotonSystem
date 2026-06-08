@@ -382,20 +382,25 @@ class MenuSystem:
                 self.print_error("Opção inválida.")
 
     def handle_client_sync_menu(self):
-        TUILayout.clear()
-        TUILayout.print_header("SINCRONIZAR CADASTRO (CLIENTES)")
-        TUILayout.print_menu_option("1", "Exportar (DB -> Arquivo INFO)")
-        TUILayout.print_menu_option("2", "Importar (Arquivo INFO -> DB)")
-        TUILayout.print_menu_option("0", "Voltar")
-        TUILayout.print_footer()
-        
-        sub = input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha: {Style.RESET_ALL}")
-        if sub == '1':
-            self.client_service.export_client_data()
-            input("Pressione Enter para continuar...")
-        elif sub == '2':
-            self.client_service.import_client_data()
-            input("Pressione Enter para continuar...")
+        while True:
+            TUILayout.clear()
+            TUILayout.print_header("SINCRONIZAR CADASTRO (CLIENTES)")
+            TUILayout.print_menu_option("1", "Exportar (DB -> Arquivo INFO)")
+            TUILayout.print_menu_option("2", "Importar (Arquivo INFO -> DB)")
+            TUILayout.print_menu_option("0", "Voltar")
+            TUILayout.print_footer()
+
+            sub = input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha: {Style.RESET_ALL}")
+            if sub == '1':
+                self.client_service.export_client_data()
+                input("Pressione Enter para continuar...")
+            elif sub == '2':
+                self.client_service.import_client_data()
+                input("Pressione Enter para continuar...")
+            elif sub == '0':
+                break
+            else:
+                self.print_error("Opção inválida.")
 
     def handle_services(self):
         while True:
@@ -419,20 +424,25 @@ class MenuSystem:
                 self.print_error("Opção inválida.")
 
     def handle_service_sync_menu(self):
-        TUILayout.clear()
-        TUILayout.print_header("SINCRONIZAR CADASTRO (SERVIÇOS)")
-        TUILayout.print_menu_option("1", "Exportar (DB -> Arquivo INFO)")
-        TUILayout.print_menu_option("2", "Importar (Arquivo INFO -> DB)")
-        TUILayout.print_menu_option("0", "Voltar")
-        TUILayout.print_footer()
-        
-        sub = input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha: {Style.RESET_ALL}")
-        if sub == '1':
-            self.client_service.export_service_data()
-            input("Pressione Enter para continuar...")
-        elif sub == '2':
-            self.client_service.import_service_data()
-            input("Pressione Enter para continuar...")
+        while True:
+            TUILayout.clear()
+            TUILayout.print_header("SINCRONIZAR CADASTRO (SERVIÇOS)")
+            TUILayout.print_menu_option("1", "Exportar (DB -> Arquivo INFO)")
+            TUILayout.print_menu_option("2", "Importar (Arquivo INFO -> DB)")
+            TUILayout.print_menu_option("0", "Voltar")
+            TUILayout.print_footer()
+
+            sub = input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha: {Style.RESET_ALL}")
+            if sub == '1':
+                self.client_service.export_service_data()
+                input("Pressione Enter para continuar...")
+            elif sub == '2':
+                self.client_service.import_service_data()
+                input("Pressione Enter para continuar...")
+            elif sub == '0':
+                break
+            else:
+                self.print_error("Opção inválida.")
 
     def handle_documents(self):
         while True:

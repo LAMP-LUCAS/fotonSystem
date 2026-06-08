@@ -1,7 +1,18 @@
 import json
 import os
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+_SETTINGS_SCHEMA: Dict[str, type] = {
+    "caminho_pastaClientes": str,
+    "caminho_templates": str,
+    "caminho_baseDados": str,
+    "ignored_folders": list,
+    "clean_missing_variables": bool,
+    "missing_variable_placeholder": str,
+    "folder_conventions": dict,
+}
 
 
 class Config:
@@ -15,6 +26,17 @@ class Config:
             cls._instance._load_settings()
         return cls._instance
 
+    def _validate_settings(self) -> None:
+        """Validate types of critical settings, replacing invalid values with defaults."""
+        for key, expected_type in _SETTINGS_SCHEMA.items():
+            value = self._settings.get(key)
+            if value is not None and not isinstance(value, expected_type):
+                logging.getLogger("foton_config").warning(
+                    "Config key '%s' has wrong type (expected %s, got %s). Using default.",
+                    key, expected_type.__name__, type(value).__name__,
+                )
+                self._settings.pop(key, None)
+
     def _load_settings(self) -> None:
         from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
         self._config_path = BootstrapService.initialize()
@@ -24,6 +46,8 @@ class Config:
                 self._settings = json.load(f)
         except Exception as e:
             print(f"Error loading config from {self._config_path}: {e}")
+
+        self._validate_settings()
 
     def set(self, key: str, value: Any) -> None:
         """Updates a setting value in memory."""
