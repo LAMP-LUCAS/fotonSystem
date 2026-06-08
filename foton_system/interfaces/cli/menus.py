@@ -111,7 +111,7 @@ class MenuSystem:
             ("4", "Documentos (PPTX/DOCX)", True),
             ("5", "Produtividade (Pomodoro)", True),
             ("6", "Configurações do Sistema", True),
-            ("7", "Instalação / Atalhos", self.porter.can_use_feature("shortcuts")),
+            ("7", "Instalação / Atalhos", self.porter.can_use_feature("install")),
             ("8", "Modo Sentinela (Watcher)", self.porter.can_use_feature("watcher")),
             ("0", "Sair", True)
         ]

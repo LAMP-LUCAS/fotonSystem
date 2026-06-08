@@ -15,7 +15,7 @@ def test_main_menu_hides_gui_options_on_server(mock_porter, monkeypatch):
     """Verifica se o menu principal oculta opções de GUI em perfil SERVER."""
     # Configura o porteiro para simular servidor sem GUI
     mock_porter.profile = SystemProfile.SERVER_HEADLESS
-    mock_porter.can_use_feature.side_effect = lambda f: f not in ["webview", "shortcuts"]
+    mock_porter.can_use_feature.side_effect = lambda f: f not in ["webview"]
     
     # Mock do input para sair imediatamente
     monkeypatch.setattr('builtins.input', lambda _: '0')
@@ -31,11 +31,11 @@ def test_main_menu_hides_gui_options_on_server(mock_porter, monkeypatch):
         menu.display_main_menu()
         
         # Verifica as chamadas ao TUILayout.print_menu_option
-        # Opção 3 (Webview) e 7 (Atalhos) NÃO devem ser chamadas
+        # Opção 3 (Webview) NÃO deve ser chamada em SERVER_HEADLESS
         calls = [call.args[1] for call in mock_tui.print_menu_option.call_args_list]
         
         assert "Preencher Ficha (Interface)" not in calls
-        assert "Instalação / Atalhos" not in calls
+        assert "Instalação / Atalhos" in calls
         assert "Gerenciar Clientes" in calls
 
 def test_main_menu_shows_all_options_on_desktop(mock_porter, monkeypatch):

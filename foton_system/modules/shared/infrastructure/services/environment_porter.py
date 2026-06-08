@@ -41,6 +41,17 @@ class EnvironmentPorter:
         """Detecta SO, GUI, Docker, WSL e MCP."""
         self.os_type = platform.system().lower()  # 'windows', 'linux', 'darwin'
         self.is_frozen = getattr(sys, 'frozen', False)
+        self.is_mcp_mode = "--mcp" in sys.argv
+        
+        # --- PERSPECTIVA 3: OVERRIDE EXPLÍCITO ---
+        force_profile = os.environ.get('FOTON_PROFILE')
+        if force_profile and hasattr(SystemProfile, force_profile):
+            self.profile = SystemProfile[force_profile]
+            self.has_gui = self.profile in [SystemProfile.DESKTOP_GUI, SystemProfile.DESKTOP_WSL]
+            self.is_docker = self.profile == SystemProfile.SERVER_HEADLESS
+            self.is_wsl = self.profile == SystemProfile.DESKTOP_WSL
+            logger.info(f"Ambiente FORÇADO via FOTON_PROFILE: {self.profile.value}")
+            return
         
         # 1. Detecção de Docker
         self.is_docker = self._check_docker()
@@ -50,9 +61,6 @@ class EnvironmentPorter:
         
         # 3. Detecção de GUI
         self.has_gui = self._check_gui_availability()
-        
-        # 4. Detecção de MCP
-        self.is_mcp_mode = "--mcp" in sys.argv
         
         # 5. Definição do Perfil Principal
         if self.is_docker:
@@ -64,8 +72,6 @@ class EnvironmentPorter:
         else:
             self.profile = SystemProfile.DESKTOP_GUI
             
-        # Nota: O perfil pode ser forçado via configuração (Futuro)
-        
         logger.info(f"Ambiente detectado: OS={self.os_type}, Profile={self.profile.value}, GUI={self.has_gui}, Docker={self.is_docker}, WSL={self.is_wsl}")
 
     def _check_docker(self) -> bool:
@@ -184,6 +190,7 @@ class EnvironmentPorter:
         features = {
             "webview": self.has_gui and not self.is_mcp_mode and self._check_webview_installed(),
             "native_dialogs": self.has_gui and self._has_dialog_tools(),
+            "install": not self.is_mcp_mode, # --- PERSPECTIVA 1: Instalação desacoplada de GUI ---
             "shortcuts": self.os_type == "windows",
             "watcher": True,
             "rag": True,
