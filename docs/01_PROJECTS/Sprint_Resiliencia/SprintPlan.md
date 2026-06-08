@@ -403,15 +403,15 @@ if __name__ == "__main__":
 
 ## Critérios de Aceitação
 
-- [ ] **Fase 1:** `eval()` substituído por `safe_eval()` em document_service.py e form_session.py
-- [ ] **Fase 2:** Zero bare `except:` na produção (23 eliminados)
-- [ ] **Fase 3:** Versão dinâmica, admin launcher corrigido, watcher funcional, circuit breaker correto
-- [ ] **Fase 4:** Vapor removido (~150 linhas); chat.py arquivado; dead config/methods removidos
-- [ ] **Fase 5:** Entry points consolidados; MCP usa factory; SyncService usa DI; domain sem infra
-- [ ] **Fase 6:** JSON Schema no config; sync menus com loop; `--reset-config` funcional
-- [ ] **Fase 7:** `__init__.py` criado; paginação no listar_clientes; idempotência reforçada
-- [ ] **Fase 8:** TipService e AuditLogger com cobertura de testes
-- [ ] **Regressão zero:** 264+ testes passando APÓS cada fase
+- [x] **Fase 1:** `eval()` substituído por `safe_eval()` em document_service.py e form_session.py
+- [x] **Fase 2:** Zero bare `except:` na produção (23 eliminados)
+- [x] **Fase 3:** Versão dinâmica, admin launcher corrigido, watcher funcional, circuit breaker correto
+- [x] **Fase 4:** Vapor removido (~70 linhas); chat.py arquivado; dead config/methods removidos
+- [x] **Fase 5:** Entry points consolidados; MCP usa factory; SyncService usa DI; domain sem infra
+- [x] **Fase 6:** JSON Schema no config; sync menus com loop; `--reset-config` funcional
+- [x] **Fase 7:** `__init__.py` criado; paginação no listar_clientes; idempotência reforçada
+- [x] **Fase 8:** TipService e AuditLogger com cobertura de testes
+- [x] **Regressão zero:** 302 testes passando (293 → 302 baseline)
 
 ---
 
