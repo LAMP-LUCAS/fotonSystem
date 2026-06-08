@@ -34,6 +34,34 @@ def _start_mcp():
     run_server()
 
 
+def _start_watcher():
+    """
+    Start Watcher Service in headless (daemon) mode.
+    Redirects stdout to stderr to avoid conflicts if MCP is also running.
+    Blocks indefinitely until SIGTERM (Unix) or forever (Windows).
+    """
+    import signal
+    _ensure_path()
+    original_stdout = sys.stdout
+    sys.stdout = sys.stderr
+    try:
+        from foton_system.core.watcher.service import WatcherService
+        watcher = WatcherService()
+        watcher.start()
+        sys.stdout = original_stdout
+        print("✅ Watcher iniciado em background.", file=sys.stderr)
+        # Block until signal (Unix) or sleep forever (Windows)
+        try:
+            signal.pause()
+        except AttributeError:
+            while True:
+                time.sleep(1e10)
+    except Exception as e:
+        sys.stdout = original_stdout
+        print(f"❌ Erro ao iniciar watcher: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 _bootstrap_start: float = 0.0
 """Global bootstrap timer baseline, set by safety_entry()."""
 
@@ -57,6 +85,12 @@ def safety_entry():
     # ── MCP MODE: Must be checked FIRST — zero stdout before mcp.run() ──
     if "--mcp" in sys.argv:
         _start_mcp()
+        _log_bootstrap_time()
+        return
+
+    # ── WATCHER MODE: Start file system watcher headless ──
+    if "--watcher" in sys.argv:
+        _start_watcher()
         _log_bootstrap_time()
         return
 

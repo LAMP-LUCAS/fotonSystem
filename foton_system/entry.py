@@ -1,6 +1,6 @@
 """
 Entry-point module for ``python -m foton_system``.
-Supports --mcp, --tui, --sandbox modes.
+Supports --mcp, --tui, --sandbox, --watcher modes.
 """
 from foton_system.main import safety_entry
 
