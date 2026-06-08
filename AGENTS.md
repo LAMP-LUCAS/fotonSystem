@@ -1,4 +1,4 @@
-# Foton System v1.2.0 — Guia do Agente
+# Foton System v1.3.0 — Guia do Agente
 
 Sistema de gestão para escritório de arquitetura. Exposto via **MCP (32 ferramentas)**.
 

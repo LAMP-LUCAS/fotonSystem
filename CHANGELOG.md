@@ -8,6 +8,11 @@ e o versionamento segue [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### Added
+- *(nothing yet)*
+
+## [1.3.0] - 2026-06-08
+
+### Added
 - Circuit breaker para ChromaDB (3 falhas → OPEN 60s, HALF_OPEN recovery)
 - RotatingFileHandler para logs (5MB, 3 backups)
 - Request correlation ID (`[req-{uuid}]`) em todas as 32 ferramentas MCP
@@ -15,8 +20,19 @@ e o versionamento segue [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Skills granulares por domínio: foton-clients, foton-documents, foton-finance, foton-rag
 - Metaskill foton-architecture com mapa de skills e orquestração
 - 27 novos testes (12 circuit breaker + 15 path traversal)
+- Parser aritmético seguro `safe_math.py` (ast.NodeVisitor, 27 testes)
+- Entry point consolidado: `python -m foton_system.entry --mcp`
+- Adapter Pattern: `FormInterfacePort` + `SystemIntegratorPort` (Windows, Linux, WebView, TUI, Null)
+- `EnvironmentPorter` para detecção agnóstica de SO e capacidades
+- JSON Schema validation no `Config._validate_settings()`
+- Build multi-target: `windows-desktop`, `linux-server`, `linux-desktop`
+- Modo `--tui` no entry point principal
+- 5 testes para `TipService` + 4 testes para `AuditLogger`
+- CI/CD pipeline documentado no `DeploymentGuide.md`
 
 ### Security
+- `eval()` substituído por `safe_eval()` em `document_service.py` e `form_session.py`
+- 23 blocos `bare except:` eliminados em 10 arquivos
 - Path traversal sanitizado em `validar_template` via `Path(nome_template).name`
 - Limpeza de arquivos temporários RAG via `tempfile.mkdtemp()` + `shutil.rmtree()` em `finally`
 - Narrow `except Exception` em todas as 32 tools (ValueError/OSError/PermissionError específicos)
@@ -25,11 +41,27 @@ e o versionamento segue [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `client_service.py` (735 linhas) fatorado em 3 arquivos + facade
 - `foton-architecture/SKILL.md` refatorada como metaskill delegando para skills granulares
 - `DocsMcp.md` sincronizado com as 32 ferramentas atuais + seção de segurança
+- MCP tools delegam para `client_crud.py`/`client_query.py` diretamente (sem `ClientService`)
+- `SyncService` usa `DocumentService._parse_md_data` estático (sem `DocumentService(None, None)`)
+- `build.py` agora suporta `--type lite|full` e `--target windows-desktop|linux-server|linux-desktop`
+- `deploy.py` documentado no `DeploymentGuide.md` com pipeline proposto GitHub Actions
+- `views/__init__.py` criado (diretório agora é pacote Python)
+- `listar_clientes(limite=N)` com paginação e indicador "showing X of Y"
+- `pipeline_novo_cliente` com verificação de NIF duplicado
+- `chat.py` arquivado em `docs/04_ARCHIVES/`
+- `enable_mcp` removido dos defaults (nunca era lido)
 
 ### Fixed
 - Import de `uuid` ausente em `foton_mcp.py`
 - `__init__.py` adicionado em `modules/finance/` e 5 subdiretórios
 - Script `migrate_client_structure.py` movido para `foton_system/scripts/` com `.bat` wrapper
+- Off-by-one no admin launcher
+- Watcher "Desativar" agora realmente desativa
+- Circuit breaker `_last_failure_time` resetado ao resetar
+- Versionamento dinâmico (não mais hardcoded)
+- TUI com 6 bugs de menu corrigidos
+- MCP com 3 bugs críticos corrigidos (client/document/sync)
+- `webview_bridge.py`: fallback `get_app_dir()` removido
 
 ## [1.2.0] - 2026-05
 
