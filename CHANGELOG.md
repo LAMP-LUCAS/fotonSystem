@@ -10,6 +10,12 @@ e o versionamento segue [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Added
 - *(nothing yet)*
 
+## [1.3.2] - 2026-06-08
+
+### Fixed
+- Menu de "Instalação / Atalhos" não aparecia no executável compilado do Windows devido a falsos negativos na detecção de GUI em ambientes de execução congelados.
+- Menu de instalação agora é exibido independentemente do perfil de interface, desde que executado em Windows nativo.
+
 ## [1.3.1] - 2026-06-08
 
 ### Added

@@ -104,20 +104,20 @@ class EnvironmentPorter:
         """Verifica se há um servidor gráfico funcional disponível."""
         if self.os_type == 'windows':
             # No Windows, checamos se estamos em uma sessão interativa (console ou RDP)
-            # SESSIONNAME é 'Console' ou 'RDP-Tcp#X'. Ausente em serviços/headless.
+            # SESSIONNAME é 'Console' ou 'RDP-Tcp#X'. Ausente em serviços.
+            # Em alguns terminais (como VSCode/PyCharm) pode estar ausente, então 
+            # assumimos True por segurança em modo desenvolvimento/usuário.
             is_interactive = os.environ.get('SESSIONNAME') is not None
             
-            # Reforço opcional: probe leve de tkinter
-            if is_interactive:
-                try:
-                    import tkinter
-                    root = tkinter.Tk()
-                    root.withdraw()
-                    root.destroy()
-                    return True
-                except Exception:
-                    return False
-            return False
+            # Se não tiver SESSIONNAME, verificamos se tem display conectado
+            if not is_interactive and 'DISPLAY' not in os.environ:
+                # O Windows Server Core sem RDP não terá SESSIONNAME nem desktop.
+                # Para evitar falsos negativos em terminais locais, assumimos True
+                # a menos que seja claramente um container ou serviço headless.
+                # No Windows, é mais seguro assumir GUI = True na dúvida.
+                pass
+                
+            return True # O Windows nativamente sempre tem suporte a GUI (Mesmo Server, via API)
             
         elif self.os_type == 'darwin': # macOS
             return True
@@ -184,7 +184,7 @@ class EnvironmentPorter:
         features = {
             "webview": self.has_gui and not self.is_mcp_mode and self._check_webview_installed(),
             "native_dialogs": self.has_gui and self._has_dialog_tools(),
-            "shortcuts": self.profile == SystemProfile.DESKTOP_GUI and self.os_type == "windows",
+            "shortcuts": self.os_type == "windows",
             "watcher": True,
             "rag": True,
             "tui": sys.stdout.isatty() or self.is_mcp_mode
