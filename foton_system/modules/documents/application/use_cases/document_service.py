@@ -9,6 +9,7 @@ from foton_system.modules.shared.infrastructure.config.logger import setup_logge
 from foton_system.modules.documents.application.ports.document_service_port import DocumentServicePort
 from foton_system.modules.shared.infrastructure.utils.formatting import FotonFormatter
 from foton_system.modules.shared.infrastructure.services.cub_service import CubService
+from foton_system.modules.shared.domain.services.safe_math import safe_eval
 from foton_system.modules.shared.domain.exceptions import (
     TemplateNotFoundError,
     DocumentGenerationError
@@ -376,7 +377,7 @@ class DocumentService:
                             if not re.match(r'^[\d\.\-\+\*\/\(\)\s]+$', expression):
                                 raise ValueError("Expressão contém caracteres inválidos")
 
-                            result = eval(expression)
+                            result = safe_eval(expression)
                             # Store with .2f precision for financial consistency
                             replacements[key] = f"{result:.2f}"
                         except Exception as e:
