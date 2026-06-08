@@ -94,8 +94,14 @@ def safety_entry():
         _log_bootstrap_time()
         return
 
+    # ── VERSION MODE ──
+    if "--version" in sys.argv:
+        from foton_system import __version__
+        print(f"Foton System v{__version__}")
+        return
+
     # ── CLI MODE: visual feedback is OK ──
-    os.system('cls' if os.name == 'nt' else 'clear')
+    sys.stderr.write('\033[2J\033[H')
 
     print("\033[36m" + "="*60)
     print("\033[36m" + "Initializing FOTON SYSTEM".center(60))

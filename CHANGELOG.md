@@ -10,6 +10,22 @@ e o versionamento segue [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Added
 - *(nothing yet)*
 
+## [1.3.1] - 2026-06-08
+
+### Added
+- Suporte nativo a ambientes **Headless** (Servidores Linux, VPS, Docker, Windows Server Core)
+- Flag `--watcher` para iniciar o monitoramento de arquivos em modo daemon/background
+- Flag `--version` para consulta rápida de versão via terminal
+- Detecção inteligente de interface gráfica no Windows (via `SESSIONNAME` + probe `tkinter`)
+- Fallback automático para ANSI bell (`\a`) caso `winsound` esteja indisponível (Linux/Headless)
+
+### Fixed
+- Crash ao carregar módulo Pomodoro no Linux devido a import top-level de `winsound`
+- Crash ao tentar abrir interface visual em ambientes sem display (implementado `get_form_filler`)
+- Erros de terminal ao usar `os.system('cls')` em Linux (substituído por sequências ANSI `\033[2J\033[H`)
+- Possível crash por `EOFError` no ponto de entrada fatal se `stdin` estiver fechado
+- Redirecionamento de `stdout` para `stderr` no modo Watcher para evitar poluição do protocolo MCP
+
 ## [1.3.0] - 2026-06-08
 
 ### Added

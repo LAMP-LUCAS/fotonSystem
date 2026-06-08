@@ -12,11 +12,11 @@ Este guia descreve como gerar uma nova versão executável do [**FOTON System**]
 
 ## 1. Visão Geral do Pipeline
 
-### Pipeline Atual (v1.2.0)
+### Pipeline Atual (v1.3.1)
 
 ```
 [dev] git commit → pytest manual → build.py → deploy.py (interativo)
-                                              ├─ tag vX.X.X
+                                              ├─ tag v1.3.1
                                               ├─ branch deploy
                                               └─ Draft Release + .zip asset
 ```
@@ -28,6 +28,7 @@ Este guia descreve como gerar uma nova versão executável do [**FOTON System**]
 - Deploy interativo via `deploy.py` com prompts em cada etapa
 - Branch `deploy` separada funciona como registro de versão para o `UpdateChecker`
 - Inno Setup compila instalador Windows profissional
+- **Suporte Headless:** v1.3.1 introduz suporte total a servidores Linux e modo daemon via `--watcher`.
 
 ### Pipeline Proposto (GitHub Actions)
 
