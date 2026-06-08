@@ -89,30 +89,3 @@ class ClientService:
     def import_service_data(self):
         client_crud.import_service_data(self.repository, self._config)
 
-    # Private helpers kept for backward compatibility
-    def _format_columns(self, df):
-        return client_validation.format_columns(df)
-
-    def _format_date(self, date_val):
-        return client_validation.format_date(date_val)
-
-    def _format_cpf_cnpj(self, val):
-        return client_validation.format_cpf_cnpj(val)
-
-    def _generate_service_code(self, client_alias, service_alias):
-        return client_crud._generate_service_code(client_alias, service_alias)
-
-    def _generate_filename(self, cod, alias, ver="00", rev="R00"):
-        return client_crud._generate_filename(cod, alias, ver, rev)
-
-    def _parse_filename(self, filename):
-        return client_crud._parse_filename(filename)
-
-    def _get_latest_file(self, folder, alias):
-        return client_crud._get_latest_file(folder, alias)
-
-    def _read_file_content(self, path):
-        return client_crud._read_file_content(path)
-
-    def _write_formatted_file_content(self, path, data, template_str):
-        return client_crud._write_formatted_file_content(path, data, template_str)

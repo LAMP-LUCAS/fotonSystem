@@ -19,7 +19,7 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
 | 1 — `safe_eval()` + substituições | ✅ | 2026-06-08 |
 | 2 — Bare excepts | ✅ | 2026-06-08 |
 | 3 — Bugs e placebos | ✅ | 2026-06-08 |
-| 4 — Vapor removal | ⏳ | — |
+| 4 — Vapor removal | ✅ | 2026-06-08 |
 | 5 — Arquitetura | ⏳ | — |
 | 6 — Robustez | ⏳ | — |
 | 7 — Qualidade agêntica | ⏳ | — |
@@ -52,4 +52,14 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
   🔧 3.2: Admin launcher off-by-one corrigido (idx-1)
   🔧 3.3: Watcher "Desativar" agora chama watcher.stop() real
   🔧 3.4: Circuit breaker reseta _last_failure_time na transição HALF_OPEN→CLOSED
+
+[2026-06-08] Fase 4 — Vapor/dead code removido (~70 linhas)
+  Δ arquivos: ~client_service.py (removidos 9 methods backward-compat),
+               ~bootstrap_service.py (removido enable_mcp),
+               ~environment_porter.py (removido get_form_filler())
+               docs/04_ARCHIVES/chat.py (movido de interfaces/cli/)
+               ~test_client_service.py (3 tests atualizados p/ módulo direto)
+  ✅ Testes: 293/293 passed (zero regressão)
+  📊 Vapor removido: ~70 linhas (chat.py:32, backward-compat:26, enable_mcp:1, get_form_filler:12)
+  📝 4.5 removido do plano — except ValueError em tools é legítimo (decorator re-lança)
 ```

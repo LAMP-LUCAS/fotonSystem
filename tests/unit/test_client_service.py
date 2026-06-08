@@ -203,13 +203,12 @@ class TestClientServiceEdgeCases(unittest.TestCase):
 
     def test_format_cpf_cnpj_extracts_digits(self):
         """CPF/CNPJ formatting extracts only digits."""
-        repo = FakeClientRepository()
-        service = ClientService(repo)
+        from foton_system.modules.clients.application.use_cases.client_validation import format_cpf_cnpj
         
-        result = service._format_cpf_cnpj('123.456.789-00')
+        result = format_cpf_cnpj('123.456.789-00')
         self.assertEqual(result, '12345678900')
         
-        result = service._format_cpf_cnpj('12.345.678/0001-99')
+        result = format_cpf_cnpj('12.345.678/0001-99')
         self.assertEqual(result, '12345678000199')
 
 
@@ -218,27 +217,24 @@ class TestClientServiceFileParsing(unittest.TestCase):
 
     def test_parse_filename_extracts_version_and_revision(self):
         """Parses VER and REV from filename correctly."""
-        repo = FakeClientRepository()
-        service = ClientService(repo)
+        from foton_system.modules.clients.application.use_cases.client_crud import _parse_filename
         
-        # Simulating a Path object
         mock_path = MagicMock()
         mock_path.stem = 'CODE_DOC_CD_01_R02_INFO-ClientAlias'
         
-        ver, rev = service._parse_filename(mock_path)
+        ver, rev = _parse_filename(mock_path)
         
         self.assertEqual(ver, '01')
         self.assertEqual(rev, 'R02')
 
     def test_parse_filename_handles_malformed_names(self):
         """Returns defaults for malformed filenames."""
-        repo = FakeClientRepository()
-        service = ClientService(repo)
+        from foton_system.modules.clients.application.use_cases.client_crud import _parse_filename
         
         mock_path = MagicMock()
         mock_path.stem = 'InvalidFormat'
         
-        ver, rev = service._parse_filename(mock_path)
+        ver, rev = _parse_filename(mock_path)
         
         self.assertEqual(ver, '00')
         self.assertEqual(rev, 'R00')
