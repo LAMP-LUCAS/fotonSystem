@@ -786,15 +786,19 @@ class MenuSystem:
                 self.print_warning("  Iniciando Watcher...")
                 try:
                     from foton_system.core.watcher.service import WatcherService
-                    watcher = WatcherService()
-                    watcher.start()
+                    self._watcher = WatcherService()
+                    self._watcher.start()
                     self.print_success("  Watcher ativado!")
                     input("Enter...")
                 except Exception as e:
                     self.print_error(f"Erro: {e}")
                     input("Enter...")
             elif choice == '2':
-                self.print_warning("  Desativado.")
+                if hasattr(self, '_watcher') and self._watcher:
+                    self._watcher.stop()
+                    self.print_success("  Watcher desativado.")
+                else:
+                    self.print_warning("  Nenhum watcher ativo.")
                 input("Enter...")
             elif choice == '3':
                 self._index_knowledge_ui()

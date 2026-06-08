@@ -92,7 +92,8 @@ def safety_entry():
         traceback.print_exc()
         print("-"*60 + "\033[0m")
         print("\033[33mDiagnostic Info:\033[0m")
-        print(f"  Version: 1.0.0")
+        from foton_system import __version__
+        print(f"  Version: {__version__}")
         print(f"  Frozen: {getattr(sys, 'frozen', False)}")
         print(f"  Base Path: {getattr(sys, '_MEIPASS', os.getcwd())}")
         print("\n\033[36mPressione ENTER para fechar e reportar o erro...\033[0m")

@@ -64,8 +64,8 @@ def main_menu():
             if idx == 0:
                 print(Fore.CYAN + "Voltando...")
                 return # Return to caller instead of exit
-            elif 0 <= idx < len(scripts):
-                selected = scripts[idx]
+            elif 1 <= idx <= len(scripts):
+                selected = scripts[idx - 1]
                 print(f"\n{Fore.GREEN}>>> Iniciando: {selected['title']}...\n")
                 try:
                     selected["module"].main()

@@ -74,6 +74,7 @@ class CircuitBreaker:
             if self._state == "HALF_OPEN":
                 self._state = "CLOSED"
                 self._failure_count = 0
+                self._last_failure_time = 0.0
                 logger.info("Circuit breaker CLOSED — probe call succeeded")
             return result
         except Exception as e:

@@ -18,7 +18,7 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
 |------|--------|--------|
 | 1 — `safe_eval()` + substituições | ✅ | 2026-06-08 |
 | 2 — Bare excepts | ✅ | 2026-06-08 |
-| 3 — Bugs e placebos | ⏳ | — |
+| 3 — Bugs e placebos | ✅ | 2026-06-08 |
 | 4 — Vapor removal | ⏳ | — |
 | 5 — Arquitetura | ⏳ | — |
 | 6 — Robustez | ⏳ | — |
@@ -43,4 +43,13 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
   ✅ Testes: 293/293 passed (zero regressão)
   🔧 Fix: test_environment_porter.py — monkeypatch.open salva original_open
   📊 Bare excepts: 23 → 0
+
+[2026-06-08] Fase 3 — 4 bugs/placebos corrigidos
+  Δ arquivos: ~main.py, ~interfaces/cli/main.py, ~scripts/admin_launcher.py,
+               ~interfaces/cli/menus.py, ~core/memory/vector_store.py
+  ✅ Testes: 293/293 passed (zero regressão)
+  🔧 3.1: Version hardcoded 1.0.0 → __version__ dinâmico em main.py:95 e cli/main.py:158
+  🔧 3.2: Admin launcher off-by-one corrigido (idx-1)
+  🔧 3.3: Watcher "Desativar" agora chama watcher.stop() real
+  🔧 3.4: Circuit breaker reseta _last_failure_time na transição HALF_OPEN→CLOSED
 ```

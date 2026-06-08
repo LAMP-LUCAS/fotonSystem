@@ -155,7 +155,8 @@ def show_mcp_config():
     # Determine the correct path to the MCP script
     if PathManager.is_frozen():
         # In frozen mode, point to the EXE itself with the --mcp flag
-        exe_path = str(PathManager.get_install_dir() / "foton_system_v1.0.0.exe")
+        from foton_system import __version__
+        exe_path = str(PathManager.get_install_dir() / f"foton_system_v{__version__}.exe")
         # Ensure we point to the actual running exe if possible
         if getattr(sys, 'frozen', False):
             exe_path = sys.executable
