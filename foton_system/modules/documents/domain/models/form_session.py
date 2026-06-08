@@ -125,8 +125,8 @@ class FormSession:
             for var in sorted_vars:
                 raw_val = var_map[var].replace('%', '').replace(',', '.')
                 try: val = float(raw_val) if raw_val.strip() else 0.0
-                except: val = 0.0
+                except (ValueError, TypeError): val = 0.0
                 safe_expr = safe_expr.replace(f"@{var}", str(val))
             safe_expr = re.sub(r'[^0-9+\-*/().\s]', '', safe_expr)
             return float(safe_eval(safe_expr)) if safe_expr.strip() else 0.0
-        except: return 0.0
+        except (ValueError, TypeError): return 0.0

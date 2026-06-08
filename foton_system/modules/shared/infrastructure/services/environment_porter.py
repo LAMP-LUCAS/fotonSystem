@@ -79,7 +79,7 @@ class EnvironmentPorter:
             with open('/proc/1/cgroup', 'rt') as f:
                 if 'docker' in f.read():
                     return True
-        except:
+        except (IOError, OSError):
             pass
             
         # Variáveis de ambiente comuns
@@ -97,7 +97,7 @@ class EnvironmentPorter:
             with open('/proc/version', 'r') as f:
                 version_info = f.read().lower()
                 return 'microsoft' in version_info or 'wsl' in version_info
-        except:
+        except (IOError, OSError):
             return False
 
     def _check_gui_availability(self) -> bool:
@@ -146,7 +146,7 @@ class EnvironmentPorter:
         try:
             import importlib.util
             return importlib.util.find_spec("webview") is not None
-        except:
+        except ImportError:
             return False
 
     def _has_dialog_tools(self) -> bool:

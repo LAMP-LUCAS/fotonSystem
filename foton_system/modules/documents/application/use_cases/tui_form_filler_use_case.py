@@ -53,7 +53,7 @@ class TUIFormFillerUseCase:
                 try:
                     bak_path = self.file_path.with_suffix(self.file_path.suffix + ".bak")
                     shutil.copy2(self.file_path, bak_path)
-                except: pass
+                except (IOError, OSError): pass
 
             try:
                 # Gerar e salvar novo MD

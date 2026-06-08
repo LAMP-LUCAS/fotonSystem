@@ -126,7 +126,7 @@ class MenuSystem:
         try:
             tip = self.tip_service.get_random_tip("GERAL")
             TUILayout.print_tip(tip, "DICA")
-        except: pass
+        except Exception: pass
 
         TUILayout.print_footer()
         return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
@@ -150,7 +150,7 @@ class MenuSystem:
         try:
             tip = self.tip_service.get_random_tip("SSOT")
             TUILayout.print_tip(tip, "CLIENTE")
-        except: pass
+        except Exception: pass
 
         TUILayout.print_footer()
         return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
@@ -173,7 +173,7 @@ class MenuSystem:
         try:
             tip = self.tip_service.get_random_tip("PRODUTIVIDADE")
             TUILayout.print_tip(tip, "SERVIÇO")
-        except: pass
+        except Exception: pass
 
         TUILayout.print_footer()
         return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
@@ -195,7 +195,7 @@ class MenuSystem:
         try:
             tip = self.tip_service.get_random_tip("FORMATACAO")
             TUILayout.print_tip(tip, "DOCS")
-        except: pass
+        except Exception: pass
 
         TUILayout.print_footer()
         return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
@@ -215,7 +215,7 @@ class MenuSystem:
         try:
             tip = self.tip_service.get_random_tip("GERAL")
             TUILayout.print_tip(tip, "FOCO")
-        except: pass
+        except Exception: pass
 
         TUILayout.print_footer()
         return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
@@ -236,7 +236,7 @@ class MenuSystem:
         try:
             tip = self.tip_service.get_random_tip("SANDBOX")
             TUILayout.print_tip(tip, "CONFIG")
-        except: pass
+        except Exception: pass
 
         TUILayout.print_footer()
         return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
@@ -346,7 +346,7 @@ class MenuSystem:
         try:
             tip = self.tip_service.get_random_tip("GERAL")
             TUILayout.print_tip(tip, "SETUP")
-        except: pass
+        except Exception: pass
         
         TUILayout.print_footer()
         
@@ -738,7 +738,7 @@ class MenuSystem:
         try:
             idx = int(input("\n  Escolha: ")) - 1
             selected_file = data_files[idx]
-        except: return
+        except (ValueError, IndexError): return
 
         print("\n  Tipo: [1] PPTX | [2] DOCX")
         doc_type = 'pptx' if input("  Escolha: ") == '1' else 'docx'
@@ -777,7 +777,7 @@ class MenuSystem:
             try:
                 tip = self.tip_service.get_random_tip("IA")
                 TUILayout.print_tip(tip, "SENTINELA")
-            except: pass
+            except Exception: pass
 
             TUILayout.print_footer()
             choice = input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha: {Style.RESET_ALL}").strip()

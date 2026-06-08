@@ -17,7 +17,7 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
 | Fase | Status | Início |
 |------|--------|--------|
 | 1 — `safe_eval()` + substituições | ✅ | 2026-06-08 |
-| 2 — Bare excepts | ⏳ | — |
+| 2 — Bare excepts | ✅ | 2026-06-08 |
 | 3 — Bugs e placebos | ⏳ | — |
 | 4 — Vapor removal | ⏳ | — |
 | 5 — Arquitetura | ⏳ | — |
@@ -35,4 +35,12 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
   ✅ Testes: 293/293 passed (27 novos + 266 existentes)
   🔐 eval() removido de: document_service.py:379, form_session.py:130
   📊 Baseline: 264 → 293 (+29 testes)
+
+[2026-06-08] Fase 2 — 23 bare except: blocks eliminados
+  Δ arquivos: ~environment_porter.py, ~menus.py, ~form_view.py, ~excel_client_repository.py,
+               ~document_service.py, ~tui_form_filler_use_case.py, ~form_session.py,
+               ~install_service.py, ~op_doc_gen.py, ~manage_schema.py, ~test_environment_porter.py
+  ✅ Testes: 293/293 passed (zero regressão)
+  🔧 Fix: test_environment_porter.py — monkeypatch.open salva original_open
+  📊 Bare excepts: 23 → 0
 ```

@@ -32,14 +32,14 @@ def test_wsl_detection(monkeypatch):
     """Simula ambiente WSL via /proc/version."""
     EnvironmentPorter._instance = None
     
+    import builtins
+    original_open = builtins.open
     def mock_open(file, *args, **kwargs):
         if file == '/proc/version':
             from io import StringIO
             return StringIO("Linux version 5.15.133.1-microsoft-standard-WSL2")
-        return open(file, *args, **kwargs)
+        return original_open(file, *args, **kwargs)
     
-    # Mock built-in open for specific file
-    import builtins
     monkeypatch.setattr(builtins, "open", mock_open)
     monkeypatch.setattr("platform.system", lambda: "Linux")
     

@@ -64,7 +64,7 @@ class InstallService:
                             timestamp = int(time.time())
                             trash_internal = target_internal.parent / f"_internal_old_{timestamp}"
                             target_internal.rename(trash_internal)
-                        except: pass
+                        except (IOError, OSError): pass
                     
                     shutil.copytree(source_internal, target_internal, dirs_exist_ok=True)
                     print(f"✅ Dependências atualizadas.")

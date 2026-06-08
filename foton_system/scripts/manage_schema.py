@@ -79,7 +79,7 @@ class SchemaManager:
                         key = line.split(':', 1)[0].strip()
                         if key.startswith('@'):
                             self.info_keys.add(key)
-        except:
+        except (IOError, OSError):
             pass
 
     def analyze(self):
@@ -297,7 +297,7 @@ class SchemaManager:
                             with open(file_path, 'w', encoding='utf-8') as f:
                                 f.writelines(new_lines)
                             count += 1
-                    except: pass
+                    except (IOError, OSError): pass
             print(Fore.GREEN + f"✔ {count} arquivos atualizados.")
 
         # 3. Update Schema

@@ -371,7 +371,7 @@ class DocumentService:
                                     float_val = FotonFormatter.parse_br_number(v)
                                     # Case-insensitive replacement of variable in expression
                                     expression = re.sub(re.escape(k), str(float_val), expression, flags=re.IGNORECASE)
-                                except:
+                                except (ValueError, TypeError):
                                     pass
                         try:
                             if not re.match(r'^[\d\.\-\+\*\/\(\)\s]+$', expression):

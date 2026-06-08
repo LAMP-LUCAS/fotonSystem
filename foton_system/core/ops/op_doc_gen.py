@@ -32,8 +32,8 @@ class OpGenerateDocument(BaseOp):
         if isinstance(kwargs["extra_data"], str):
              try:
                  kwargs["extra_data"] = json.loads(kwargs["extra_data"])
-             except:
-                 pass # Keep as string if parsing fails, though doc service expects dict
+             except (json.JSONDecodeError, TypeError):
+                 pass
                  
         return kwargs
 
