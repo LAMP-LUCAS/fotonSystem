@@ -22,7 +22,7 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
 | 4 — Vapor removal | ✅ | 2026-06-08 |
 | 5 — Arquitetura | ✅ | 2026-06-08 |
 | 6 — Robustez | ✅ | 2026-06-08 |
-| 7 — Qualidade agêntica | ⏳ | — |
+| 7 — Qualidade agêntica | ✅ | 2026-06-08 |
 | 8 — Testes | ⏳ | — |
 
 ---
@@ -88,5 +88,13 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
   🔧 6.3: --reset-config remove + recria settings.json imediatamente via BootstrapService.initialize()
   🔧 6.4: webview_bridge.remove fallback PathManager.get_app_dir() — nunca existiu, primeiro caminho
            `__file__.parent / "fotonInfoInterface.html"` funciona em dev e frozen
+  ✅ Testes: 293/293 passed (zero regressão)
+
+[2026-06-08] Fase 7 — Qualidade Agêntica (views __init__, paginação, idempotência)
+  Δ arquivos: +interfaces/cli/views/__init__.py (vazio — pacote Python),
+               ~interfaces/mcp/foton_mcp.py (listar_clientes com limite; pipeline_novo_cliente com NIF check)
+  🔧 7.1: views/__init__.py criado (diretório agora é pacote Python)
+  🔧 7.2: listar_clientes(limite=0) — mostra N de M quando limite > 0
+  🔧 7.3: pipeline_novo_cliente verifica NIF duplicado nos INFO-CLIENTE.md existentes
   ✅ Testes: 293/293 passed (zero regressão)
 ```

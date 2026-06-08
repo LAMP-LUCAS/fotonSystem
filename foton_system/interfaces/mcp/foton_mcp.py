@@ -273,11 +273,12 @@ def info_sistema() -> str:
 
 @mcp.tool()
 @_log_tool_call
-def listar_clientes() -> str:
+def listar_clientes(limite: int = 0) -> str:
     """
     Lists all registered clients in the architecture firm.
     PROTOCOL: Always call this before performing any operation on a client you're not 100% sure exists.
     OUTPUT: Indicates if the client has a "Center of Truth" (📁 = has INFO file) and the count of sub-services.
+    PARAMS: limite: Maximum number of clients to show (0 = no limit).
     """
     try:
         clients = _get_factory().get_client_service().list_clients()
@@ -285,8 +286,11 @@ def listar_clientes() -> str:
         if not clients:
             return "📭 No clients registered yet."
 
-        output = f"📋 {len(clients)} client(s) found:\n"
-        for c in clients:
+        display = clients[:limite] if limite > 0 else clients
+        total = len(clients)
+        showing = f" (showing {len(display)} of {total})" if limite > 0 and total > limite else ""
+        output = f"📋 {total} client(s) found{showing}:\n"
+        for c in display:
             marker = "📁" if c['has_info'] else "📂"
             svc_txt = f", {c['service_count']} serviço(s)" if c['service_count'] else ""
             output += f"  {marker} {c['name']}{svc_txt}\n"
@@ -1061,16 +1065,31 @@ def pipeline_novo_cliente(nome: str, apelido: str = "", nif: str = "", email: st
     AI RECOMMENDED: Always prefer this over 'cadastrar_cliente'.
     """
     try:
-        from foton_system.modules.clients.application.use_cases.client_service import ClientService
-        normalized = ClientService.normalize_client_name(nome)
+        from foton_system.modules.clients.application.use_cases.client_validation import normalize_client_name as _normalize
+        normalized = _normalize(nome)
         factory = _get_factory()
         svc = factory.get_client_service()
-        
+
         try:
             exists = svc.resolve_client_path(normalized)
             return f"⚠️ PIPELINE STOPPED — A similar client already exists: {exists.name}. Use 'ler_ficha_cliente' to verify."
         except ValueError:
-            pass 
+            pass
+
+        if nif:
+            existing = svc.list_clients()
+            base = _get_config().base_pasta_clientes
+            for c in existing:
+                info_path = base / c['name'] / "INFO-CLIENTE.md"
+                if info_path.exists():
+                    try:
+                        for line in info_path.read_text(encoding='utf-8').splitlines():
+                            if line.strip().lower().startswith('@nif'):
+                                stored = line.split(';', 1)[-1].strip()
+                                if stored == nif:
+                                    return f"⚠️ PIPELINE STOPPED — NIF '{nif}' already registered under '{c['name']}'."
+                    except Exception:
+                        continue
 
         result = cadastrar_cliente(nome, apelido, nif, email, telefone)
         return result
