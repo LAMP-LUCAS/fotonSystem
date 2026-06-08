@@ -54,22 +54,18 @@ class TestMCPListarTemplates(unittest.TestCase):
 
     def test_returns_pptx_and_docx_lists(self):
         """Returns both PPTX and DOCX template lists."""
-        with patch('foton_system.interfaces.mcp.foton_mcp._get_config') as mock_config:
-            
-            mock_cfg = MagicMock()
-            mock_cfg.templates_path = MagicMock()
-            mock_cfg.templates_path.exists.return_value = True
-            mock_cfg.templates_path.name = "KIT DOC"
-            # Mock glob to return some files
-            mock_file = MagicMock()
-            mock_file.name = "template.pptx"
-            mock_cfg.templates_path.glob.side_effect = [[mock_file], [mock_file]]
-            mock_config.return_value = mock_cfg
-            
+        with patch('foton_system.interfaces.mcp.foton_mcp._get_factory') as mock_factory:
+            mock_doc_svc = MagicMock()
+            mock_doc_svc.list_templates.return_value = MagicMock(
+                success=True,
+                templates={'pptx': ['prop.pptx'], 'docx': ['contract.docx']}
+            )
+            mock_factory.return_value.get_document_service.return_value = mock_doc_svc
+
             from foton_system.interfaces.mcp.foton_mcp import listar_templates
-            
+
             result = listar_templates()
-            
+
             self.assertIn('PPTX', result)
             self.assertIn('DOCX', result)
 

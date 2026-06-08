@@ -9,6 +9,7 @@ from foton_system.modules.shared.infrastructure.config.logger import setup_logge
 from foton_system.modules.documents.application.ports.document_service_port import DocumentServicePort
 from foton_system.modules.shared.infrastructure.utils.formatting import FotonFormatter
 from foton_system.modules.shared.infrastructure.services.cub_service import CubService
+from foton_system.modules.shared.domain.services.safe_math import safe_eval
 from foton_system.modules.shared.domain.exceptions import (
     TemplateNotFoundError,
     DocumentGenerationError
@@ -53,8 +54,7 @@ class DocumentService:
             return []
         return list(client_path.glob('*.md')) + list(client_path.glob('*.txt'))
 
-    def create_custom_data_file(self, client_path, cod, ver='00', rev='R00', desc='PROPOSTA'):
-        from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+    def create_custom_data_file(self, client_path, cod, ver='00', rev='R00', desc='PROPOSTA', info_template_path=None):
         client_path = Path(client_path)
         if not client_path.exists():
             return None
@@ -67,12 +67,14 @@ class DocumentService:
             return data_file
 
         # DNA: Tenta carregar do template centralizado
-        template_path = PathManager.get_info_template_path()
-        if template_path.exists():
+        if info_template_path is None:
+            from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+            info_template_path = PathManager.get_info_template_path()
+        if info_template_path.exists():
             try:
-                with open(template_path, 'r', encoding='utf-8') as f:
+                with open(info_template_path, 'r', encoding='utf-8') as f:
                     content = f.read()
-                logger.info(f"Usando template centralizado: {template_path.name}")
+                logger.info(f"Usando template centralizado: {info_template_path.name}")
             except Exception as e:
                 logger.error(f"Erro ao ler template: {e}")
                 content = "# ERRO AO CARREGAR TEMPLATE"
@@ -211,15 +213,16 @@ class DocumentService:
             dirs_to_check.reverse()
 
             for folder in dirs_to_check:
-                # Find any *INFO*.md file in the folder, regardless of folder name
                 info_files = list(folder.glob("*INFO*.md"))
                 if info_files:
-                    # Sort by modification time to get the most recent if multiple exist
-                    info_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
-                    info_file = info_files[0]
+                    canonical = [f for f in info_files if f.name.upper() in ('INFO-CLIENTE.MD', 'INFO-SERVICO.MD')]
+                    if canonical:
+                        info_file = canonical[0]
+                    else:
+                        info_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+                        info_file = info_files[0]
                     logger.info(f"Carregando contexto de: {info_file.name} em {folder.name}")
                     folder_data = self._parse_md_data(info_file)
-                    # Lowercase keys for case-insensitive matching
                     normalized_folder_data = {k.lower(): v for k, v in folder_data.items()}
                     data.update(normalized_folder_data)
 
@@ -228,7 +231,8 @@ class DocumentService:
 
         return data
 
-    def _parse_md_data(self, file_path):
+    @staticmethod
+    def _parse_md_data(file_path):
         """
         Parses metadata from an MD file.
         Format: @Variable; Value
@@ -315,6 +319,16 @@ class DocumentService:
 
         return missing_keys
 
+    def get_generated_doc_path(self, service_path: Path, template_name: str) -> Path:
+        template_stem = Path(template_name).stem.upper()
+        tipo = "GERAL"
+        for prefix in ["PROPOSTA", "CONTRATO", "MEMORIAL", "RECIBO"]:
+            if template_stem.startswith(prefix):
+                tipo = prefix
+                break
+        folder_doc = self._config.folder_doc
+        return service_path / folder_doc / "GERADOS" / tipo / template_name
+
     def _log_generation(self, output_path, doc_type, template_path, data_path):
         try:
             client_dir = Path(output_path).parent
@@ -359,13 +373,13 @@ class DocumentService:
                                     float_val = FotonFormatter.parse_br_number(v)
                                     # Case-insensitive replacement of variable in expression
                                     expression = re.sub(re.escape(k), str(float_val), expression, flags=re.IGNORECASE)
-                                except:
+                                except (ValueError, TypeError):
                                     pass
                         try:
                             if not re.match(r'^[\d\.\-\+\*\/\(\)\s]+$', expression):
                                 raise ValueError("Expressão contém caracteres inválidos")
 
-                            result = eval(expression)
+                            result = safe_eval(expression)
                             # Store with .2f precision for financial consistency
                             replacements[key] = f"{result:.2f}"
                         except Exception as e:

@@ -24,7 +24,8 @@ class WatcherService:
             cls._instance = super(WatcherService, cls).__new__(cls)
         return cls._instance
 
-    def start(self):
+    def start(self) -> None:
+        """Inicia o observer watchdog em thread daemon para monitorar alterações."""
         if self._running:
             print("⚠️ Watcher already running.")
             return
@@ -63,7 +64,8 @@ class WatcherService:
             logger.error(f"Watcher failed to start: {e}", exc_info=True)
             print(f"❌ Erro ao iniciar Watcher: {e}")
 
-    def stop(self):
+    def stop(self) -> None:
+        """Para o observer watchdog e limpa o estado da instância."""
         if self._observer and self._running:
             print("🛑 Stopping Sentinel...")
             try:

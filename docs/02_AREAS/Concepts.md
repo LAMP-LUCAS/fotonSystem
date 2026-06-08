@@ -59,8 +59,9 @@ foton_system/
 │   └── shared/              # Código compartilhado entre módulos
 │       └── infrastructure/  # Configurações, Logger, Utils
 │
-├── interfaces/              # Pontos de Entrada do Sistema
-│   └── cli/                 # Interface de Linha de Comando (Menus)
+├── interfaces/              # Pontos de Entrada do Sistema (Dual Paradigma)
+│   ├── cli/                 # Interface TUI — humanos via terminal (+ WebView)
+│   └── mcp/                 # Interface MCP — agentes de IA (Claude, Gemini)
 │
 ├── scripts/                 # Scripts utilitários (ex: análise, correções)
 └── assets/                  # Arquivos estáticos (ícones, imagens)
@@ -128,14 +129,49 @@ service = ClientService(repo)           # Entrega a peça para o caso de uso
 
 ---
 
+## 4.1 Dual Paradigma: TUI + MCP
+
+O sistema expõe três interfaces que compartilham o mesmo domain layer:
+
+```
+[TUI (CLI)]  [WebView]  [MCP (Agentes)]
+        \         |         /
+         \        |        /
+          Domain Services
+          (ClientService,
+           FinanceService,
+           DocumentService)
+                |
+         Infrastructure
+    (CSV, Excel, ChromaDB, etc.)
+```
+
+- **TUI**: Interface textual para humanos via terminal. Menus numerados, preenchimento rápido.
+- **WebView**: Interface gráfica HTML+JS para humanos via navegador.
+- **MCP**: Protocolo para agentes de IA. 30+ ferramentas, RAG, watcher, automação.
+
+Todas as três chamam os mesmos `Domain Services` — não há duplicação de lógica de negócio entre interfaces. Veja [[DocsMcp]] (MCP) e [[TuiGuide]] (TUI).
+
+---
+
 ## 5. Fluxo de Execução (Exemplo: Criar Cliente)
 
+O fluxo é idêntico independentemente da interface de entrada:
+
+### Via TUI
 1. **Usuário** seleciona "Criar Cliente" no Menu (`interfaces/cli`).
 2. **Menu** coleta os dados (input).
 3. **Menu** chama `client_service.create_client(dados)`.
 4. **ClientService** aplica regras de negócio (ex: gera código automático).
 5. **ClientService** chama `self.repository.save_clients()`.
 6. **ExcelClientRepository** (implementação injetada) abre o Excel e salva a linha.
+
+### Via MCP
+1. **Agente** chama a tool `cadastrar_cliente` (`interfaces/mcp/foton_mcp.py`).
+2. **Tool** coleta os parâmetros e chama `client_service.create_client(dados)`.
+3. **ClientService** — mesmos passos 4-6 acima.
+
+> A lógica de negócio vive nos `Domain Services`, não nas interfaces. TUI e MCP são apenas fachadas de entrada.
 
 ---
 

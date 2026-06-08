@@ -1,0 +1,8 @@
+# FotonSystem Desktop Requirements (GUI / Windows Integration)
+-r requirements-core.txt
+winshell
+pywin32
+pywebview
+pythonnet
+clr-loader
+crossfiledialog

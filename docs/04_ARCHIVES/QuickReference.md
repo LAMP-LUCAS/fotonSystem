@@ -1,10 +1,15 @@
 ---
-type: guide
+type: archive
 domain: core
-status: active
-tags: [quickref, backup, deployment, cheatsheet]
+status: archived
+tags: [quickref, legacy, tui]
+archive_note: >
+  Arquivado em Jun/2026 (Sprint DualInterface). Reflete TUI legado —
+  menus de implantação e backup que não representam a arquitetura
+  atual. Ver [[TuiGuide]] (TUI) e [[DocsMcp]] (MCP) para
+  documentação vigente.
 ---
-# ⚡ Cartão de Referência Rápida: Implantação e Backup (QuickReference)
+# [ARQUIVADO] ⚡ Cartão de Referência Rápida: Implantação e Backup (QuickReference)
 
 ## Para Colar na Parede do Escritório 📌
 

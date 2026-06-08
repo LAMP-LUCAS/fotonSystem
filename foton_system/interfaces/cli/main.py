@@ -155,7 +155,8 @@ def show_mcp_config():
     # Determine the correct path to the MCP script
     if PathManager.is_frozen():
         # In frozen mode, point to the EXE itself with the --mcp flag
-        exe_path = str(PathManager.get_install_dir() / "foton_system_v1.0.0.exe")
+        from foton_system import __version__
+        exe_path = str(PathManager.get_install_dir() / f"foton_system_v{__version__}.exe")
         # Ensure we point to the actual running exe if possible
         if getattr(sys, 'frozen', False):
             exe_path = sys.executable
@@ -209,18 +210,10 @@ def main():
         show_mcp_config()
         sys.exit(0)
 
-    # Handle --mcp flag (Launch MCP Server)
+    # Handle --mcp flag (delegate to unified safety_entry)
     if args.mcp:
-        try:
-            from foton_system.interfaces.mcp.foton_mcp import mcp
-            print("🤖 Iniciando Servidor Foton MCP...")
-            mcp.run()
-        except ImportError as e:
-            print(f"❌ Erro ao importar MCP: {e}")
-            sys.exit(1)
-        except Exception as e:
-            print(f"❌ Erro fatal no MCP: {e}")
-            sys.exit(1)
+        from foton_system.main import safety_entry
+        safety_entry()
         sys.exit(0)
     
     # Handle --reset-config flag
@@ -228,8 +221,9 @@ def main():
         config_path = PathManager.get_settings_path()
         if config_path.exists():
             config_path.unlink()
-            print(f"✅ Configuração removida: {config_path}")
-        print("⚙️ Uma nova configuração será criada na próxima execução.")
+        from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
+        BootstrapService.initialize()
+        print(f"✅ Configuração recriada com defaults em: {config_path}")
         sys.exit(0)
     
     # --- HEAVY INITIALIZATION STARTS HERE ---

@@ -9,6 +9,7 @@ from foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter 
 from foton_system.modules.productivity.pomodoro import PomodoroTimer
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
 from foton_system.modules.shared.infrastructure.services.tip_service import TipService
+from foton_system.modules.shared.infrastructure.services.environment_porter import get_porter, SystemProfile
 from foton_system.interfaces.cli.ui_provider import UIProvider, get_ui_provider
 from foton_system.interfaces.cli.views.tui_layout import TUILayout
 from colorama import init, Fore, Style
@@ -27,7 +28,8 @@ class MenuSystem:
             ui_provider: UIProvider instance for TUI/GUI interactions.
                         If None, auto-detects based on environment.
         """
-        # UI Provider (TUI or GUI)
+        # Ambiente e Provedor de UI
+        self.porter = get_porter()
         self.ui = ui_provider or get_ui_provider('auto')
         
         # Dependency Injection Wiring
@@ -101,25 +103,30 @@ class MenuSystem:
         TUILayout.clear()
         TUILayout.print_header("FOTON SYSTEM")
         
-        options = [
-            ("1", "Gerenciar Clientes"),
-            ("2", "Gerenciar Serviços"),
-            ("3", "Preencher Ficha (Interface)"),
-            ("4", "Documentos (PPTX/DOCX)"),
-            ("5", "Produtividade (Pomodoro)"),
-            ("6", "Configurações do Sistema"),
-            ("7", "Instalação / Atalhos"),
-            ("8", "Modo Sentinela (Watcher)"),
-            ("0", "Sair")
+        # Mapeamento Dinâmico de Opções
+        all_options = [
+            ("1", "Gerenciar Clientes", True),
+            ("2", "Gerenciar Serviços", True),
+            ("3", "Preencher Ficha (Interface)", self.porter.can_use_feature("webview")),
+            ("4", "Documentos (PPTX/DOCX)", True),
+            ("5", "Produtividade (Pomodoro)", True),
+            ("6", "Configurações do Sistema", True),
+            ("7", "Instalação / Atalhos", self.porter.can_use_feature("shortcuts")),
+            ("8", "Modo Sentinela (Watcher)", self.porter.can_use_feature("watcher")),
+            ("0", "Sair", True)
         ]
-        for key, label in options:
+        
+        # Filtra opções disponíveis
+        active_options = [(k, l) for k, l, available in all_options if available]
+        
+        for key, label in active_options:
             TUILayout.print_menu_option(key, label)
         
         # Rodapé Didático
         try:
             tip = self.tip_service.get_random_tip("GERAL")
             TUILayout.print_tip(tip, "DICA")
-        except: pass
+        except Exception: pass
 
         TUILayout.print_footer()
         return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
@@ -143,7 +150,7 @@ class MenuSystem:
         try:
             tip = self.tip_service.get_random_tip("SSOT")
             TUILayout.print_tip(tip, "CLIENTE")
-        except: pass
+        except Exception: pass
 
         TUILayout.print_footer()
         return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
@@ -166,7 +173,7 @@ class MenuSystem:
         try:
             tip = self.tip_service.get_random_tip("PRODUTIVIDADE")
             TUILayout.print_tip(tip, "SERVIÇO")
-        except: pass
+        except Exception: pass
 
         TUILayout.print_footer()
         return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
@@ -188,7 +195,7 @@ class MenuSystem:
         try:
             tip = self.tip_service.get_random_tip("FORMATACAO")
             TUILayout.print_tip(tip, "DOCS")
-        except: pass
+        except Exception: pass
 
         TUILayout.print_footer()
         return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
@@ -208,7 +215,7 @@ class MenuSystem:
         try:
             tip = self.tip_service.get_random_tip("GERAL")
             TUILayout.print_tip(tip, "FOCO")
-        except: pass
+        except Exception: pass
 
         TUILayout.print_footer()
         return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
@@ -229,7 +236,7 @@ class MenuSystem:
         try:
             tip = self.tip_service.get_random_tip("SANDBOX")
             TUILayout.print_tip(tip, "CONFIG")
-        except: pass
+        except Exception: pass
 
         TUILayout.print_footer()
         return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opção: {Style.RESET_ALL}").strip()
@@ -266,7 +273,7 @@ class MenuSystem:
             sys.exit()
 
     def handle_webview_interface(self):
-        """Interface de preenchimento: Escolha entre Terminal (Rápido) ou Visual (Lento)."""
+        """Interface de preenchimento: Escolha entre Terminal ou Visual (Agnóstico)."""
         from pathlib import Path
         TUILayout.clear()
         TUILayout.print_header("PREENCHIMENTO DE FICHA")
@@ -279,38 +286,47 @@ class MenuSystem:
         data_path = Path(data_file)
         
         try:
-            # Carregar conteúdo inicial
             with open(data_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            # Escolha de Interface
+            # Callback para salvar
+            def save_fn(new_content):
+                try:
+                    with open(data_path, "w", encoding="utf-8") as f:
+                        f.write(new_content)
+                    return True
+                except Exception as e:
+                    logger.error(f"Erro ao salvar: {e}")
+                    return False
+
+            # Obtém o filler adequado via Porteiro
+            filler = self.porter.get_form_filler()
+            
+            # Se for servidor, ele já avisará que é TUI
+            if self.porter.profile == SystemProfile.SERVER_HEADLESS:
+                 filler.open_form(content, save_fn)
+                 input("Pressione Enter para continuar...")
+                 return
+
+            # No Desktop, damos a opção de TUI ou Visual
             print(f"\n{Fore.YELLOW}Escolha o modo de preenchimento:{Style.RESET_ALL}")
-            print("  [1] Terminal Rápido (Instantâneo/Interativo)")
-            print("  [2] Interface Visual (Lento/Edge)")
+            print("  [1] Terminal (Nativo)")
+            print("  [2] Interface Rica (Visual/Web)")
             print("  [0] Cancelar")
             
             sub_choice = input(f"\n{Fore.YELLOW}>> Escolha: {Style.RESET_ALL}").strip()
             
             if sub_choice == '1':
                 from foton_system.modules.documents.application.use_cases.tui_form_filler_use_case import TUIFormFillerUseCase
-                filler = TUIFormFillerUseCase(data_path)
-                if filler.execute():
+                tui_filler = TUIFormFillerUseCase(data_path)
+                if tui_filler.execute():
                     self.print_success("\n✅ Ficha atualizada com sucesso via Terminal!")
                     input("Pressione Enter para continuar...")
             elif sub_choice == '2':
-                # Callback para salvar
-                def save_fn(new_content):
-                    try:
-                        with open(data_path, "w", encoding="utf-8") as f:
-                            f.write(new_content)
-                        return True
-                    except Exception as e:
-                        logger.error(f"Erro ao salvar via WebView: {e}")
-                        return False
-
-                from foton_system.interfaces.webview_bridge import open_info_interface
-                print(f"🚀 Abrindo interface visual para: {data_path.name}")
-                open_info_interface(content, save_fn)
+                print(f"🚀 Iniciando interface para: {data_path.name}")
+                if not filler.open_form(content, save_fn):
+                     self.print_error("Falha ao abrir interface visual.")
+                     input("Enter...")
             else:
                 self.print_warning("Operação cancelada.")
                 
@@ -330,7 +346,7 @@ class MenuSystem:
         try:
             tip = self.tip_service.get_random_tip("GERAL")
             TUILayout.print_tip(tip, "SETUP")
-        except: pass
+        except Exception: pass
         
         TUILayout.print_footer()
         
@@ -366,20 +382,25 @@ class MenuSystem:
                 self.print_error("Opção inválida.")
 
     def handle_client_sync_menu(self):
-        TUILayout.clear()
-        TUILayout.print_header("SINCRONIZAR CADASTRO (CLIENTES)")
-        TUILayout.print_menu_option("1", "Exportar (DB -> Arquivo INFO)")
-        TUILayout.print_menu_option("2", "Importar (Arquivo INFO -> DB)")
-        TUILayout.print_menu_option("0", "Voltar")
-        TUILayout.print_footer()
-        
-        sub = input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha: {Style.RESET_ALL}")
-        if sub == '1':
-            self.client_service.export_client_data()
-            input("Pressione Enter para continuar...")
-        elif sub == '2':
-            self.client_service.import_client_data()
-            input("Pressione Enter para continuar...")
+        while True:
+            TUILayout.clear()
+            TUILayout.print_header("SINCRONIZAR CADASTRO (CLIENTES)")
+            TUILayout.print_menu_option("1", "Exportar (DB -> Arquivo INFO)")
+            TUILayout.print_menu_option("2", "Importar (Arquivo INFO -> DB)")
+            TUILayout.print_menu_option("0", "Voltar")
+            TUILayout.print_footer()
+
+            sub = input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha: {Style.RESET_ALL}")
+            if sub == '1':
+                self.client_service.export_client_data()
+                input("Pressione Enter para continuar...")
+            elif sub == '2':
+                self.client_service.import_client_data()
+                input("Pressione Enter para continuar...")
+            elif sub == '0':
+                break
+            else:
+                self.print_error("Opção inválida.")
 
     def handle_services(self):
         while True:
@@ -403,20 +424,25 @@ class MenuSystem:
                 self.print_error("Opção inválida.")
 
     def handle_service_sync_menu(self):
-        TUILayout.clear()
-        TUILayout.print_header("SINCRONIZAR CADASTRO (SERVIÇOS)")
-        TUILayout.print_menu_option("1", "Exportar (DB -> Arquivo INFO)")
-        TUILayout.print_menu_option("2", "Importar (Arquivo INFO -> DB)")
-        TUILayout.print_menu_option("0", "Voltar")
-        TUILayout.print_footer()
-        
-        sub = input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha: {Style.RESET_ALL}")
-        if sub == '1':
-            self.client_service.export_service_data()
-            input("Pressione Enter para continuar...")
-        elif sub == '2':
-            self.client_service.import_service_data()
-            input("Pressione Enter para continuar...")
+        while True:
+            TUILayout.clear()
+            TUILayout.print_header("SINCRONIZAR CADASTRO (SERVIÇOS)")
+            TUILayout.print_menu_option("1", "Exportar (DB -> Arquivo INFO)")
+            TUILayout.print_menu_option("2", "Importar (Arquivo INFO -> DB)")
+            TUILayout.print_menu_option("0", "Voltar")
+            TUILayout.print_footer()
+
+            sub = input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha: {Style.RESET_ALL}")
+            if sub == '1':
+                self.client_service.export_service_data()
+                input("Pressione Enter para continuar...")
+            elif sub == '2':
+                self.client_service.import_service_data()
+                input("Pressione Enter para continuar...")
+            elif sub == '0':
+                break
+            else:
+                self.print_error("Opção inválida.")
 
     def handle_documents(self):
         while True:
@@ -458,15 +484,7 @@ class MenuSystem:
             elif choice == '4':
                 self.handle_admin_tools()
             elif choice == '5':
-                # Open Workspace Folder
-                import os
-                try:
-                    os.startfile(config.workspace_path)
-                    self.print_success(f"Abrindo pasta: {config.workspace_path}")
-                    input("Pressione Enter para continuar...")
-                except Exception as e:
-                    self.print_error(f"Erro ao abrir pasta: {e}")
-                    input("Pressione Enter para continuar...")
+                self._open_workspace_folder(config)
             elif choice == '0':
                 break
             else:
@@ -492,6 +510,24 @@ class MenuSystem:
             self.print_warning("Operação cancelada.")
             input("Pressione Enter para continuar...")
 
+
+    def _open_workspace_folder(self, config):
+        import sys
+        import os
+        import subprocess
+
+        path = str(config.workspace_path)
+        try:
+            if sys.platform == 'win32':
+                os.startfile(path)
+            elif sys.platform == 'darwin':
+                subprocess.run(['open', path], check=True)
+            else:
+                subprocess.run(['xdg-open', path], check=True)
+            self.print_success(f"Abrindo pasta: {path}")
+        except Exception as e:
+            self.print_error(f"Erro ao abrir pasta: {e}")
+        input("Pressione Enter para continuar...")
 
     def create_client_ui(self):
         TUILayout.clear()
@@ -712,7 +748,7 @@ class MenuSystem:
         try:
             idx = int(input("\n  Escolha: ")) - 1
             selected_file = data_files[idx]
-        except: return
+        except (ValueError, IndexError): return
 
         print("\n  Tipo: [1] PPTX | [2] DOCX")
         doc_type = 'pptx' if input("  Escolha: ") == '1' else 'docx'
@@ -751,7 +787,7 @@ class MenuSystem:
             try:
                 tip = self.tip_service.get_random_tip("IA")
                 TUILayout.print_tip(tip, "SENTINELA")
-            except: pass
+            except Exception: pass
 
             TUILayout.print_footer()
             choice = input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha: {Style.RESET_ALL}").strip()
@@ -760,15 +796,19 @@ class MenuSystem:
                 self.print_warning("  Iniciando Watcher...")
                 try:
                     from foton_system.core.watcher.service import WatcherService
-                    watcher = WatcherService()
-                    watcher.start()
+                    self._watcher = WatcherService()
+                    self._watcher.start()
                     self.print_success("  Watcher ativado!")
                     input("Enter...")
                 except Exception as e:
                     self.print_error(f"Erro: {e}")
                     input("Enter...")
             elif choice == '2':
-                self.print_warning("  Desativado.")
+                if hasattr(self, '_watcher') and self._watcher:
+                    self._watcher.stop()
+                    self.print_success("  Watcher desativado.")
+                else:
+                    self.print_warning("  Nenhum watcher ativo.")
                 input("Enter...")
             elif choice == '3':
                 self._index_knowledge_ui()

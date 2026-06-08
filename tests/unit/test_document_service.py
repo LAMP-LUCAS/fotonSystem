@@ -14,7 +14,7 @@ import unittest
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, PropertyMock
 import json
 
 from foton_system.modules.documents.application.use_cases.document_service import DocumentService
@@ -305,15 +305,17 @@ class TestDocumentServiceCustomDataFile(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.test_dir, ignore_errors=True)
 
-    def test_creates_data_file_with_template_content(self):
+    @patch('foton_system.modules.shared.infrastructure.services.path_manager.PathManager.get_info_template_path')
+    def test_creates_data_file_with_template_content(self, mock_get_path):
         """create_custom_data_file creates file with default template."""
+        mock_get_path.return_value = Path('/nonexistent/template.md')
         result = self.service.create_custom_data_file(self.test_dir, 'ABC123')
         
         self.assertIsNotNone(result)
         self.assertTrue(result.exists())
         content = result.read_text(encoding='utf-8')
         self.assertIn('@TEMPLATE:', content)
-        self.assertIn('@valorProposta:', content)
+        self.assertIn('@DataAtual:', content)
 
     def test_returns_none_for_missing_path(self):
         """Returns None if client path doesn't exist."""
@@ -324,3 +326,120 @@ class TestDocumentServiceCustomDataFile(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestDocumentServiceContextCanonical(unittest.TestCase):
+    """Tests for canonical INFO file loading and get_generated_doc_path."""
+
+    def setUp(self):
+        self.test_dir = Path(tempfile.mkdtemp())
+        self.service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir, ignore_errors=True)
+
+    @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
+    def test_load_context_data_uses_canonical_names(self, MockConfig):
+        """Should prefer INFO-CLIENTE.md and INFO-SERVICO.md over generic INFO.md."""
+        base = self.test_dir / "CLIENTES"
+        client = base / "CLIENTE_A"
+        service = client / "SERVICO_X"
+        service.mkdir(parents=True)
+
+        mock_config = MagicMock()
+        mock_config.base_pasta_clientes = base
+        MockConfig.return_value = mock_config
+
+        (client / "INFO-CLIENTE.md").write_text(
+            "@CLIENTE; CLIENTE_A\n@ENDERECO; Rua A, 123\n", encoding='utf-8'
+        )
+        (client / "INFO-generico.md").write_text(
+            "@CLIENTE; GENERICO\n@VALOR; 999\n", encoding='utf-8'
+        )
+
+        data = self.service._load_context_data(service / "data.md")
+        self.assertEqual(data['@cliente'], 'CLIENTE_A')
+        self.assertNotIn('@valor', data)
+
+    @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
+    def test_load_context_data_merges_client_then_service(self, MockConfig):
+        """Service data should override client data for same key."""
+        base = self.test_dir / "CLIENTES"
+        client = base / "CLIENTE_B"
+        service = client / "PROJETO_Y"
+        service.mkdir(parents=True)
+
+        mock_config = MagicMock()
+        mock_config.base_pasta_clientes = base
+        MockConfig.return_value = mock_config
+
+        (client / "INFO-CLIENTE.md").write_text(
+            "@CLIENTE; CLIENTE_B\n@VALOR; 1000\n", encoding='utf-8'
+        )
+        (service / "INFO-SERVICO.md").write_text(
+            "@VALOR; 2000\n@DETALHE; extra\n", encoding='utf-8'
+        )
+
+        data = self.service._load_context_data(service / "data.md")
+        self.assertEqual(data['@cliente'], 'CLIENTE_B')
+        # Service overrides client's @VALOR
+        self.assertEqual(data['@valor'], '2000')
+        self.assertEqual(data['@detalhe'], 'extra')
+
+    @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
+    def test_get_generated_doc_path_proposta(self, MockConfig):
+        """Should return path under {DOC}/GERADOS/PROPOSTA/ for proposal templates."""
+        base = self.test_dir / "CLIENTES"
+        client = base / "CLIENTE_C"
+        service = client / "OBRA_Z"
+        service.mkdir(parents=True)
+
+        mock_config = MagicMock()
+        mock_config.base_pasta_clientes = base
+        type(mock_config).folder_doc = PropertyMock(return_value='00_DOC')
+        MockConfig.return_value = mock_config
+
+        result = self.service.get_generated_doc_path(
+            service, "PROPOSTA_RESIDENCIAL.docx"
+        )
+
+        expected = service / "00_DOC" / "GERADOS" / "PROPOSTA" / "PROPOSTA_RESIDENCIAL.docx"
+        self.assertEqual(result, expected)
+
+    @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
+    def test_get_generated_doc_path_contract(self, MockConfig):
+        """Should return path under {DOC}/GERADOS/CONTRATO/ for contract templates."""
+        base = self.test_dir / "CLIENTES"
+        service = base / "CLIENTE_D" / "SERVICO_W"
+        service.mkdir(parents=True)
+
+        mock_config = MagicMock()
+        mock_config.base_pasta_clientes = base
+        type(mock_config).folder_doc = PropertyMock(return_value='00_DOC')
+        MockConfig.return_value = mock_config
+
+        result = self.service.get_generated_doc_path(
+            service, "CONTRATO_PRESTACAO.docx"
+        )
+
+        expected = service / "00_DOC" / "GERADOS" / "CONTRATO" / "CONTRATO_PRESTACAO.docx"
+        self.assertEqual(result, expected)
+
+    @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
+    def test_get_generated_doc_path_fallback_geral(self, MockConfig):
+        """Unknown template type should fall back to GERAL."""
+        base = self.test_dir / "CLIENTES"
+        service = base / "CLIENTE_E" / "SERVICO_V"
+        service.mkdir(parents=True)
+
+        mock_config = MagicMock()
+        mock_config.base_pasta_clientes = base
+        type(mock_config).folder_doc = PropertyMock(return_value='00_DOC')
+        MockConfig.return_value = mock_config
+
+        result = self.service.get_generated_doc_path(
+            service, "MEMORIAL_DESCRITIVO.docx"
+        )
+
+        expected = service / "00_DOC" / "GERADOS" / "MEMORIAL" / "MEMORIAL_DESCRITIVO.docx"
+        self.assertEqual(result, expected)

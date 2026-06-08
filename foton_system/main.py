@@ -1,6 +1,9 @@
 import sys
 import os
 import time
+import logging
+
+_logger = logging.getLogger("foton_bootstrap")
 
 
 def _ensure_path():
@@ -22,24 +25,39 @@ def _start_mcp():
     CRITICAL: This function must produce ZERO stdout output before mcp.run().
     All diagnostics go to stderr or log file.
     """
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8')
     _ensure_path()
     from foton_system.interfaces.mcp.foton_mcp import run_server
     run_server()
 
 
+_bootstrap_start: float = 0.0
+"""Global bootstrap timer baseline, set by safety_entry()."""
+
+
 # Ultra-Safe Entry Point
 def safety_entry():
     """Provides immediate visual feedback and robust error handling."""
-    
+    global _bootstrap_start
+    _bootstrap_start = time.perf_counter()
+
     # ── SANDBOX MODE: Global Activation ──
     if "--sandbox" in sys.argv:
         _ensure_path()
         from foton_system.modules.shared.infrastructure.services.sandbox_service import SandboxService
         SandboxService.initialize_sandbox()
 
+    # ── TUI MODE: Strip flag so it doesn't conflict with CLI argparse ──
+    if "--tui" in sys.argv:
+        sys.argv = [a for a in sys.argv if a != "--tui"]
+
     # ── MCP MODE: Must be checked FIRST — zero stdout before mcp.run() ──
     if "--mcp" in sys.argv:
         _start_mcp()
+        _log_bootstrap_time()
         return
 
     # ── CLI MODE: visual feedback is OK ──
@@ -53,14 +71,19 @@ def safety_entry():
     try:
         _ensure_path()
 
-        # Deferred Import of heavy modules to show "Loading" status
+        step_time: float = time.perf_counter()
         print("\033[33m[  WAIT  ]\033[0m Bootstrapping interface...")
         from foton_system.interfaces.cli.main import main
+        _logger.info(f"Bootstrap step 'import cli' took {time.perf_counter() - step_time:.2f}s")
 
         print("\033[32m[   OK   ]\033[0m System ready.")
         time.sleep(0.5)
 
+        step_time = time.perf_counter()
         main()
+        _logger.info(f"Bootstrap step 'main()' took {time.perf_counter() - step_time:.2f}s")
+
+        _log_bootstrap_time()
 
     except Exception as e:
         import traceback
@@ -69,12 +92,24 @@ def safety_entry():
         traceback.print_exc()
         print("-"*60 + "\033[0m")
         print("\033[33mDiagnostic Info:\033[0m")
-        print(f"  Version: 1.0.0")
+        from foton_system import __version__
+        print(f"  Version: {__version__}")
         print(f"  Frozen: {getattr(sys, 'frozen', False)}")
         print(f"  Base Path: {getattr(sys, '_MEIPASS', os.getcwd())}")
         print("\n\033[36mPressione ENTER para fechar e reportar o erro...\033[0m")
         input()
         sys.exit(1)
+
+
+def _log_bootstrap_time() -> None:
+    """Loga o tempo total de bootstrap desde safety_entry()."""
+    elapsed: float = time.perf_counter() - _bootstrap_start
+    msg: str = f"Bootstrap completed in {elapsed:.2f}s"
+    try:
+        _logger.info(msg)
+    except NameError:
+        pass
+    sys.stderr.write(f"[FOTON] {msg}\n")
 
 if __name__ == "__main__":
     safety_entry()

@@ -48,13 +48,12 @@ class TestArchitectPipelineE2E(unittest.TestCase):
         """
         Funnel: Create Client -> Verify Folders -> Generate INFO -> Generate Document.
         """
-        # 1. Create Client
-        client_data = {
-            'NomeCliente': 'Arquitetura E2E Ltda',
-            'Alias': 'E2E_PROJ',
-            'TelefoneCliente': '1199999999'
-        }
-        self.client_service.create_client(client_data)
+        # 1. Create Client (kwargs signature post bug #2 fix)
+        self.client_service.create_client(
+            name='Arquitetura E2E Ltda',
+            alias='E2E_PROJ',
+            phone='1199999999',
+        )
 
         # Force sync to create folders if they weren't created
         self.client_service.sync_client_folders_from_db()

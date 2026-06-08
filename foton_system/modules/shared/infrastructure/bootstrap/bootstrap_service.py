@@ -92,8 +92,7 @@ class BootstrapService:
             "caminho_template_info": "",
             "ignored_folders": ["DOC", "ARQ", "HID", "ELE", "STR", "PL", "EVT"],
             "clean_missing_variables": True,
-            "missing_variable_placeholder": "---",
-            "enable_mcp": True
+            "missing_variable_placeholder": "---"
         }
 
         try:

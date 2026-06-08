@@ -1,4 +1,5 @@
-﻿import sys
+﻿# Abandoned since v1.2.0 (Jun/2026) — see main.py for entry points
+import sys
 import cmd
 from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system.modules.sync.sync_service import SyncService

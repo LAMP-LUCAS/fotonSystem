@@ -14,8 +14,14 @@ ARCHITECTURE NOTES:
 from mcp.server.fastmcp import FastMCP
 from pathlib import Path
 import sys
+import os
+import json
+import subprocess
 import time
 import logging
+import logging.handlers
+import uuid
+import functools
 
 # --- CRITICAL: PATH PATCHING (Must be FIRST) ---
 def _ensure_import_path():
@@ -33,6 +39,37 @@ def _ensure_import_path():
 
 _ensure_import_path()
 
+def _find_project_root() -> Path:
+    """Retorna o diretório raiz do projeto (onde foton_system/ está)."""
+    if getattr(sys, 'frozen', False):
+        # Inside frozen EXE: look for the real project source on OneDrive
+        candidates = [
+            Path.home() / "OneDrive" / "LAMP_ARQUITETURA" / "fotonSystem",
+            Path(os.environ.get("USERPROFILE", "")) / "OneDrive" / "LAMP_ARQUITETURA" / "fotonSystem",
+            Path("C:\\Users") / os.environ.get("USERNAME", "Lucas") / "OneDrive" / "LAMP_ARQUITETURA" / "fotonSystem",
+        ]
+        for c in candidates:
+            if (c / "foton_system" / "__init__.py").exists():
+                return c
+    p = Path(__file__).resolve()
+    for parent in p.parents:
+        if (parent / "foton_system" / "__init__.py").exists():
+            return parent
+    return p.parents[3]
+
+def _find_system_python() -> Path:
+    """Retorna o caminho do Python do sistema (não o frozen) para subprocess RAG."""
+    candidates = [
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Python" / "Python312" / "python.exe",
+        Path.home() / "AppData" / "Local" / "Programs" / "Python" / "Python312" / "python.exe",
+        Path("C:\\Program Files") / "Python312" / "python.exe",
+        Path("C:\\Python312") / "python.exe",
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    return candidates[0]
+
 # --- LOGGING SETUP (file only, never stdout) ---
 from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
 
@@ -43,8 +80,10 @@ try:
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "foton_mcp.log"
 
-    # File handler only — never attach a StreamHandler to stdout
-    _handler = logging.FileHandler(str(log_file), encoding="utf-8")
+    # File handler with rotation — never attach a StreamHandler to stdout
+    _handler = logging.handlers.RotatingFileHandler(
+        str(log_file), maxBytes=5*1024*1024, backupCount=3, encoding="utf-8"
+    )
     _handler.setFormatter(logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     ))
@@ -70,6 +109,67 @@ except Exception as e:
 # --- MCP SERVER INSTANCE ---
 mcp = FastMCP("Foton Architecture System")
 _logger.info("FastMCP initialized.")
+
+
+# ==============================================================================
+# HELPERS: Validation + Correlation ID
+# ==============================================================================
+
+_MAX_LENGTHS = {
+    'nome': 200,
+    'apelido': 100,
+    'pergunta': 5000,
+    'descricao': 500,
+    'conteudo': 50000,
+    'cod': 50,
+    'nome_template': 200,
+    'cliente': 200,
+    'secao': 100,
+    'pasta_alvo': 500,
+    'nif': 20,
+    'email': 200,
+    'telefone': 30,
+}
+
+def _validate_str(value: str, field_name: str) -> None:
+    """Validate string length. Raises ValueError if too long."""
+    max_len = _MAX_LENGTHS.get(field_name)
+    if max_len is not None and len(value) > max_len:
+        raise ValueError(
+            f"'{field_name}' exceeds max length ({max_len}): "
+            f"got {len(value)} characters"
+        )
+
+
+def _log_tool_call(func):
+    """Decorator: adds correlation ID + entry/exit logging + auto string validation."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        req_id = str(uuid.uuid4())[:8]
+        _logger.info(f"[req-{req_id}] Tool called: {func.__name__}")
+
+        import inspect
+        try:
+            sig = inspect.signature(func)
+            bound = sig.bind(*args, **kwargs)
+            bound.apply_defaults()
+            for param_name, param_value in bound.arguments.items():
+                if isinstance(param_value, str) and param_value:
+                    _validate_str(param_value, param_name)
+        except ValueError as e:
+            _logger.warning(f"[req-{req_id}] Validation failed: {e}")
+            return f"❌ {e}"
+        except TypeError:
+            pass
+
+        try:
+            result = func(*args, **kwargs)
+            _logger.info(f"[req-{req_id}] Tool completed: {func.__name__}")
+            return result
+        except Exception:
+            _logger.error(f"[req-{req_id}] Tool failed: {func.__name__}", exc_info=True)
+            raise
+    return wrapper
 
 
 # ==============================================================================
@@ -107,16 +207,17 @@ def _get_config():
 # ==============================================================================
 
 @mcp.tool()
+@_log_tool_call
 def ping() -> str:
     """
     Verifies that the Foton MCP server is responsive.
     PROTOCOL: Use this as the very first tool call to ensure the link is active.
     """
-    _logger.info("Tool called: ping")
     return f"🟢 FOTON MCP Online (pid={__import__('os').getpid()}, ts={int(time.time())})"
 
 
 @mcp.tool()
+@_log_tool_call
 def info_sistema() -> str:
     """
     Provides a comprehensive diagnostic of the Foton system's environment.
@@ -124,7 +225,6 @@ def info_sistema() -> str:
     template availability, and active business rules (like missing variable placeholders).
     Returns path configurations and module availability.
     """
-    _logger.info("Tool called: info_sistema")
     try:
         config = _get_config()
         clients_dir = config.base_pasta_clientes
@@ -160,6 +260,9 @@ def info_sistema() -> str:
             f"  📝 Placeholder: '{config.missing_variable_placeholder}'\n"
         )
         return output
+    except OSError as e:
+        _logger.error(f"info_sistema I/O error: {e}", exc_info=True)
+        return f"❌ File system error: {e}"
     except Exception as e:
         return f"❌ Error retrieving system info: {e}"
 
@@ -169,62 +272,53 @@ def info_sistema() -> str:
 # ==============================================================================
 
 @mcp.tool()
-def listar_clientes() -> str:
+@_log_tool_call
+def listar_clientes(limite: int = 0) -> str:
     """
     Lists all registered clients in the architecture firm.
     PROTOCOL: Always call this before performing any operation on a client you're not 100% sure exists.
     OUTPUT: Indicates if the client has a "Center of Truth" (📁 = has INFO file) and the count of sub-services.
+    PARAMS: limite: Maximum number of clients to show (0 = no limit).
     """
-    _logger.info("Tool called: listar_clientes")
     try:
-        config = _get_config()
-        clients_dir = config.base_pasta_clientes
-
-        if not clients_dir.exists():
-            return f"⚠️ Client directory not found: {clients_dir}"
-
-        ignored = set(config.ignored_folders + ['.obsidian'])
-
-        clients = sorted([
-            d.name for d in clients_dir.iterdir()
-            if d.is_dir() and d.name not in ignored
-        ])
+        clients = _get_factory().get_client_service().list_clients()
 
         if not clients:
             return "📭 No clients registered yet."
 
-        output = f"📋 {len(clients)} client(s) found:\n"
-        for c in clients:
-            client_path = clients_dir / c
-            info_files = list(client_path.glob("*INFO*.md"))
-            has_info = len(info_files) > 0
-            services = [
-                s.name for s in client_path.iterdir()
-                if s.is_dir() and s.name not in ignored
-            ]
-            marker = "📁" if has_info else "📂"
-            svc_txt = f", {len(services)} serviço(s)" if services else ""
-            output += f"  {marker} {c}{svc_txt}\n"
+        display = clients[:limite] if limite > 0 else clients
+        total = len(clients)
+        showing = f" (showing {len(display)} of {total})" if limite > 0 and total > limite else ""
+        output = f"📋 {total} client(s) found{showing}:\n"
+        for c in display:
+            marker = "📁" if c['has_info'] else "📂"
+            svc_txt = f", {c['service_count']} serviço(s)" if c['service_count'] else ""
+            output += f"  {marker} {c['name']}{svc_txt}\n"
 
         return output
+    except OSError as e:
+        _logger.error(f"listar_clientes I/O error: {e}", exc_info=True)
+        return f"❌ File system error: {e}"
     except Exception as e:
         _logger.error(f"listar_clientes failed: {e}", exc_info=True)
         return f"❌ Error listing clients: {e}"
 
 
 @mcp.tool()
+@_log_tool_call
 def cadastrar_cliente(nome: str, apelido: str = "", nif: str = "", email: str = "", telefone: str = "") -> str:
     """
     Creates a new client folder and master record.
     SAFETY: Use 'pipeline_novo_cliente' instead for a safer, non-duplicate workflow.
     Logic: Creates standard folders (ADMINISTRATIVO, FINANCEIRO, PROJETOS) and initial INFO and FINANCEIRO files.
     """
-    _logger.info(f"Tool called: cadastrar_cliente(nome={nome})")
     try:
+        from foton_system.modules.clients.application.use_cases.client_validation import normalize_client_name as _normalize
+        normalized = _normalize(nome)
         from foton_system.core.ops.op_create_client import OpCreateClient
         op = OpCreateClient(actor="Agent_MCP")
         result = op.execute(
-            name=nome,
+            name=normalized,
             alias=apelido if apelido else None,
             nif=nif,
             email=email,
@@ -232,7 +326,8 @@ def cadastrar_cliente(nome: str, apelido: str = "", nif: str = "", email: str = 
         )
         return (
             f"✅ Cliente criado com sucesso (POP Auditado)\n"
-            f"   Nome: {nome}\n"
+            f"   Nome original: {nome}\n"
+            f"   Nome normalizado: {normalized}\n"
             f"   Pasta: {result['client_path']}\n"
             f"   Código: {result['client_id']}"
         )
@@ -244,6 +339,7 @@ def cadastrar_cliente(nome: str, apelido: str = "", nif: str = "", email: str = 
 
 
 @mcp.tool()
+@_log_tool_call
 def ler_ficha_cliente(cliente: str) -> str:
     """
     Reads the 'Center of Truth' (INFO-*.md) for a client.
@@ -251,27 +347,13 @@ def ler_ficha_cliente(cliente: str) -> str:
     technical decisions, and meeting notes needed to understand the client's current state.
     RESOLUTION: Support fuzzy/partial client name matching.
     """
-    _logger.info(f"Tool called: ler_ficha_cliente(cliente={cliente})")
     try:
-        config = _get_config()
-        clients_dir = config.base_pasta_clientes
-        client_path = _resolve_client_path(clients_dir, cliente, config)
-
-        info_files = list(client_path.glob("*INFO*.md"))
-        if not info_files:
-            return (
-                f"⚠️ No INFO file found for client '{client_path.name}'.\n"
-                f"   Expected pattern: *INFO*.md in {client_path}"
-            )
-
-        info_file = sorted(info_files, key=lambda f: f.stat().st_mtime, reverse=True)[0]
-        content = info_file.read_text(encoding="utf-8")
-
+        result = _get_factory().get_client_service().read_client_info(cliente)
         return (
-            f"📋 Ficha do Cliente: {client_path.name}\n"
-            f"📄 Arquivo: {info_file.name}\n"
+            f"📋 Ficha do Cliente: {cliente}\n"
+            f"📄 Arquivo: {result['filename']}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"{content}"
+            f"{result['content']}"
         )
     except ValueError as e:
         return f"❌ {e}"
@@ -281,6 +363,7 @@ def ler_ficha_cliente(cliente: str) -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def atualizar_ficha_cliente(cliente: str, secao: str, conteudo: str) -> str:
     """
     Appends information to a specific section of the client's Center of Truth.
@@ -288,42 +371,12 @@ def atualizar_ficha_cliente(cliente: str, secao: str, conteudo: str) -> str:
     SAFETY: Automatically creates a .bak backup before modifying.
     Sections: Use Markdown headers (e.g., 'Notas de Reunião').
     """
-    _logger.info(f"Tool called: atualizar_ficha_cliente(cliente={cliente}, secao={secao})")
     try:
-        config = _get_config()
-        client_path = _resolve_client_path(config.base_pasta_clientes, cliente, config)
-
-        info_files = list(client_path.glob("*INFO*.md"))
-        if not info_files:
-            return f"⚠️ No INFO file found for '{client_path.name}'. Cannot update."
-
-        info_file = sorted(info_files, key=lambda f: f.stat().st_mtime, reverse=True)[0]
-
-        import shutil
-        backup = info_file.with_suffix('.md.bak')
-        shutil.copy2(info_file, backup)
-
-        content = info_file.read_text(encoding="utf-8")
-
-        section_header = f"## {secao}"
-        if section_header in content:
-            parts = content.split(section_header, 1)
-            after_header = parts[1]
-            next_section_idx = after_header.find("\n## ")
-            if next_section_idx == -1:
-                new_content = content + f"\n{conteudo}\n"
-            else:
-                insert_point = len(parts[0]) + len(section_header) + next_section_idx
-                new_content = content[:insert_point] + f"\n{conteudo}\n" + content[insert_point:]
-        else:
-            new_content = content.rstrip() + f"\n\n{section_header}\n{conteudo}\n"
-
-        info_file.write_text(new_content, encoding="utf-8")
-
+        backup_name = _get_factory().get_client_service().update_client_info(cliente, secao, conteudo)
         return (
-            f"✅ Ficha atualizada: {info_file.name}\n"
+            f"✅ Ficha atualizada: {cliente}\n"
             f"   Seção: {secao}\n"
-            f"   Backup: {backup.name}"
+            f"   Backup: {backup_name}"
         )
     except ValueError as e:
         return f"❌ {e}"
@@ -333,32 +386,23 @@ def atualizar_ficha_cliente(cliente: str, secao: str, conteudo: str) -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def listar_servicos_cliente(cliente: str) -> str:
     """
     Lists sub-projects/services within a client's main folder.
     CONTEXT: Each service represents a distinct project (e.g., 'Reforma Apto 502').
     Ignores system folders like '01_ADMINISTRATIVO'.
     """
-    _logger.info(f"Tool called: listar_servicos_cliente(cliente={cliente})")
     try:
-        config = _get_config()
-        client_path = _resolve_client_path(config.base_pasta_clientes, cliente, config)
-        ignored = set(config.ignored_folders + ['.obsidian'])
-
-        services = sorted([
-            d.name for d in client_path.iterdir()
-            if d.is_dir() and d.name not in ignored
-        ])
+        services = _get_factory().get_client_service().list_services(cliente)
 
         if not services:
-            return f"📭 No services found for client '{client_path.name}'."
+            return f"📭 No services found for client '{cliente}'."
 
-        output = f"📋 {len(services)} serviço(s) de {client_path.name}:\n"
+        output = f"📋 {len(services)} serviço(s) de {cliente}:\n"
         for svc in services:
-            svc_path = client_path / svc
-            subdirs = [s.name for s in svc_path.iterdir() if s.is_dir()]
-            file_count = sum(1 for f in svc_path.rglob('*') if f.is_file())
-            output += f"  📂 {svc} ({file_count} arquivo(s)) [{', '.join(subdirs)}]\n"
+            subdirs_str = ', '.join(svc['subdirs'])
+            output += f"  📂 {svc['name']} ({svc['file_count']} arquivo(s)) [{subdirs_str}]\n"
 
         return output
     except ValueError as e:
@@ -368,18 +412,62 @@ def listar_servicos_cliente(cliente: str) -> str:
         return f"❌ Error listing services: {e}"
 
 
+@mcp.tool()
+@_log_tool_call
+def criar_estrutura_servico(cliente: str, nome: str) -> str:
+    """
+    Creates the full folder structure for a new service under a client.
+    Includes {DOC}, {ADM}, {OP} with configurable op phases.
+    PARAMETERS:
+      cliente: Client name (supports fuzzy match)
+      nome: Service name
+    """
+    try:
+        from foton_system.modules.clients.application.use_cases.client_validation import normalize_client_name as _normalize
+        normalized = _normalize(nome)
+        config = _get_config()
+        svc = _get_factory().get_client_service()
+        client_path = svc.resolve_client_path(cliente)
+        service_path = client_path / normalized
+        if service_path.exists():
+            return f"⚠️ Service '{normalized}' already exists under '{cliente}'."
+        service_path.mkdir(parents=True)
+        (service_path / config.folder_doc).mkdir()
+        (service_path / config.folder_adm).mkdir()
+        op_path = service_path / config.folder_op
+        op_path.mkdir()
+        for phase in config.folder_op_phases:
+            (op_path / phase).mkdir()
+        from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+        template_path = PathManager.get_info_template_path()
+        if template_path.exists():
+            import shutil
+            shutil.copy(template_path, service_path / "INFO-SERVICO.md")
+        return (
+            f"✅ Estrutura de serviço criada: '{normalized}' em '{cliente}'\n"
+            f"   📁 {config.folder_doc}/\n"
+            f"   📁 {config.folder_adm}/\n"
+            f"   📁 {config.folder_op}/ ({', '.join(config.folder_op_phases)})"
+        )
+    except ValueError as e:
+        return f"❌ {e}"
+    except Exception as e:
+        _logger.error(f"criar_estrutura_servico failed: {e}", exc_info=True)
+        return f"❌ Error creating service structure: {e}"
+
+
 # ==============================================================================
 # FINANCIAL TOOLS
 # ==============================================================================
 
 @mcp.tool()
+@_log_tool_call
 def registrar_financeiro(cliente: str, descricao: str, valor: float, tipo: str = "ENTRADA") -> str:
     """
     Records a financial entry (income/expense) in the client's ledger.
     TYPES: 'ENTRADA' (credit) or 'SAIDA' (debit).
     Value: Always pass a positive float.
     """
-    _logger.info(f"Tool called: registrar_financeiro(cliente={cliente}, valor={valor})")
     try:
         from foton_system.core.ops.op_finance_entry import OpFinanceEntry
         op = OpFinanceEntry(actor="Agent_MCP")
@@ -390,17 +478,22 @@ def registrar_financeiro(cliente: str, descricao: str, valor: float, tipo: str =
             type=tipo
         )
         return f"✅ {result['message']} (POP Auditado)"
+    except ValueError as e:
+        return f"❌ Invalid data: {e}"
+    except OSError as e:
+        _logger.error(f"registrar_financeiro I/O: {e}", exc_info=True)
+        return f"❌ File system error: {e}"
     except Exception as e:
         _logger.error(f"registrar_financeiro failed: {e}", exc_info=True)
         return f"❌ Error: {e}"
 
 
 @mcp.tool()
+@_log_tool_call
 def consultar_financeiro(cliente: str) -> str:
     """
     Returns the financial balance and transaction summary for a specific client.
     """
-    _logger.info(f"Tool called: consultar_financeiro(cliente={cliente})")
     try:
         service = _get_factory().get_finance_service()
         result = service.get_summary(cliente)
@@ -413,66 +506,37 @@ def consultar_financeiro(cliente: str) -> str:
                 f"   Saldo:    R$ {result.balance:.2f}"
             )
         return f"❌ {result.message}"
+    except ValueError as e:
+        return f"❌ Invalid client: {e}"
+    except OSError as e:
+        _logger.error(f"consultar_financeiro I/O: {e}", exc_info=True)
+        return f"❌ File system error: {e}"
     except Exception as e:
         _logger.error(f"consultar_financeiro failed: {e}", exc_info=True)
         return f"❌ Error: {e}"
 
 
 @mcp.tool()
+@_log_tool_call
 def resumo_financeiro_geral() -> str:
     """
     Firm-wide financial dashboard. 
     CONTEXT: Use this for high-level business intelligence to identify profitable clients or cash-flow issues.
     """
-    _logger.info("Tool called: resumo_financeiro_geral")
     try:
-        import csv
-        config = _get_config()
-        clients_dir = config.base_pasta_clientes
-
-        if not clients_dir.exists():
-            return f"⚠️ Client directory not found: {clients_dir}"
-
-        ignored = set(config.ignored_folders + ['.obsidian'])
-        results = []
-        total_income = 0.0
-        total_expense = 0.0
-
-        for d in sorted(clients_dir.iterdir()):
-            if not d.is_dir() or d.name in ignored:
-                continue
-
-            csv_file = d / "FINANCEIRO.csv"
-            if not csv_file.exists():
-                continue
-
-            income = 0.0
-            expense = 0.0
-            try:
-                with open(csv_file, 'r', encoding='utf-8') as f:
-                    reader = csv.DictReader(f)
-                    for row in reader:
-                        val = float(row.get('Valor', 0))
-                        if row.get('Tipo', '').upper() == 'ENTRADA':
-                            income += val
-                        else:
-                            expense += val
-            except Exception:
-                continue
-
-            balance = income - expense
-            total_income += income
-            total_expense += expense
-            results.append((d.name, income, expense, balance))
+        results = _get_factory().get_finance_service().get_firm_summary()
 
         if not results:
             return "📭 No financial data found."
 
+        total_income = sum(r['income'] for r in results)
+        total_expense = sum(r['expense'] for r in results)
+
         output = f"📊 Dashboard Financeiro ({len(results)} clientes):\n"
         output += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        for name, inc, exp, bal in results:
-            emoji = "🟢" if bal >= 0 else "🔴"
-            output += f"  {emoji} {name}: R$ {bal:,.2f} (E: {inc:,.2f} | S: {exp:,.2f})\n"
+        for r in results:
+            emoji = "🟢" if r['balance'] >= 0 else "🔴"
+            output += f"  {emoji} {r['name']}: R$ {r['balance']:,.2f} (E: {r['income']:,.2f} | S: {r['expense']:,.2f})\n"
 
         output += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         total_balance = total_income - total_expense
@@ -481,6 +545,9 @@ def resumo_financeiro_geral() -> str:
             f"(Rec: R$ {total_income:,.2f} | Desp: R$ {total_expense:,.2f})"
         )
         return output
+    except OSError as e:
+        _logger.error(f"resumo_financeiro_geral I/O: {e}", exc_info=True)
+        return f"❌ File system error: {e}"
     except Exception as e:
         _logger.error(f"resumo_financeiro_geral failed: {e}", exc_info=True)
         return f"❌ Error: {e}"
@@ -491,48 +558,50 @@ def resumo_financeiro_geral() -> str:
 # ==============================================================================
 
 @mcp.tool()
+@_log_tool_call
 def listar_templates() -> str:
     """
     Lists all available document templates (DOCX for contracts, PPTX for proposals).
     PROTOCOL: Show this to the user to let them choose the document type they want to generate.
     """
-    _logger.info("Tool called: listar_templates")
     try:
-        config = _get_config()
-        templates_dir = config.templates_path
+        result = _get_factory().get_document_service().list_templates()
+        if not result.success:
+            return f"❌ {result.message}"
 
-        if not templates_dir.exists():
-            return f"⚠️ Templates directory not found: {templates_dir}"
+        templates = result.templates or {}
+        pptx = templates.get('pptx', [])
+        docx = templates.get('docx', [])
 
-        pptx = sorted([f.name for f in templates_dir.glob("*.pptx")])
-        docx = sorted([f.name for f in templates_dir.glob("*.docx")])
-
-        output = f"📄 Templates disponíveis em: {templates_dir.name}\n"
+        output = "📄 Templates disponíveis:\n"
         if pptx:
             output += f"\n🟦 PPTX ({len(pptx)}):\n"
-            for t in pptx:
+            for t in sorted(pptx):
                 output += f"  • {t}\n"
         if docx:
             output += f"\n🟩 DOCX ({len(docx)}):\n"
-            for t in docx:
+            for t in sorted(docx):
                 output += f"  • {t}\n"
 
         if not pptx and not docx:
             return "📭 No templates found."
 
         return output
+    except OSError as e:
+        _logger.error(f"listar_templates I/O: {e}", exc_info=True)
+        return f"❌ File system error: {e}"
     except Exception as e:
         _logger.error(f"listar_templates failed: {e}", exc_info=True)
         return f"❌ Error: {e}"
 
 
 @mcp.tool()
+@_log_tool_call
 def listar_documentos_cliente(cliente: str, servico: str = "") -> str:
     """
     Lists existing files for a client or specific service.
     CONTEXT: Use this to check if a document was already generated before creating a duplicate.
     """
-    _logger.info(f"Tool called: listar_documentos_cliente(cliente={cliente}, servico={servico})")
     try:
         config = _get_config()
         client_path = _resolve_client_path(config.base_pasta_clientes, cliente, config)
@@ -576,6 +645,7 @@ def listar_documentos_cliente(cliente: str, servico: str = "") -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def gerar_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -> str:
     """
     Merging Engine: Template + Client Data = Generated Document.
@@ -585,8 +655,8 @@ def gerar_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -
     3. The file is saved with prefix 'GERADO_' in the client's folder.
     CASE-INSENSITIVITY: Variables are matched regardless of casing (@CLIENTE == @cliente).
     """
-    _logger.info(f"Tool called: gerar_documento(cliente={cliente}, template={nome_template})")
     try:
+        _validate_dados_extras(dados_extras)
         from foton_system.core.ops.op_doc_gen import OpGenerateDocument
         op = OpGenerateDocument(actor="Agent_MCP")
         result = op.execute(
@@ -598,12 +668,15 @@ def gerar_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -
             f"✅ Documento Gerado (POP Auditado)\n"
             f"   Arquivo: {result['output_path']}"
         )
+    except ValueError as e:
+        return f"❌ Invalid dados_extras: {e}"
     except Exception as e:
         _logger.error(f"gerar_documento failed: {e}", exc_info=True)
         return f"❌ Erro POP: {e}"
 
 
 @mcp.tool()
+@_log_tool_call
 def validar_template(cliente: str, nome_template: str, arquivo_dados: str = "") -> str:
     """
     Pre-flight validation: Checks if the INFO files provide all variables required by the template.
@@ -611,7 +684,6 @@ def validar_template(cliente: str, nome_template: str, arquivo_dados: str = "") 
     PROTOCOL: Mandatory check before calling 'gerar_documento'.
     AGNOSTICISM: Searches the entire folder hierarchy for information.
     """
-    _logger.info(f"Tool called: validar_template(cliente={cliente}, template={nome_template})")
     try:
         config = _get_config()
         factory = _get_factory()
@@ -619,9 +691,10 @@ def validar_template(cliente: str, nome_template: str, arquivo_dados: str = "") 
         svc = factory.get_client_service()
         client_path = svc.resolve_client_path(cliente)
 
-        template_path = config.templates_path / nome_template
+        safe_name = Path(nome_template).name
+        template_path = config.templates_path / safe_name
         if not template_path.exists():
-            return f"❌ Template not found: {nome_template}"
+            return f"❌ Template not found: {safe_name}"
 
         doc_type = template_path.suffix.lstrip('.').lower()
         if arquivo_dados:
@@ -643,51 +716,174 @@ def validar_template(cliente: str, nome_template: str, arquivo_dados: str = "") 
         for key in missing:
             output += f"   ❌ {key}\n"
         return output
+    except OSError as e:
+        return f"❌ File access error: {e}"
     except Exception as e:
         return f"❌ Validation error: {e}"
+
+
+# ==============================================================================
+# DATA FILE TOOLS
+# ==============================================================================
+
+@mcp.tool()
+@_log_tool_call
+def listar_arquivos_dados(cliente: str) -> str:
+    """
+    Lists data files (.md, .txt) available for a client.
+    CONTEXT: These files contain key-value pairs used during document generation.
+    """
+    try:
+        client_path = _get_factory().get_client_service().resolve_client_path(cliente)
+        files = _get_factory().get_document_service().list_client_data_files(str(client_path))
+        if not files:
+            return f"📭 No data files found for '{cliente}'."
+        output = f"📄 {len(files)} data file(s) for {cliente}:\n"
+        for f in files:
+            output += f"  • {Path(f).name}\n"
+        return output
+    except ValueError as e:
+        return f"❌ {e}"
+    except Exception as e:
+        _logger.error(f"listar_arquivos_dados failed: {e}", exc_info=True)
+        return f"❌ Error: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def criar_arquivo_dados(cliente: str, cod: str, descricao: str = "PROPOSTA") -> str:
+    """
+    Creates a custom data file for a client using the centralized template.
+    PARAMETERS:
+      cliente: Client name (supports fuzzy match)
+      cod: Document code (e.g., 'ABC123')
+      descricao: Description/short name (default 'PROPOSTA')
+    """
+    try:
+        client_path = _get_factory().get_client_service().resolve_client_path(cliente)
+        result = _get_factory().get_document_service().create_custom_data_file(
+            str(client_path), cod, desc=descricao
+        )
+        if result:
+            return f"✅ Data file created: {Path(result).name}"
+        return "❌ Failed to create data file."
+    except ValueError as e:
+        return f"❌ {e}"
+    except Exception as e:
+        _logger.error(f"criar_arquivo_dados failed: {e}", exc_info=True)
+        return f"❌ Error: {e}"
 
 
 # ==============================================================================
 # KNOWLEDGE / RAG TOOLS
 # ==============================================================================
 
+_RAG_WRAPPER = r"""import sys, json
+sys.path.insert(0, r"{PROJECT_ROOT}")
+sys.stdout.reconfigure(encoding='utf-8')
+from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
+op = OpQueryKnowledge(actor="Agent_MCP")
+res = op.execute(query=sys.argv[1])
+print(json.dumps(res, ensure_ascii=False))
+"""
+
 @mcp.tool()
+@_log_tool_call
 def consultar_conhecimento(pergunta: str) -> str:
     """
     Semantic search (RAG) across past projects and reference materials.
     CONTEXT: Use this to find 'How did we solve X for client Y before?' or 'What are the rules for Z?'.
     """
-    _logger.info(f"Tool called: consultar_conhecimento(pergunta='{pergunta[:50]}...')")
     try:
-        from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
-        op = OpQueryKnowledge(actor="Agent_MCP")
-        result = op.execute(query=pergunta)
+        # When frozen (PyInstaller), delegate to system Python which has chromadb globally
+        if getattr(sys, 'frozen', False):
+            import tempfile
+            project_root = _find_project_root()
+            system_python = _find_system_python()
+            code = _RAG_WRAPPER.replace("{PROJECT_ROOT}", str(project_root))
+            tmp_dir = Path(tempfile.mkdtemp(prefix="foton_rag_"))
+            script_path = tmp_dir / "_rag_run.py"
+            script_path.write_text(code, encoding='utf-8')
+            clean_env = {
+                "PATH": os.environ.get("PATH", ""),
+                "USERPROFILE": os.environ.get("USERPROFILE", ""),
+                "LOCALAPPDATA": os.environ.get("LOCALAPPDATA", ""),
+                "APPDATA": os.environ.get("APPDATA", ""),
+                "SYSTEMROOT": os.environ.get("SYSTEMROOT", ""),
+                "HOMEDRIVE": os.environ.get("HOMEDRIVE", ""),
+                "HOMEPATH": os.environ.get("HOMEPATH", ""),
+                "HF_HOME": str(Path.home() / ".cache" / "huggingface"),
+                "PYTHONIOENCODING": "utf-8",
+            }
+            _logger.debug(f"Running subprocess: {system_python} {script_path} {pergunta[:50]}")
+            _logger.debug(f"Project root: {project_root}")
+            _logger.debug(f"Script file exists: {script_path.exists()}, size: {script_path.stat().st_size if script_path.exists() else 0}")
+            try:
+                result = subprocess.run(
+                    [str(system_python), str(script_path), pergunta],
+                    stdin=subprocess.DEVNULL, capture_output=True,
+                    text=True, encoding='utf-8', timeout=120,
+                    env=clean_env, creationflags=subprocess.CREATE_NO_WINDOW
+                )
+            except OSError as e:
+                _logger.error(f"Subprocess OSError: {e}")
+                return f"❌ Knowledge query failed to start: {e}"
+            finally:
+                import shutil
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+            _logger.debug(f"Subprocess done: rc={result.returncode}, out={len(result.stdout)}, err={len(result.stderr)}")
+            if result.returncode != 0:
+                full_stderr = result.stderr if result.stderr else "(empty)"
+                _logger.error(f"Subprocess failed (full): {full_stderr}")
+                return f"❌ Knowledge query error: {full_stderr[:500]}"
+            if not result.stdout:
+                return "❌ Knowledge query returned empty response."
+            try:
+                data = json.loads(result.stdout)
+            except json.JSONDecodeError as e:
+                _logger.error(f"JSON parse error: {e}, stdout={result.stdout[:200]}")
+                return f"❌ Knowledge query parse error: {e}"
+        else:
+            from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
+            op = OpQueryKnowledge(actor="Agent_MCP")
+            data = op.execute(query=pergunta)
 
-        if result["status"] == "EMPTY":
+        if data.get("status") == "EMPTY":
             return "📭 No relevant knowledge found."
 
         output = []
-        for i, r in enumerate(result["results"], 1):
+        for i, r in enumerate(data.get("results", []), 1):
             output.append(f"--- [{i}] Source: {r['source']} (Similarity: {r['score']:.0%}) ---\n{r['document']}\n")
 
         return "\n".join(output)
+    except subprocess.TimeoutExpired as e:
+        stderr_snippet = (e.stderr[-500:] if e.stderr else "(empty)").replace("\n", " | ")
+        _logger.error(f"Subprocess timed out. stderr tail: {stderr_snippet}")
+        return f"❌ Knowledge query timed out after 120s."
+    except (OSError, subprocess.SubprocessError) as e:
+        _logger.error(f"consultar_conhecimento subprocess error: {e}", exc_info=True)
+        return f"❌ Knowledge query failed: {e}"
     except Exception as e:
         return f"❌ Knowledge query error: {e}"
 
 
 @mcp.tool()
+@_log_tool_call
 def indexar_conhecimento(pasta_alvo: str = "") -> str:
     """
     Updates the semantic database by indexing documents.
     PROTOCOL: Run this after adding many new files or manually updating INFO files to ensure RAG stays current.
     """
-    _logger.info(f"Tool called: indexar_conhecimento(alvo={pasta_alvo})")
     try:
         from foton_system.core.ops.op_index_knowledge import OpIndexKnowledge
         op = OpIndexKnowledge(actor="Agent_MCP")
         kwargs = {"target_path": pasta_alvo} if pasta_alvo.strip() else {}
         result = op.execute(**kwargs)
         return f"✅ Knowledge base updated! Files: {result['files_scanned']}, Chunks: {result['chunks_created']}"
+    except ValueError as e:
+        return f"❌ Invalid parameters: {e}"
+    except OSError as e:
+        return f"❌ File access error: {e}"
     except Exception as e:
         return f"❌ Indexing error: {e}"
 
@@ -697,36 +893,118 @@ def indexar_conhecimento(pasta_alvo: str = "") -> str:
 # ==============================================================================
 
 @mcp.tool()
+@_log_tool_call
 def sincronizar_base() -> str:
     """
     Syncs the Excel Master Dashboard with the filesystem.
     """
-    _logger.info("Tool called: sincronizar_base")
     try:
-        from foton_system.modules.sync.sync_service import SyncService
-        svc = SyncService()
-        result = svc.sync_dashboard()
-        return f"✅ Dashboard synchronized! Records: {len(result)}" if result else "⚠️ No clients found."
+        result = _get_factory().get_sync_service().sync_dashboard()
+        if result is None or result == 0:
+            return "⚠️ No clients found."
+        return f"✅ Dashboard synchronized! Records: {result}"
+    except OSError as e:
+        return f"❌ File access error: {e}"
     except Exception as e:
         return f"❌ Sync error: {e}"
 
 
 @mcp.tool()
+@_log_tool_call
 def sincronizar_clientes() -> str:
     """
     Discovers new client/service folders and adds them to the Excel database.
     """
-    _logger.info("Tool called: sincronizar_clientes")
     try:
-        from foton_system.modules.clients.application.use_cases.client_service import ClientService
-        from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
-        repo = ExcelClientRepository()
-        svc = ClientService(repo)
+        svc = _get_factory().get_client_service()
         svc.sync_clients_db_from_folders()
         svc.sync_services_db_from_folders()
         return "✅ Client & service databases synchronized!"
+    except OSError as e:
+        return f"❌ File access error: {e}"
     except Exception as e:
         return f"❌ Client sync error: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def sincronizar_pastas_clientes() -> str:
+    """
+    Creates client folders for entries in the database that are missing folders.
+    Reverse direction of 'sincronizar_clientes'.
+    """
+    try:
+        result = _get_factory().get_client_service().sync_client_folders_from_db()
+        return f"✅ {result}"
+    except OSError as e:
+        return f"❌ File access error: {e}"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def sincronizar_pastas_servicos(cliente: str = "") -> str:
+    """
+    Creates service folders for entries in the database that are missing folders.
+    PARAMETERS:
+      cliente: Optional client alias to filter (default: all clients)
+    """
+    try:
+        alias = cliente if cliente.strip() else None
+        result = _get_factory().get_client_service().sync_service_folders_from_db(client_alias=alias)
+        return f"✅ {result}"
+    except ValueError as e:
+        return f"❌ Invalid client name: {e}"
+    except OSError as e:
+        return f"❌ File access error: {e}"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def exportar_dados_clientes() -> str:
+    """
+    Exports client data from the database to MD files in client folders.
+    """
+    try:
+        result = _get_factory().get_client_service().export_client_data()
+        return f"✅ {result}"
+    except OSError as e:
+        return f"❌ File access error: {e}"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def exportar_dados_servicos() -> str:
+    """
+    Exports service data from the database to MD files in service folders.
+    """
+    try:
+        result = _get_factory().get_client_service().export_service_data()
+        return f"✅ {result}"
+    except OSError as e:
+        return f"❌ File access error: {e}"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def importar_dados_servicos() -> str:
+    """
+    Imports service data from MD files back into the database.
+    """
+    try:
+        result = _get_factory().get_client_service().import_service_data()
+        return f"✅ {result}"
+    except OSError as e:
+        return f"❌ File access error: {e}"
+    except Exception as e:
+        return f"❌ Error: {e}"
 
 
 # ==============================================================================
@@ -734,13 +1012,13 @@ def sincronizar_clientes() -> str:
 # ==============================================================================
 
 @mcp.tool()
+@_log_tool_call
 def configurar_agente() -> str:
     """
     Automates the formal installation of the Foton AI Skill into the Gemini CLI.
     Copies the SKILL.md from the repository to the local .gemini/skills folder.
     AI RECOMMENDED: Run this to enable specialized architectural reasoning from the repository source.
     """
-    _logger.info("Tool called: configurar_agente")
     try:
         config = _get_config()
         # Source is in the repository
@@ -768,6 +1046,9 @@ def configurar_agente() -> str:
             f"   Destino: {target_skill_file}\n"
             f"   ⚠️ IMPORTANTE: Execute o comando '/skills reload' no chat para ativar a expertise."
         )
+    except (OSError, PermissionError) as e:
+        _logger.error(f"configurar_agente file error: {e}", exc_info=True)
+        return f"❌ File access error: {e}"
     except Exception as e:
         _logger.error(f"configurar_agente failed: {e}", exc_info=True)
         return f"❌ Erro ao configurar skill: {e}"
@@ -776,38 +1057,58 @@ def configurar_agente() -> str:
 
 
 @mcp.tool()
+@_log_tool_call
 def pipeline_novo_cliente(nome: str, apelido: str = "", nif: str = "", email: str = "", telefone: str = "") -> str:
 
     """
     SAFE workflow to create a client while checking for duplicates.
     AI RECOMMENDED: Always prefer this over 'cadastrar_cliente'.
     """
-    _logger.info(f"Tool called: pipeline_novo_cliente(nome={nome})")
     try:
+        from foton_system.modules.clients.application.use_cases.client_validation import normalize_client_name as _normalize
+        normalized = _normalize(nome)
         factory = _get_factory()
         svc = factory.get_client_service()
-        
+
         try:
-            exists = svc.resolve_client_path(nome)
+            exists = svc.resolve_client_path(normalized)
             return f"⚠️ PIPELINE STOPPED — A similar client already exists: {exists.name}. Use 'ler_ficha_cliente' to verify."
         except ValueError:
-            pass 
+            pass
+
+        if nif:
+            existing = svc.list_clients()
+            base = _get_config().base_pasta_clientes
+            for c in existing:
+                info_path = base / c['name'] / "INFO-CLIENTE.md"
+                if info_path.exists():
+                    try:
+                        for line in info_path.read_text(encoding='utf-8').splitlines():
+                            if line.strip().lower().startswith('@nif'):
+                                stored = line.split(';', 1)[-1].strip()
+                                if stored == nif:
+                                    return f"⚠️ PIPELINE STOPPED — NIF '{nif}' already registered under '{c['name']}'."
+                    except Exception:
+                        continue
 
         result = cadastrar_cliente(nome, apelido, nif, email, telefone)
         return result
+    except OSError as e:
+        return f"❌ File access error: {e}"
     except Exception as e:
         return f"❌ Pipeline error: {e}"
 
 
 @mcp.tool()
+@_log_tool_call
 def pipeline_emitir_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -> str:
     """
     SAFE pre-flight report before document generation.
     AI RECOMMENDED: Always run this before 'gerar_documento' to provide a summary to the user.
     Logic: Validates variables AND checks for existing generated files to avoid duplicates.
     """
-    _logger.info(f"Tool called: pipeline_emitir_documento(cliente={cliente}, template={nome_template})")
     try:
+        _validate_dados_extras(dados_extras)
         svc = _get_factory().get_client_service()
         client_path = svc.resolve_client_path(cliente)
 
@@ -827,8 +1128,129 @@ def pipeline_emitir_documento(cliente: str, nome_template: str, dados_extras: di
 
         output += "\nPROTOCOL: Review this report and confirm with the user before calling 'gerar_documento'."
         return output
+    except ValueError as e:
+        return f"❌ Invalid dados_extras: {e}"
     except Exception as e:
         return f"❌ Pipeline error: {e}"
+
+
+# ==============================================================================
+# INFRASTRUCTURE TOOLS
+# ==============================================================================
+
+@mcp.tool()
+@_log_tool_call
+def consultar_cub() -> str:
+    """
+    Returns the current CUB (Custo Unitário Básico) reference month and download URL.
+    CONTEXT: Used in document generation for construction cost estimates (@LinkCUB, @ReferenciaCUB).
+    """
+    try:
+        from foton_system.modules.shared.infrastructure.services.cub_service import CubService
+        ref = CubService.get_reference_label()
+        url = CubService.get_dynamic_url()
+        return (
+            f"📊 CUB Reference\n"
+            f"   Mês: {ref}\n"
+            f"   URL: {url}\n"
+            f"   Fonte: SINDUSCON-GO"
+        )
+    except (OSError, ConnectionError) as e:
+        _logger.error(f"consultar_cub network error: {e}", exc_info=True)
+        return f"❌ CUB connection error: {e}"
+    except Exception as e:
+        _logger.error(f"consultar_cub failed: {e}", exc_info=True)
+        return f"❌ CUB error: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def verificar_atualizacao() -> str:
+    """
+    Checks GitHub for a newer version of the Foton System.
+    PROTOCOL: Run periodically to ensure the system is up-to-date.
+    """
+    try:
+        from foton_system.modules.shared.infrastructure.services.update_service import UpdateChecker
+        from foton_system import __version__
+        has_update, latest, url = UpdateChecker.check_for_updates()
+        if has_update:
+            return (
+                f"🔄 Nova versão disponível!\n"
+                f"   Atual:    v{__version__}\n"
+                f"   Recente:  v{latest}\n"
+                f"   URL:      {url}"
+            )
+        return f"✅ Sistema atualizado (v{__version__})"
+    except (OSError, ConnectionError) as e:
+        _logger.error(f"verificar_atualizacao network error: {e}", exc_info=True)
+        return f"❌ Network error: {e}"
+    except Exception as e:
+        _logger.error(f"verificar_atualizacao failed: {e}", exc_info=True)
+        return f"❌ Update check error: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def consultar_auditoria(limite: int = 10) -> str:
+    """
+    Shows the most recent audit events (POP operations).
+    PARAMETERS:
+      limite: Number of events to show (default 10)
+    """
+    try:
+        from foton_system.core.ops.audit_logger import AuditLogger
+        events = AuditLogger().get_recent_events(limit=limite)
+        if not events:
+            return "📭 No audit events found."
+
+        output = f"📋 Últimos {len(events)} eventos de auditoria:\n"
+        output += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        for e in events:
+            ts = e.get('timestamp', '?')
+            op = e.get('op', '?')
+            actor = e.get('actor', '?')
+            client = e.get('client_id', '?')
+            status = e.get('status', '?')
+            output += f"  [{ts}] {op} by {actor} → {client} [{status}]\n"
+        return output
+    except ValueError as e:
+        return f"❌ Invalid parameter: {e}"
+    except OSError as e:
+        _logger.error(f"consultar_auditoria I/O: {e}", exc_info=True)
+        return f"❌ File access error: {e}"
+    except Exception as e:
+        _logger.error(f"consultar_auditoria failed: {e}", exc_info=True)
+        return f"❌ Audit error: {e}"
+
+
+# ==============================================================================
+# HELPER: dados_extras Validation
+# ==============================================================================
+
+_MAX_DADOS_EXTRAS_KEYS = 50
+
+def _validate_dados_extras(dados_extras: dict) -> None:
+    """Validates dados_extras schema. Raises ValueError on invalid data."""
+    if not isinstance(dados_extras, dict):
+        raise ValueError("dados_extras must be a dict")
+
+    if len(dados_extras) > _MAX_DADOS_EXTRAS_KEYS:
+        raise ValueError(
+            f"dados_extras exceeds max keys ({_MAX_DADOS_EXTRAS_KEYS}): "
+            f"got {len(dados_extras)} keys"
+        )
+
+    for k, v in dados_extras.items():
+        if not isinstance(k, str):
+            raise ValueError(f"dados_extras keys must be strings, got {type(k).__name__}")
+        if not k.strip():
+            raise ValueError("dados_extras keys cannot be empty")
+        if isinstance(v, (dict, list)):
+            raise ValueError(
+                f"dados_extras values must be str/int/float, "
+                f"got {type(v).__name__} for key '{k}'"
+            )
 
 
 # ==============================================================================
@@ -841,6 +1263,63 @@ def _resolve_client_path(clients_dir: Path, cliente: str, config) -> Path:
     """
     svc = _get_factory().get_client_service()
     return svc.resolve_client_path(cliente)
+
+
+# ==============================================================================
+# MCP RESOURCES
+# ==============================================================================
+
+@mcp.resource("foton://clientes/{nome}/INFO")
+def resource_cliente_info(nome: str) -> str:
+    """Retorna o conteúdo do Centro de Verdade (INFO-*.md) de um cliente."""
+    try:
+        result = _get_factory().get_client_service().read_client_info(nome)
+        return result['content']
+    except ValueError as e:
+        return f"❌ {e}"
+    except Exception as e:
+        _logger.error(f"resource_cliente_info failed: {e}", exc_info=True)
+        return f"❌ Error: {e}"
+
+
+@mcp.resource("foton://clientes/{nome}/servicos")
+def resource_cliente_servicos(nome: str) -> str:
+    """Retorna a lista de serviços de um cliente."""
+    try:
+        services = _get_factory().get_client_service().list_services(nome)
+        if not services:
+            return f"📭 No services found for client '{nome}'."
+        output = f"📋 {len(services)} serviço(s) de {nome}:\n"
+        for svc in services:
+            subdirs_str = ', '.join(svc['subdirs'])
+            output += f"  📂 {svc['name']} ({svc['file_count']} arquivo(s)) [{subdirs_str}]\n"
+        return output
+    except ValueError as e:
+        return f"❌ {e}"
+    except Exception as e:
+        _logger.error(f"resource_cliente_servicos failed: {e}", exc_info=True)
+        return f"❌ Error: {e}"
+
+
+@mcp.resource("foton://financeiro/resumo")
+def resource_financeiro_resumo() -> str:
+    """Retorna o dashboard financeiro geral do escritório."""
+    try:
+        summary = _get_factory().get_finance_service().get_general_summary()
+        total_entradas = summary.get('total_entradas', 0)
+        total_saidas = summary.get('total_saidas', 0)
+        saldo = total_entradas - total_saidas
+        return (
+            f"📊 Resumo Financeiro Geral\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"  ✅ Entradas: R$ {total_entradas:,.2f}\n"
+            f"  ❌ Saídas:   R$ {total_saidas:,.2f}\n"
+            f"  {'🟢' if saldo >= 0 else '🔴'} Saldo:    R$ {saldo:,.2f}\n"
+            f"  📁 Clientes: {summary.get('total_clientes', 0)}\n"
+        )
+    except Exception as e:
+        _logger.error(f"resource_financeiro_resumo failed: {e}", exc_info=True)
+        return f"❌ Error: {e}"
 
 
 # ==============================================================================

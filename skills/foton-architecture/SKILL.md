@@ -1,47 +1,66 @@
 ---
 name: foton-architecture
-description: Manage architecture projects, generate smart documents (DOCX/PPTX), and track financial ledgers using the Foton system. Use for client onboarding, document pre-flight validation, and semantic knowledge base queries.
+description: Meta-skill do Foton System — visão geral da arquitetura, mapa de skills, filosofias e boas práticas transversais
 ---
 
-# Foton Architecture System
+# Foton Architecture System — Metaskill
 
-This skill enables Gemini CLI to act as a specialized architectural engineering assistant, capable of managing complex project folders, generating automated documents, and maintaining financial integrity.
+**Esta é a skill raiz do ecossistema Foton.** Carregue-a para obter a visão geral do sistema. Para tarefas específicas, carregue a skill granular correspondente (cada uma contém ferramentas, workflows e convenções do seu domínio).
 
-## Core Philosophies
+## Mapa de Skills
 
-1.  **Center of Truth (Centro de Verdade):** Every client/service folder contains an `INFO-*.md` file. Always read this file using `ler_ficha_cliente` before making decisions.
-2.  **Pure Data Policy:** Store numeric values as raw floats (e.g., `1500.50`). The engine handles formatting for the final document.
-3.  **Agnostic Organization:** The system is adaptive and searches the entire folder hierarchy for context.
+```
+foton-architecture (esta) — visão geral, conceitos, boas práticas
+├── foton-clients    → cadastro, fichas, serviços, pipelines
+├── foton-documents  → templates, validação, geração de documentos
+├── foton-finance    → entradas/saídas, saldos, dashboard
+└── foton-rag        → indexação, busca semântica, ChromaDB
+```
 
-## 🛠 Operational Workflows
+### Qual skill carregar?
 
-### 1. New Client Onboarding
-Always prefer the safe pipeline to avoid duplicates:
-1.  Run `listar_clientes` to search for similar existing projects.
-2.  Execute `pipeline_novo_cliente(nome, ...)` to create the standard folder structure.
+| Situação | Skill |
+|---|---|
+| Primeiro contato com o sistema | `foton-architecture` |
+| Cadastrar/consultar cliente | `foton-clients` |
+| Gerar contrato ou proposta | `foton-documents` |
+| Registrar ou consultar financeiro | `foton-finance` |
+| Buscar conhecimento em projetos passados | `foton-rag` |
+| Workflow que cruza domínios | Carregue as skills envolvidas |
 
-### 2. Information Management
-Keep the "Center of Truth" updated with meeting notes and technical decisions:
-1.  Use `ler_ficha_cliente` to get context.
-2.  Use `atualizar_ficha_cliente` to record new data.
-3.  **Format:** Prefer the semicolon separator (`@Variable; Value`).
+## Filosofias do sistema
 
-### 3. Smart Document Generation
-1.  **Template Discovery:** Run `listar_templates`.
-2.  **Pre-Flight:** **MANDATORY.** Run `pipeline_emitir_documento`.
-3.  **Correction:** Update INFO files with missing variables.
-4.  **Emission:** Run `gerar_documento`. (Note: System is case-insensitive).
+1. **Centro de Verdade**: cada cliente tem um `INFO-*.md`. Sempre leia antes de decidir.
+2. **Pure Data**: valores numéricos como floats brutos (`1500.50`). Formatação é responsabilidade do motor.
+3. **Organização Agnóstica**: o sistema busca contexto em toda a hierarquia de pastas.
+4. **Segurança por padrão**: path traversal sanitizado, schema validation, circuit breaker.
+5. **Auditabilidade**: operações críticas passam pelo sistema POP Auditado.
 
-### 4. Financial Tracking
-1.  **Record:** Use `registrar_financeiro` (ENTRADA or SAIDA).
-2.  **Audit:** Use `consultar_financeiro` or `resumo_financeiro_geral` for BI.
-3.  **Sync:** Run `sincronizar_base` periodically to align Excel and folders.
+## Arquitetura
 
-## 🧠 AI Best Practices
+```
+foton_system/
+├── core/memory/vector_store.py   ChromaDB + circuit breaker
+├── modules/                      clients, documents, finance, shared
+├── interfaces/mcp/foton_mcp.py   32 ferramentas MCP
+└── infrastructure/               dependency_manager, ai_pack
+```
 
-- **Context Loading:** When asked about a specific project, first find the client alias (`listar_clientes`), then the specific service folder (`listar_servicos_cliente`).
-- **Math Precision:** Use 2 decimal places in financial tags.
-- **Environment:** Use `info_sistema` to verify active paths (e.g., OneDrive vs Local).
+## Conexão MCP
 
----
-*Foton: Intelligence and adaptability for the modern architect.*
+```bash
+# Executável compilado
+"C:\Users\Lucas\AppData\Local\FotonSystem\bin\foton_system_v1.2.0.exe" --mcp
+
+# Modo dev
+python -m foton_system.entry --mcp
+```
+
+## Convenções transversais
+
+- **Idioma**: PT-BR obrigatório
+- **INFO-*.md**: Centro de Verdade — ler antes de agir sobre um cliente
+- **POP Auditado**: criação de cliente, geração de documento, registro financeiro
+- **Backup automático**: `.bak` antes de modificar fichas
+- **Logs**: `%LOCALAPPDATA%\FotonSystem\foton_mcp.log` (rotação 5MB, 3 backups)
+- **Testes**: `python -m pytest` — 262 testes, zero regressão

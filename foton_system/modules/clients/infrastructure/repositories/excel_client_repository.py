@@ -315,7 +315,7 @@ class ExcelClientRepository(ClientRepositoryPort):
                 # Carrega dados de serviços existentes para preservar na mesclagem
                 try:
                     df_servicos = pd.read_excel(self.base_dados, sheet_name='baseServicos')
-                except:
+                except (PermissionError, ValueError, OSError):
                     df_servicos = pd.DataFrame(columns=[
                         'ID', 'AliasCliente', 'Alias', 'CodServico', 'Modalidade', 'Ano',
                         'Demanda', 'AreaTotal', 'AreaCoberta', 'AreaDescoberta',
@@ -353,7 +353,7 @@ class ExcelClientRepository(ClientRepositoryPort):
                 # Carrega dados de clientes existentes para preservar na mesclagem
                 try:
                     df_clientes = pd.read_excel(self.base_dados, sheet_name='baseClientes')
-                except:
+                except (PermissionError, ValueError, OSError):
                     df_clientes = pd.DataFrame(columns=[
                         'ID', 'NomeCliente', 'Alias', 'TelefoneCliente', 'Email',
                         'CPF_CNPJ', 'Endereco', 'CidadeProposta', 'EstadoCivil', 'Profissao'

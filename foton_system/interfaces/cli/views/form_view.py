@@ -66,7 +66,7 @@ class TUIFormView:
             tip_ctx = "FORMATACAO" if f and not f.is_calculated else "SSOT"
             tip = self.tip_service.get_random_tip(tip_ctx)
             TUILayout.print_tip(tip, "DICA")
-        except: pass
+        except Exception: pass
 
         TUILayout.print_footer()
         print(f"  {Fore.YELLOW}[ENTER/N]{Style.RESET_ALL} Próxima | {Fore.YELLOW}[P]{Style.RESET_ALL} Anterior | {Fore.YELLOW}[V]{Style.RESET_ALL} Visualizar")
