@@ -32,8 +32,10 @@ class TUILayout:
 
     @staticmethod
     def clear():
-        """Limpa a tela do terminal."""
-        os.system('cls' if os.name == 'nt' else 'clear')
+        """Limpa a tela do terminal usando sequências ANSI (agnóstico)."""
+        import sys
+        sys.stderr.write('\033[2J\033[H')
+        sys.stderr.flush()
 
     @staticmethod
     def get_visible_len(text: str) -> int:

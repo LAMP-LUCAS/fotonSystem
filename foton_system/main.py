@@ -131,7 +131,10 @@ def safety_entry():
         print(f"  Frozen: {getattr(sys, 'frozen', False)}")
         print(f"  Base Path: {getattr(sys, '_MEIPASS', os.getcwd())}")
         print("\n\033[36mPressione ENTER para fechar e reportar o erro...\033[0m")
-        input()
+        try:
+            input()
+        except EOFError:
+            pass
         sys.exit(1)
 
 

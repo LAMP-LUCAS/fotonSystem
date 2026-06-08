@@ -103,8 +103,22 @@ class EnvironmentPorter:
     def _check_gui_availability(self) -> bool:
         """Verifica se há um servidor gráfico funcional disponível."""
         if self.os_type == 'windows':
-            # Assume GUI no Windows (exceto se detectarmos explicitamente modo server sem shell)
-            return True
+            # No Windows, checamos se estamos em uma sessão interativa (console ou RDP)
+            # SESSIONNAME é 'Console' ou 'RDP-Tcp#X'. Ausente em serviços/headless.
+            is_interactive = os.environ.get('SESSIONNAME') is not None
+            
+            # Reforço opcional: probe leve de tkinter
+            if is_interactive:
+                try:
+                    import tkinter
+                    root = tkinter.Tk()
+                    root.withdraw()
+                    root.destroy()
+                    return True
+                except Exception:
+                    return False
+            return False
+            
         elif self.os_type == 'darwin': # macOS
             return True
         elif self.os_type == 'linux':
@@ -113,18 +127,54 @@ class EnvironmentPorter:
             if not display:
                 return False
                 
-            # No Linux, verifica também o socket X11 (sugestão da auditoria)
-            # Geralmente /tmp/.X11-unix/X0, X1, etc.
+            # No Linux, verifica também o socket X11
             x11_socket_dir = Path("/tmp/.X11-unix")
             if x11_socket_dir.exists():
                 sockets = list(x11_socket_dir.glob("X*"))
                 if sockets:
                     return True
             
-            # Se tem DISPLAY mas não achou socket, pode ser um túnel SSH ou Wayland puro
             return True
             
         return False
+
+    def get_form_filler(self):
+        """
+        Retorna o preenchedor de formulários adequado para o perfil atual.
+        - SERVER_HEADLESS: TuiFormFiller
+        - DESKTOP_GUI + webview: WebViewFormFiller
+        - Outros: BrowserFormFiller
+        """
+        if self.profile == SystemProfile.SERVER_HEADLESS:
+            from foton_system.modules.documents.application.use_cases.tui_form_filler_use_case import TUIFormFillerUseCase
+            # Adaptador TUI
+            class TuiAdapter:
+                def open_form(self, content, save_callback):
+                    print("\n[MODO SERVER] Usando interface de terminal para preenchimento.")
+                    # Como não temos o path do arquivo aqui diretamente (só o conteúdo),
+                    # o TUIUseCase legado pode precisar de ajuste ou usamos um mock/fallback
+                    # Para simplificar, delegamos ao TUI direto no menus.py se necessário,
+                    # ou retornamos um objeto com a mesma assinatura.
+                    return False # Força o menus.py a usar o fallback TUI
+            return TuiAdapter()
+
+        if self.has_gui and self.can_use_feature("webview"):
+            from foton_system.interfaces.webview_bridge import open_info_interface
+            # Adaptador WebView
+            class WebViewAdapter:
+                def open_form(self, content, save_callback):
+                    open_info_interface(content, save_callback)
+                    return True
+            return WebViewAdapter()
+
+        # Fallback: Navegador
+        from foton_system.interfaces.webview_bridge import open_info_interface
+        class BrowserAdapter:
+            def open_form(self, content, save_callback):
+                print("\n[MODO BROWSER] Fallback para navegador padrão.")
+                open_info_interface(content, save_callback) # O próprio bridge cuida do fallback
+                return True
+        return BrowserAdapter()
 
     def can_use_feature(self, feature_name: str) -> bool:
         """

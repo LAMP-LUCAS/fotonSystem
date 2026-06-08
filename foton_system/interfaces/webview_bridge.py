@@ -80,8 +80,13 @@ def _open_in_browser(content: str):
     """Fallback: Abre o HTML no navegador padrão."""
     html_path = Path(__file__).resolve().parent / "fotonInfoInterface.html"
     if html_path.exists():
-        webbrowser.open(f"file:///{html_path.resolve()}")
-        print("✅ Interface aberta no navegador.")
+        try:
+            webbrowser.open(f"file:///{html_path.resolve()}")
+            print("✅ Interface aberta no navegador.")
+        except Exception as e:
+            print(f"⚠️ Não foi possível abrir o navegador automaticamente: {e}")
+            print(f"💡 Você pode abrir manualmente o arquivo: {html_path.resolve()}")
+        
         print("📝 Nota: No modo navegador, você deve copiar o resultado final manualmente.")
     else:
         print("❌ Erro crítico: Arquivo HTML da interface não encontrado em lugar nenhum.")

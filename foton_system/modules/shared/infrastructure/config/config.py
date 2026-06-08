@@ -132,5 +132,5 @@ class Config:
 
     @property
     def ui_mode(self) -> str:
-        return str(self.get('ui_mode', 'gui'))
+        return str(self.get('ui_mode', 'auto'))
 

@@ -1,7 +1,6 @@
 import time
 import threading
 import sys
-import winsound
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
@@ -101,14 +100,19 @@ class PomodoroTimer:
             return time.time() - start_time
 
     def play_sound(self, signal_type: str = 'fim') -> None:
-        """Toca beep de início ou fim via winsound."""
+        """Toca beep de início ou fim. Fallback para bell ANSI se winsound indisponível."""
         try:
+            import winsound
             if signal_type == 'inicio':
                 winsound.Beep(1000, 500)
             elif signal_type == 'fim':
                 winsound.Beep(500, 500)
                 time.sleep(0.2)
                 winsound.Beep(500, 500)
+        except ImportError:
+            # Linux/headless: usa bell ANSI
+            sys.stderr.write('\a')
+            sys.stderr.flush()
         except Exception as e:
             logger.error(f"Erro ao reproduzir som: {e}")
 
