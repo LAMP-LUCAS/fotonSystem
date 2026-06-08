@@ -309,8 +309,8 @@ def cadastrar_cliente(nome: str, apelido: str = "", nif: str = "", email: str = 
     Logic: Creates standard folders (ADMINISTRATIVO, FINANCEIRO, PROJETOS) and initial INFO and FINANCEIRO files.
     """
     try:
-        from foton_system.modules.clients.application.use_cases.client_service import ClientService
-        normalized = ClientService.normalize_client_name(nome)
+        from foton_system.modules.clients.application.use_cases.client_validation import normalize_client_name as _normalize
+        normalized = _normalize(nome)
         from foton_system.core.ops.op_create_client import OpCreateClient
         op = OpCreateClient(actor="Agent_MCP")
         result = op.execute(
@@ -419,8 +419,8 @@ def criar_estrutura_servico(cliente: str, nome: str) -> str:
       nome: Service name
     """
     try:
-        from foton_system.modules.clients.application.use_cases.client_service import ClientService
-        normalized = ClientService.normalize_client_name(nome)
+        from foton_system.modules.clients.application.use_cases.client_validation import normalize_client_name as _normalize
+        normalized = _normalize(nome)
         config = _get_config()
         svc = _get_factory().get_client_service()
         client_path = svc.resolve_client_path(cliente)

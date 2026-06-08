@@ -20,7 +20,7 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
 | 2 — Bare excepts | ✅ | 2026-06-08 |
 | 3 — Bugs e placebos | ✅ | 2026-06-08 |
 | 4 — Vapor removal | ✅ | 2026-06-08 |
-| 5 — Arquitetura | ⏳ | — |
+| 5 — Arquitetura | ✅ | 2026-06-08 |
 | 6 — Robustez | ⏳ | — |
 | 7 — Qualidade agêntica | ⏳ | — |
 | 8 — Testes | ⏳ | — |
@@ -62,4 +62,19 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
   ✅ Testes: 293/293 passed (zero regressão)
   📊 Vapor removido: ~70 linhas (chat.py:32, backward-compat:26, enable_mcp:1, get_form_filler:12)
   📝 4.5 removido do plano — except ValueError em tools é legítimo (decorator re-lança)
+
+[2026-06-08] Fase 5 — Arquitetura (entry points, factory, DI, domain sem infra)
+  Δ arquivos: +foton_system/entry.py (novo),
+               ~interfaces/cli/main.py (MCP delegado p/ safety_entry),
+               ~interfaces/mcp/foton_mcp.py (2 tools sem import direto de ClientService),
+               ~modules/documents/application/use_cases/document_service.py (_parse_md_data static; info_template_path param),
+               ~modules/sync/sync_service.py (DocumentService._parse_md_data direto),
+               ~modules/clients/application/use_cases/client_crud.py (import PathManager localizado)
+  🔧 5.1: entry.py criado — `python -m foton_system.entry --mcp` funciona
+  🔧 5.2: cli/main.py --mcp agora delega para safety_entry() (stdout zero antes do mcp.run())
+  🔧 5.3: cadastrar_cliente e criar_estrutura_servico usam normalize_client_name direto, sem ClientService
+  🔧 5.4: SyncService.sync_dashboard usa DocumentService._parse_md_data static (sem DocumentService(None,None))
+  🔧 5.5: document_service.create_custom_data_file aceita info_template_path param;
+           client_crud.get_template_sections importa PathManager localmente
+  ✅ Testes: 293/293 passed (zero regressão)
 ```

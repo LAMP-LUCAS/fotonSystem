@@ -6,7 +6,6 @@ import pandas as pd
 from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
 from foton_system.modules.shared.infrastructure.validators import validate_filename
-from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
 from foton_system.modules.shared.domain.exceptions import InvalidAliasError, DatabaseLockError, ValidationError
 from foton_system.modules.clients.application.use_cases.client_validation import normalize_client_name, format_columns
 from foton_system.modules.clients.application.use_cases.client_query import resolve_client_path, generate_client_code, list_service_nodes
@@ -152,16 +151,17 @@ def update_client_info_file(client_path: Path, section: str, content: str) -> st
 
 
 def get_template_sections(config: Config):
-    template_path = PathManager.get_info_template_path()
+    from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+    info_template_path = PathManager.get_info_template_path()
     client_part = ""
     service_part = ""
 
-    if not template_path.exists():
+    if not info_template_path.exists():
         return CLIENT_TEMPLATE_STR, SERVICE_TEMPLATE_STR
 
     try:
         import re
-        with open(template_path, 'r', encoding='utf-8') as f:
+        with open(info_template_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
         parts = re.split(r'##\s*INFO-SERVICO\.md', content, flags=re.IGNORECASE)

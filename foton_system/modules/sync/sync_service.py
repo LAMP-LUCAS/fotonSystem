@@ -22,7 +22,7 @@ class SyncService:
 
         logger.info(f"Iniciando sincronização de {base_path} para {db_path}...")
 
-        doc_service = DocumentService(None, None)
+        _parse_md = DocumentService._parse_md_data
 
         records = []
 
@@ -30,7 +30,7 @@ class SyncService:
             if client_dir.is_dir():
                 info_file = list(client_dir.glob("INFO-CLIENTE.md"))
                 if info_file:
-                    data = doc_service._parse_md_data(info_file[0])
+                    data = _parse_md(info_file[0])
                     data['Origem'] = str(client_dir)
                     data['UltimaAtualizacao'] = pd.Timestamp.now()
                     records.append(data)

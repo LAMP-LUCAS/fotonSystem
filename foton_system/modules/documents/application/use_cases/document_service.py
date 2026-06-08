@@ -54,8 +54,7 @@ class DocumentService:
             return []
         return list(client_path.glob('*.md')) + list(client_path.glob('*.txt'))
 
-    def create_custom_data_file(self, client_path, cod, ver='00', rev='R00', desc='PROPOSTA'):
-        from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+    def create_custom_data_file(self, client_path, cod, ver='00', rev='R00', desc='PROPOSTA', info_template_path=None):
         client_path = Path(client_path)
         if not client_path.exists():
             return None
@@ -68,12 +67,14 @@ class DocumentService:
             return data_file
 
         # DNA: Tenta carregar do template centralizado
-        template_path = PathManager.get_info_template_path()
-        if template_path.exists():
+        if info_template_path is None:
+            from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+            info_template_path = PathManager.get_info_template_path()
+        if info_template_path.exists():
             try:
-                with open(template_path, 'r', encoding='utf-8') as f:
+                with open(info_template_path, 'r', encoding='utf-8') as f:
                     content = f.read()
-                logger.info(f"Usando template centralizado: {template_path.name}")
+                logger.info(f"Usando template centralizado: {info_template_path.name}")
             except Exception as e:
                 logger.error(f"Erro ao ler template: {e}")
                 content = "# ERRO AO CARREGAR TEMPLATE"
@@ -230,7 +231,8 @@ class DocumentService:
 
         return data
 
-    def _parse_md_data(self, file_path):
+    @staticmethod
+    def _parse_md_data(file_path):
         """
         Parses metadata from an MD file.
         Format: @Variable; Value

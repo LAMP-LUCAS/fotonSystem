@@ -210,18 +210,10 @@ def main():
         show_mcp_config()
         sys.exit(0)
 
-    # Handle --mcp flag (Launch MCP Server)
+    # Handle --mcp flag (delegate to unified safety_entry)
     if args.mcp:
-        try:
-            from foton_system.interfaces.mcp.foton_mcp import mcp
-            print("🤖 Iniciando Servidor Foton MCP...")
-            mcp.run()
-        except ImportError as e:
-            print(f"❌ Erro ao importar MCP: {e}")
-            sys.exit(1)
-        except Exception as e:
-            print(f"❌ Erro fatal no MCP: {e}")
-            sys.exit(1)
+        from foton_system.main import safety_entry
+        safety_entry()
         sys.exit(0)
     
     # Handle --reset-config flag
