@@ -1,3 +1,4 @@
+import sys
 import pytest
 from unittest.mock import MagicMock, patch
 from foton_system.interfaces.cli.menus import MenuSystem
@@ -57,3 +58,63 @@ def test_main_menu_shows_all_options_on_desktop(mock_porter, monkeypatch):
         
         assert "Preencher Ficha (Interface)" in calls
         assert "Instalação / Atalhos" in calls
+
+
+def test_system_profile_imported_via_menus():
+    from foton_system.interfaces.cli.menus import SystemProfile as SP
+    assert SP is SystemProfile
+    assert SP.SERVER_HEADLESS == SystemProfile.SERVER_HEADLESS
+
+
+@patch('subprocess.run')
+def test_open_workspace_folder_linux(mock_run, mock_porter, monkeypatch):
+    monkeypatch.setattr(sys, 'platform', 'linux')
+    monkeypatch.setattr('builtins.input', lambda _: '')
+
+    config = MagicMock()
+    config.workspace_path = '/home/user/foton'
+
+    with patch('foton_system.interfaces.cli.menus.get_ui_provider'), \
+         patch('foton_system.interfaces.cli.menus.ExcelClientRepository'), \
+         patch('foton_system.interfaces.cli.menus.PythonDocxAdapter'), \
+         patch('foton_system.interfaces.cli.menus.PythonPPTXAdapter'), \
+         patch('foton_system.interfaces.cli.menus.TUILayout'):
+        menu = MenuSystem()
+        menu._open_workspace_folder(config)
+        mock_run.assert_called_once_with(['xdg-open', '/home/user/foton'], check=True)
+
+
+@patch('subprocess.run')
+def test_open_workspace_folder_mac(mock_run, mock_porter, monkeypatch):
+    monkeypatch.setattr(sys, 'platform', 'darwin')
+    monkeypatch.setattr('builtins.input', lambda _: '')
+
+    config = MagicMock()
+    config.workspace_path = '/Users/lucas/foton'
+
+    with patch('foton_system.interfaces.cli.menus.get_ui_provider'), \
+         patch('foton_system.interfaces.cli.menus.ExcelClientRepository'), \
+         patch('foton_system.interfaces.cli.menus.PythonDocxAdapter'), \
+         patch('foton_system.interfaces.cli.menus.PythonPPTXAdapter'), \
+         patch('foton_system.interfaces.cli.menus.TUILayout'):
+        menu = MenuSystem()
+        menu._open_workspace_folder(config)
+        mock_run.assert_called_once_with(['open', '/Users/lucas/foton'], check=True)
+
+
+@patch('foton_system.interfaces.cli.menus.os.startfile')
+def test_open_workspace_folder_windows(mock_startfile, mock_porter, monkeypatch):
+    monkeypatch.setattr(sys, 'platform', 'win32')
+    monkeypatch.setattr('builtins.input', lambda _: '')
+
+    config = MagicMock()
+    config.workspace_path = 'C:\\Users\\Lucas\\foton'
+
+    with patch('foton_system.interfaces.cli.menus.get_ui_provider'), \
+         patch('foton_system.interfaces.cli.menus.ExcelClientRepository'), \
+         patch('foton_system.interfaces.cli.menus.PythonDocxAdapter'), \
+         patch('foton_system.interfaces.cli.menus.PythonPPTXAdapter'), \
+         patch('foton_system.interfaces.cli.menus.TUILayout'):
+        menu = MenuSystem()
+        menu._open_workspace_folder(config)
+        mock_startfile.assert_called_once_with('C:\\Users\\Lucas\\foton')

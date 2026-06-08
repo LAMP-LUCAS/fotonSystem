@@ -9,7 +9,7 @@ from foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter 
 from foton_system.modules.productivity.pomodoro import PomodoroTimer
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
 from foton_system.modules.shared.infrastructure.services.tip_service import TipService
-from foton_system.modules.shared.infrastructure.services.environment_porter import get_porter
+from foton_system.modules.shared.infrastructure.services.environment_porter import get_porter, SystemProfile
 from foton_system.interfaces.cli.ui_provider import UIProvider, get_ui_provider
 from foton_system.interfaces.cli.views.tui_layout import TUILayout
 from colorama import init, Fore, Style
@@ -474,15 +474,7 @@ class MenuSystem:
             elif choice == '4':
                 self.handle_admin_tools()
             elif choice == '5':
-                # Open Workspace Folder
-                import os
-                try:
-                    os.startfile(config.workspace_path)
-                    self.print_success(f"Abrindo pasta: {config.workspace_path}")
-                    input("Pressione Enter para continuar...")
-                except Exception as e:
-                    self.print_error(f"Erro ao abrir pasta: {e}")
-                    input("Pressione Enter para continuar...")
+                self._open_workspace_folder(config)
             elif choice == '0':
                 break
             else:
@@ -508,6 +500,24 @@ class MenuSystem:
             self.print_warning("Operação cancelada.")
             input("Pressione Enter para continuar...")
 
+
+    def _open_workspace_folder(self, config):
+        import sys
+        import os
+        import subprocess
+
+        path = str(config.workspace_path)
+        try:
+            if sys.platform == 'win32':
+                os.startfile(path)
+            elif sys.platform == 'darwin':
+                subprocess.run(['open', path], check=True)
+            else:
+                subprocess.run(['xdg-open', path], check=True)
+            self.print_success(f"Abrindo pasta: {path}")
+        except Exception as e:
+            self.print_error(f"Erro ao abrir pasta: {e}")
+        input("Pressione Enter para continuar...")
 
     def create_client_ui(self):
         TUILayout.clear()
