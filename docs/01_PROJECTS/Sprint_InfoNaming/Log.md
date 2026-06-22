@@ -18,7 +18,7 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
 |------|--------|--------|
 | 0 — Config + PatternResolver + PathManager | ✅ | 2026-06-22 |
 | 1 — Criação de INFO files | ✅ | 2026-06-22 |
-| 2 — Leitura e sincronização | 🔲 | — |
+| 2 — Leitura e sincronização | ✅ | 2026-06-22 |
 | 3 — Exportação versionada unificada | 🔲 | — |
 | 4 — Migração retroativa | 🔲 | — |
 | 5 — Conformance checker | 🔲 | — |
@@ -48,4 +48,12 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
     • info-Template.md: headers renomeados para ## INFO-CLIENTE / ## INFO-SERVICO
     • criar_estrutura_servico: copia template com nome do pattern (ex: INFO-SERVICO-{cod}_{versao}_R{revisao}.md)
     • pipeline_novo_cliente: busca INFO-CLIENTE via glob pattern em vez de nome fixo
+
+[2026-06-22] Fase 2 — Leitura e sincronização (sync_service + document_service)
+  Δ arquivos: ~sync_service.py, ~document_service.py
+  ✅ Testes: 348/348 passed (zero regressão)
+  🔧 Mudanças:
+    • sync_service._collect_client_data: usa glob pattern + fallback INFO-CLIENTE.md
+    • document_service._load_context_data: fnmatch com pattern + fallback legacy
+    • Fallback mantido para compatibilidade com clientes existentes (INFO-CLIENTE.md)
 ```
