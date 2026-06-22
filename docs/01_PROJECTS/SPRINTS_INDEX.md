@@ -13,9 +13,9 @@ tags: [roadmap, sprints, tracking]
 [2025]                         [2026]
   |                              |
   v                              v
-SystemAudit ──> DualInterface ──> Resiliência ──> [Próximo]
-(Arquitetura)    (TUI + MCP)      (Segurança +     (UX Agêntica?)
-                                   Robustez)
+SystemAudit ──> DualInterface ──> Resiliência ──> InfoNaming ──> [Próximo]
+(Arquitetura)    (TUI + MCP)      (Segurança +     (Nomenclatura   (UX Agêntica?)
+                                    Robustez)        Configurável)
 ```
 
 ## Sprints Concluídas
@@ -25,11 +25,12 @@ SystemAudit ──> DualInterface ──> Resiliência ──> [Próximo]
 | **SystemAudit** | Mai/2026 | `650e964` `4bc8b15` ... | Auditoria arquitetural, segurança, resiliência, documentação | ✅ Cobertura de path traversal, circuit breaker, tip service, documentação |
 | **DualInterface** | Jun/2026 | `69a9edb` `ae8a4d2` `1aa4682` `fe11bae` | TUI bugs, dedup MCP↔domain, documentação dual-paradigma, flag `--tui` | ✅ 4 commits, 264 testes, zero regressão |
 
-## Sprint Ativa
+## Sprints Ativas
 
 | Sprint | Foco | Fases | Esforço |
 |--------|------|-------|---------|
 | **Resiliência** | Segurança (`eval`→parser), bare excepts, bugs, vapor, arquitetura, testes | 8 fases | ~21h |
+| **InfoNaming** | Sistema de nomenclatura configurável de arquivos INFO com placeholders | 7 fases | ~20h |
 
 ## Próximas Candidatas (não planejadas)
 
