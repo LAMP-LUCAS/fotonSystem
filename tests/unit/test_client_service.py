@@ -215,27 +215,35 @@ class TestClientServiceEdgeCases(unittest.TestCase):
 class TestClientServiceFileParsing(unittest.TestCase):
     """Tests for file parsing and versioning logic."""
 
-    def test_parse_filename_extracts_version_and_revision(self):
-        """Parses VER and REV from filename correctly."""
-        from foton_system.modules.clients.application.use_cases.client_crud import _parse_filename
-        
-        mock_path = MagicMock()
-        mock_path.stem = 'CODE_DOC_CD_01_R02_INFO-ClientAlias'
-        
-        ver, rev = _parse_filename(mock_path)
-        
+    @patch('foton_system.modules.shared.infrastructure.config.config.Config')
+    def test_parse_revision_from_filename_extracts_versao_revisao(self, MockConfig):
+        """Extrai VER e REV do filename via pattern."""
+        cfg = MagicMock()
+        cfg.info_file_patterns = {
+            'cliente': "INFO-CLIENTE-{codCliente}_{versao}_R{revisao}.md",
+            'servico': "INFO-SERVICO-{codServico}_{versao}_R{revisao}.md",
+        }
+        cfg.get.return_value = None
+        MockConfig.return_value = cfg
+
+        from foton_system.modules.clients.application.use_cases.client_crud import _parse_revision_from_filename
+        ver, rev = _parse_revision_from_filename("INFO-CLIENTE-COD01_01_R02.md", "cliente")
         self.assertEqual(ver, '01')
         self.assertEqual(rev, 'R02')
 
-    def test_parse_filename_handles_malformed_names(self):
-        """Returns defaults for malformed filenames."""
-        from foton_system.modules.clients.application.use_cases.client_crud import _parse_filename
-        
-        mock_path = MagicMock()
-        mock_path.stem = 'InvalidFormat'
-        
-        ver, rev = _parse_filename(mock_path)
-        
+    @patch('foton_system.modules.shared.infrastructure.config.config.Config')
+    def test_parse_revision_from_filename_defaults_para_malformed(self, MockConfig):
+        """Retorna defaults para filename que não corresponde ao pattern."""
+        cfg = MagicMock()
+        cfg.info_file_patterns = {
+            'cliente': "INFO-CLIENTE-{codCliente}_{versao}_R{revisao}.md",
+            'servico': "INFO-SERVICO-{codServico}_{versao}_R{revisao}.md",
+        }
+        cfg.get.return_value = None
+        MockConfig.return_value = cfg
+
+        from foton_system.modules.clients.application.use_cases.client_crud import _parse_revision_from_filename
+        ver, rev = _parse_revision_from_filename("NOT-MATCHING-ANY-PATTERN.md", "cliente")
         self.assertEqual(ver, '00')
         self.assertEqual(rev, 'R00')
 

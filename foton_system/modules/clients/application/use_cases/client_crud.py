@@ -195,18 +195,21 @@ def get_template_sections(config: Config):
         return _replace_headers(CLIENT_TEMPLATE_STR), _replace_headers(SERVICE_TEMPLATE_STR)
 
 
-def _generate_filename(cod, alias, ver="00", rev="R00"):
-    return f"{cod}_DOC_CD_{ver}_{rev}_INFO-{alias}.md"
+def _resolve_info_filename(tipo: str, **placeholders) -> str:
+    """Gera nome de arquivo INFO usando o pattern configurável."""
+    from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+    resolver = PathManager.get_info_pattern(tipo)
+    return resolver.resolve(**placeholders)
 
 
-def _parse_filename(filename):
-    try:
-        parts = filename.stem.split('_')
-        if len(parts) >= 6:
-            return parts[3], parts[4]
-    except Exception:
-        pass
-    return "00", "R00"
+def _parse_revision_from_filename(filename, tipo: str):
+    """Extrai versão e revisão do filename usando extract() do pattern."""
+    from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+    resolver = PathManager.get_info_pattern(tipo)
+    extracted = resolver.extract(filename.name if hasattr(filename, 'name') else str(filename))
+    ver = extracted.get('versao', '00')
+    rev = extracted.get('revisao', '')
+    return ver, f"R{rev}" if rev else "R00"
 
 
 def _increment_revision(rev):
@@ -214,15 +217,18 @@ def _increment_revision(rev):
     return f"R{num + 1:02d}"
 
 
-def _get_latest_file(folder, alias):
+def _get_latest_file(folder, tipo: str):
+    """Busca o arquivo INFO mais recente usando o glob do pattern."""
     if not folder.exists():
         return None
-    files = list(folder.glob(f"*_INFO-{alias}.md"))
+    from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+    glob_pattern = PathManager.get_info_glob(tipo)
+    files = list(folder.glob(glob_pattern))
     if not files:
         return None
 
     def sort_key(f):
-        ver, rev = _parse_filename(f)
+        ver, rev = _parse_revision_from_filename(f, tipo)
         return (ver, rev)
 
     files.sort(key=sort_key, reverse=True)
@@ -333,7 +339,7 @@ def export_client_data(repository, config: Config):
                 continue
 
             file_data = row.dropna().to_dict()
-            latest_file = _get_latest_file(folder, alias)
+            latest_file = _get_latest_file(folder, "cliente")
 
             should_create = False
             ver, rev = "00", "R00"
@@ -347,7 +353,7 @@ def export_client_data(repository, config: Config):
 
                 if is_different:
                     should_create = True
-                    ver, rev = _parse_filename(latest_file)
+                    ver, rev = _parse_revision_from_filename(latest_file, "cliente")
                     rev = _increment_revision(rev)
 
                 file_data = merged_data
@@ -355,7 +361,7 @@ def export_client_data(repository, config: Config):
                 should_create = True
 
             if should_create:
-                filename = _generate_filename(cod, alias, ver, rev)
+                filename = _resolve_info_filename("cliente", codCliente=cod, aliasCliente=alias, versao=ver, revisao=rev)
                 _write_formatted_file_content(folder / filename, file_data, client_template)
                 count += 1
 
@@ -387,7 +393,7 @@ def export_service_data(repository, config: Config):
             file_data = row.dropna().to_dict()
             file_data['CodServico'] = cod
 
-            latest_file = _get_latest_file(folder, service_alias)
+            latest_file = _get_latest_file(folder, "servico")
 
             should_create = False
             ver, rev = "00", "R00"
@@ -401,7 +407,7 @@ def export_service_data(repository, config: Config):
 
                 if is_different:
                     should_create = True
-                    ver, rev = _parse_filename(latest_file)
+                    ver, rev = _parse_revision_from_filename(latest_file, "servico")
                     rev = _increment_revision(rev)
 
                 file_data = merged_data
@@ -409,7 +415,7 @@ def export_service_data(repository, config: Config):
                 should_create = True
 
             if should_create:
-                filename = _generate_filename(cod, service_alias, ver, rev)
+                filename = _resolve_info_filename("servico", codServico=cod, aliasServico=service_alias, versao=ver, revisao=rev)
                 _write_formatted_file_content(folder / filename, file_data, service_template)
                 count += 1
 
@@ -432,7 +438,7 @@ def import_service_data(repository, config: Config):
             service_folders = repository.list_service_folders(client_alias)
             for service_alias in service_folders:
                 folder = config.base_pasta_clientes / client_alias / service_alias
-                latest_file = _get_latest_file(folder, service_alias)
+                latest_file = _get_latest_file(folder, "servico")
 
                 if not latest_file:
                     continue
