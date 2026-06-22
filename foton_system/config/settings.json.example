@@ -6,5 +6,9 @@
     "caminho_templates": "C:\\Caminho\\Para\\Templates",
     "ignored_folders": ["DOC", "ARQ", "HID", "ELE", "STR", "PL", "EVT"],
     "clean_missing_variables": true,
-    "missing_variable_placeholder": "---"
+    "missing_variable_placeholder": "---",
+    "info_file_patterns": {
+        "cliente": "INFO-CLIENTE-{codCliente}_{versao}_R{revisao}.md",
+        "servico": "INFO-SERVICO-{codServico}_{versao}_R{revisao}.md"
+    }
 }

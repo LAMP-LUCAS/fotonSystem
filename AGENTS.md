@@ -1,6 +1,6 @@
-# Foton System v1.3.0 — Guia do Agente
+# Foton System v1.4.0 — Guia do Agente
 
-Sistema de gestão para escritório de arquitetura. Exposto via **MCP (32 ferramentas)**.
+Sistema de gestão para escritório de arquitetura. Exposto via **MCP (34 ferramentas)**.
 
 **Idioma obrigatório:** PT-BR. Todas as interações com o agente e o sistema em português brasileiro.
 
@@ -34,7 +34,7 @@ foton_system/
 │   ├── finance/                 # Financeiro por cliente
 │   └── shared/                  # Config, PathManager, bootstrap
 ├── interfaces/
-│   ├── mcp/foton_mcp.py         # 32 ferramentas MCP
+│   ├── mcp/foton_mcp.py         # 34 ferramentas MCP
 │   └── cli/                     # CLI legado
 └── infrastructure/
     └── dependency_manager.py    # AI Pack (torch, chromadb, etc.)
@@ -42,7 +42,7 @@ foton_system/
 
 ---
 
-## 32 Ferramentas MCP
+## 34 Ferramentas MCP
 
 ### 📂 Clientes (6)
 | Ferramenta | Descrição |
@@ -95,7 +95,7 @@ foton_system/
 | `pipeline_novo_cliente` | Duplicate check + criação + verificação |
 | `pipeline_emitir_documento` | Pré-vôo completo antes de gerar |
 
-### 🏗️ Infraestrutura (4)
+### 🏗️ Infraestrutura (5)
 | Ferramenta | Descrição |
 |---|---|
 | `ping` | Health check do servidor |
@@ -103,6 +103,12 @@ foton_system/
 | `verificar_atualizacao` | Check de nova versão no GitHub |
 | `consultar_auditoria` | Eventos POP auditados |
 | `configurar_agente` | Instala skill no CLI |
+
+### ✅ Conformidade (v1.4.0+)
+| Ferramenta | Descrição |
+|---|---|
+| `verificar_conformidade_clientes` | Audita pastas e nomes de INFO files contra o pattern |
+| `corrigir_conformidade` | Aplica correção sugerida para item não conforme |
 
 ---
 
@@ -135,7 +141,7 @@ indexar_conhecimento → consultar_conhecimento
 
 ## Convenções
 
-- **INFO-*.md** é o Centro de Verdade — sempre ler antes de agir sobre um cliente
+- **INFO-*.md** é o Centro de Verdade — sempre ler antes de agir sobre um cliente. O nome do arquivo segue o pattern configurável via `info_file_patterns` em `settings.json` (v1.4.0+)
 - **POP Auditado**: operações críticas (criar cliente, gerar documento, registrar financeiro) passam pelo sistema de auditoria
 - **Backup automático**: `.bak` antes de modificar fichas
 - **Segurança**: path traversal sanitizado com `Path(nome).name`, circuit breaker no ChromaDB (3 falhas → OPEN 60s)
@@ -147,7 +153,7 @@ indexar_conhecimento → consultar_conhecimento
 
 ```bash
 cd C:\Users\Lucas\OneDrive\LAMP_ARQUITETURA\fotonSystem
-python -m pytest           # 262 testes, zero regressão
+python -m pytest           # 353 testes, zero regressão
 python -m pytest -v -k "path_traversal"  # Testes de segurança
 python -m pytest -v -k "circuit_breaker" # Testes de resiliência
 ```

@@ -65,7 +65,7 @@ O MCP respeita as configurações globais do FotonSystem definidas em:
 
 ---
 
-## 3. Guia de Ferramentas (32 ferramentas)
+## 3. Guia de Ferramentas (34 ferramentas)
 
 ### 📂 Pilar: Clientes
 
@@ -119,6 +119,11 @@ O MCP respeita as configurações globais do FotonSystem definidas em:
 - `verificar_atualizacao`: Verifica se há nova versão do Foton System no GitHub.
 - `consultar_auditoria`: Mostra eventos recentes de auditoria (operações POP).
 - `ping`: Verifica se o servidor MCP está responsivo.
+
+### ✅ Pilar: Conformidade (v1.4.0+)
+
+- `verificar_conformidade_clientes`: Audita pastas e nomes de arquivos INFO contra o pattern configurado. Detecta pastas com caracteres inválidos, INFO ausente, pattern mismatch e duplicatas.
+- `corrigir_conformidade`: Aplica a correção sugerida para um item não conforme (rename de pasta ou arquivo).
 
 ---
 

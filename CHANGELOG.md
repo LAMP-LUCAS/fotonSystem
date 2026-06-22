@@ -10,6 +10,35 @@ e o versionamento segue [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Added
 - *(nothing yet)*
 
+## [1.4.0] - 2026-06-22
+
+### Added
+- **Sistema de nomenclatura configurável de arquivos INFO** (`InfoNamingGuide.md`)
+  - `InfoPatternResolver` (Value Object) para resolver placeholders em patterns
+  - 13 placeholders suportados: `{codCliente}`, `{nomeCliente}`, `{aliasCliente}`, `{codServico}`, `{aliasServico}`, `{versao}`, `{revisao}`, `{data}`, `{dataISO}`, `{ano}`, `{mes}`, `{timestamp}`, `{extensao}`
+- `PathManager` com factory methods: `get_info_pattern()`, `get_info_glob()`, `get_info_header()`
+- `settings.json`: nova chave `info_file_patterns` com patterns default e schema validation
+- 2 novas ferramentas MCP: `verificar_conformidade_clientes`, `corrigir_conformidade`
+- `ClientConformanceChecker`: auditoria de pastas e nomes de INFO files com auto-fix
+- Script `scripts/migrate_info_to_pattern.py` para migração retroativa (dry-run/apply/rollback)
+- `_resolve_info_filename()`, `_parse_revision_from_filename()` em `client_crud.py`
+- Templates INFO agora usam headers configuráveis (`get_template_sections` + `to_header()`)
+- Busca de INFO files via glob pattern em `sync_service.py` e `document_service.py`
+
+### Changed
+- `export_client_data()` / `export_service_data()` usam `InfoPatternResolver` em vez de nomes fixos
+- `_get_latest_file()` usa `to_glob()` do pattern em vez de alias fixo
+- `normalize_info_files()` em `migrate_client_structure.py` renomeia para pattern configurável
+- `criar_estrutura_servico` copia template com nome gerado pelo pattern
+- `pipeline_novo_cliente` busca INFO-CLIENTE via glob pattern
+- Fallback mantido para compatibilidade com `INFO-CLIENTE.md` legado
+
+### Deprecated
+- `fix_info_files.py` — redirecionado para `migrate_info_to_pattern.py`
+
+### Security
+- Path sanitization em `auto_fix()` do `ClientConformanceChecker`
+
 ## [1.3.2] - 2026-06-08
 
 ### Fixed
