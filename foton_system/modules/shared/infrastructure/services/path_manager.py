@@ -144,6 +144,33 @@ class PathManager:
         return PathManager.get_app_data_dir() / "foton_system.log"
     
     @staticmethod
+    def get_info_pattern(tipo: str) -> "InfoPatternResolver":
+        """Returns an InfoPatternResolver configured for 'cliente' or 'servico'.
+
+        Uses the pattern from Config().info_file_patterns[tipo].
+        Raises KeyError if tipo is invalid.
+        """
+        from foton_system.modules.shared.domain.info_pattern_resolver import InfoPatternResolver
+        from foton_system.modules.shared.infrastructure.config.config import Config
+        patterns = Config().info_file_patterns
+        raw = patterns[tipo]
+        return InfoPatternResolver(raw)
+
+    @staticmethod
+    def get_info_glob(tipo: str) -> str:
+        """Returns a glob pattern string for searching existing INFO files
+        of the given tipo ('cliente' or 'servico')."""
+        return PathManager.get_info_pattern(tipo).to_glob()
+
+    @staticmethod
+    def get_info_header(tipo: str) -> str:
+        """Returns the markdown section header (##) for the given tipo,
+        with placeholders as literals (not resolved)."""
+        from foton_system.modules.shared.infrastructure.config.config import Config
+        patterns = Config().info_file_patterns
+        return f"## {patterns.get(tipo, 'INFO-{tipo}.md')}"
+
+    @staticmethod
     def get_info_template_path() -> Path:
         """
         Returns the path to the master INFO template.

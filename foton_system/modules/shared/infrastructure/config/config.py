@@ -12,6 +12,7 @@ _SETTINGS_SCHEMA: Dict[str, type] = {
     "clean_missing_variables": bool,
     "missing_variable_placeholder": str,
     "folder_conventions": dict,
+    "info_file_patterns": dict,
 }
 
 
@@ -113,6 +114,13 @@ class Config:
     def folder_op_phases(self) -> List[str]:
         fc: Dict[str, Any] = self.get('folder_conventions', {})
         return list(fc.get('op_phases', ['EP', 'AP', 'EXE', 'REL']))
+
+    @property
+    def info_file_patterns(self) -> dict:
+        return self.get('info_file_patterns', {
+            'cliente': "INFO-CLIENTE-{codCliente}_{versao}_R{revisao}.md",
+            'servico': "INFO-SERVICO-{codServico}_{versao}_R{revisao}.md"
+        })
 
     @property
     def pomodoro_work_time(self) -> int:

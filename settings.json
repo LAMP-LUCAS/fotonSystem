@@ -13,5 +13,9 @@
     ],
     "clean_missing_variables": true,
     "missing_variable_placeholder": "---",
-    "enable_mcp": true
+    "enable_mcp": true,
+    "info_file_patterns": {
+        "cliente": "INFO-CLIENTE-{codCliente}_{versao}_R{revisao}.md",
+        "servico": "INFO-SERVICO-{codServico}_{versao}_R{revisao}.md"
+    }
 }
