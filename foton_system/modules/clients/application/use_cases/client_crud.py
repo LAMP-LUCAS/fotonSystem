@@ -153,28 +153,46 @@ def update_client_info_file(client_path: Path, section: str, content: str) -> st
 def get_template_sections(config: Config):
     from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
     info_template_path = PathManager.get_info_template_path()
+    client_header = PathManager.get_info_header("cliente")
+    service_header = PathManager.get_info_header("servico")
     client_part = ""
     service_part = ""
 
+    # Helper: substitui headers hardcoded no template pelos do pattern
+    def _replace_headers(text: str) -> str:
+        return (text
+                .replace("## INFO-CLIENTE.md", client_header)
+                .replace("## INFO-SERVICO.md", service_header)
+                .replace("## INFO-CLIENTE", client_header)
+                .replace("## INFO-SERVICO", service_header))
+
     if not info_template_path.exists():
-        return CLIENT_TEMPLATE_STR, SERVICE_TEMPLATE_STR
+        return _replace_headers(CLIENT_TEMPLATE_STR), _replace_headers(SERVICE_TEMPLATE_STR)
 
     try:
         import re
         with open(info_template_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
-        parts = re.split(r'##\s*INFO-SERVICO\.md', content, flags=re.IGNORECASE)
+        # Divide nas seções INFO-SERVICO (header original ou do pattern)
+        pattern_header_escaped = re.escape(service_header)
+        parts = re.split(pattern_header_escaped, content, flags=re.IGNORECASE)
         client_part = parts[0]
         if len(parts) > 1:
-            service_part = "## INFO-SERVICO.md" + parts[1]
+            service_part = service_header + parts[1]
         else:
-            service_part = SERVICE_TEMPLATE_STR
+            # Fallback: tenta dividir pelo header original
+            parts = re.split(r'##\s*INFO-SERVICO[\.\w]*', content, flags=re.IGNORECASE)
+            client_part = parts[0]
+            if len(parts) > 1:
+                service_part = service_header + parts[1]
+            else:
+                service_part = _replace_headers(SERVICE_TEMPLATE_STR)
 
-        return client_part, service_part
+        return _replace_headers(client_part), _replace_headers(service_part)
     except Exception as e:
         logger.error(f"Erro ao carregar template DNA: {e}")
-        return CLIENT_TEMPLATE_STR, SERVICE_TEMPLATE_STR
+        return _replace_headers(CLIENT_TEMPLATE_STR), _replace_headers(SERVICE_TEMPLATE_STR)
 
 
 def _generate_filename(cod, alias, ver="00", rev="R00"):

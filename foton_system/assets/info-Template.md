@@ -1,6 +1,6 @@
 # TEMPLATE DE VARIÁVEIS
 
-## INFO-CLIENTE.md
+## INFO-CLIENTE
 
 Aqui tem todas as colunas da tabela de clientes e variáveis extra para personalização
 
@@ -20,7 +20,7 @@ Dados que serão utilizados nas propostas comerciais:
 @cpfCnpjCliente; "000.000.000-00"
 @enderecoCliente; "Rua C152"
 
-## INFO-SERVICO.md
+## INFO-SERVICO
 
 @TEMPLATE; 02-COD_DOC_PC_00_R00_PROPOSTA_VIABILIDADE.pptx
 

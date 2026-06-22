@@ -442,7 +442,15 @@ def criar_estrutura_servico(cliente: str, nome: str) -> str:
         template_path = PathManager.get_info_template_path()
         if template_path.exists():
             import shutil
-            shutil.copy(template_path, service_path / "INFO-SERVICO.md")
+            from foton_system.modules.shared.domain.info_pattern_resolver import InfoPatternResolver
+            resolver = InfoPatternResolver(config.info_file_patterns['servico'])
+            info_filename = resolver.resolve(
+                codServico=normalized.upper()[:8],
+                aliasServico=normalized,
+                versao="00",
+                revisao="00"
+            )
+            shutil.copy(template_path, service_path / info_filename)
         return (
             f"✅ Estrutura de serviço criada: '{normalized}' em '{cliente}'\n"
             f"   📁 {config.folder_doc}/\n"
@@ -1079,9 +1087,12 @@ def pipeline_novo_cliente(nome: str, apelido: str = "", nif: str = "", email: st
         if nif:
             existing = svc.list_clients()
             base = _get_config().base_pasta_clientes
+            from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+            info_glob = PathManager.get_info_glob("cliente")
             for c in existing:
-                info_path = base / c['name'] / "INFO-CLIENTE.md"
-                if info_path.exists():
+                info_paths = list((base / c['name']).glob(info_glob))
+                info_path = info_paths[0] if info_paths else None
+                if info_path and info_path.exists():
                     try:
                         for line in info_path.read_text(encoding='utf-8').splitlines():
                             if line.strip().lower().startswith('@nif'):
