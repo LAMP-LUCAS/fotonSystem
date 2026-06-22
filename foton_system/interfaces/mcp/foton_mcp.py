@@ -1235,6 +1235,65 @@ def consultar_auditoria(limite: int = 10) -> str:
         return f"❌ Audit error: {e}"
 
 
+@mcp.tool()
+@_log_tool_call
+def verificar_conformidade_clientes(modo: str = "check") -> str:
+    """
+    Audits client folders for naming and INFO file pattern compliance.
+    PARAMETERS:
+      modo: 'check' (default) — list non-conformant items
+            'all' — list all items including previously accepted
+    """
+    try:
+        from foton_system.modules.clients.application.use_cases.client_conformance import ClientConformanceChecker
+        config = _get_config()
+        checker = ClientConformanceChecker(config)
+        items = checker.check()
+
+        if not items:
+            return "✅ All clients conform to the configured patterns."
+
+        lines = [f"📋 {len(items)} non-conformant item(s) found:\n"]
+        for i, item in enumerate(items, 1):
+            lines.append(f"  [{i}] [{item.severity.upper()}] {item.tipo}")
+            lines.append(f"      {item.description}")
+            if item.suggested_fix:
+                lines.append(f"      💡 Fix: {item.suggested_fix}")
+            lines.append(f"      📁 {item.path}")
+            lines.append("")
+        return "\n".join(lines)
+    except Exception as e:
+        _logger.error(f"verificar_conformidade_clientes failed: {e}", exc_info=True)
+        return f"❌ Conformance check error: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def corrigir_conformidade(item_id: str) -> str:
+    """
+    Applies the suggested fix for a specific non-conformant item.
+    PARAMETERS:
+      item_id: The item ID from verificar_conformidade_clientes output
+    """
+    try:
+        from foton_system.modules.clients.application.use_cases.client_conformance import ClientConformanceChecker
+        config = _get_config()
+        checker = ClientConformanceChecker(config)
+        items = checker.check()
+
+        target = next((i for i in items if i.item_id == item_id), None)
+        if not target:
+            return f"❌ Item '{item_id}' not found or already fixed."
+
+        success = checker.auto_fix(target)
+        if success:
+            return f"✅ Fixed: {target.description}"
+        return f"❌ Failed to fix: {target.description}"
+    except Exception as e:
+        _logger.error(f"corrigir_conformidade failed: {e}", exc_info=True)
+        return f"❌ Fix error: {e}"
+
+
 # ==============================================================================
 # HELPER: dados_extras Validation
 # ==============================================================================

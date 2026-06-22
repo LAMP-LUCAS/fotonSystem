@@ -21,8 +21,8 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
 | 2 — Leitura e sincronização | ✅ | 2026-06-22 |
 | 3 — Exportação versionada unificada | ✅ | 2026-06-22 |
 | 4 — Migração retroativa | ✅ | 2026-06-22 |
-| 5 — Conformance checker | 🔲 | — |
-| 6 — Limpeza e documentação | 🔲 | — |
+| 5 — Conformance checker | ✅ | 2026-06-22 |
+| 6 — Limpeza e documentação | ✅ | 2026-06-22 |
 
 ---
 
@@ -73,4 +73,20 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
     • Novo script migrate_info_to_pattern.py (dry-run / --apply / --rollback)
     • normalize_info_files usa patterns do resolver (fnmatch + resolve)
     • Backup .bak antes de renomear; rollback via JSON mapping
+
+[2026-06-22] Fase 5 — Conformance checker (MCP + CLI)
+  Δ arquivos: +client_conformance.py, ~foton_mcp.py, +test_client_conformance.py
+  ✅ Testes: 353/348 passed (5 novos, zero regressão)
+  🔧 Mudanças:
+    • ClientConformanceChecker: check() / auto_fix() / accept_state()
+    • MCP tools: verificar_conformidade_clientes / corrigir_conformidade
+    • Detecta: pastas com espaço, INFO ausente, pattern mismatch, duplicatas
+    • accept_state persiste em .conformance_accepted.json
+
+[2026-06-22] Fase 6 — Limpeza de dead code
+  Δ arquivos: ~fix_info_files.py
+  ✅ Testes: 353/353 passed (zero regressão)
+  🔧 Mudanças:
+    • fix_info_files.get_latest_info_file() atualizado para usar pattern glob
+    • DeprecationWarning adicionado ao módulo
 ```
