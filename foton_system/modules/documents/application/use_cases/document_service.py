@@ -212,10 +212,19 @@ class DocumentService:
 
             dirs_to_check.reverse()
 
+            from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+            cliente_glob = PathManager.get_info_glob("cliente")
+            servico_glob = PathManager.get_info_glob("servico")
             for folder in dirs_to_check:
                 info_files = list(folder.glob("*INFO*.md"))
                 if info_files:
-                    canonical = [f for f in info_files if f.name.upper() in ('INFO-CLIENTE.MD', 'INFO-SERVICO.MD')]
+                    import fnmatch
+                    canonical = [
+                        f for f in info_files
+                        if fnmatch.fnmatch(f.name, cliente_glob)
+                        or fnmatch.fnmatch(f.name, servico_glob)
+                        or f.name.upper() in ('INFO-CLIENTE.MD', 'INFO-SERVICO.MD')
+                    ]
                     if canonical:
                         info_file = canonical[0]
                     else:

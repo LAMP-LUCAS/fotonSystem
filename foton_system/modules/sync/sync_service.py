@@ -26,9 +26,11 @@ class SyncService:
 
         records = []
 
+        from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+        info_glob = PathManager.get_info_glob("cliente")
         for client_dir in base_path.iterdir():
             if client_dir.is_dir():
-                info_file = list(client_dir.glob("INFO-CLIENTE.md"))
+                info_file = list(client_dir.glob(info_glob)) or list(client_dir.glob("INFO-CLIENTE.md"))
                 if info_file:
                     data = _parse_md(info_file[0])
                     data['Origem'] = str(client_dir)
