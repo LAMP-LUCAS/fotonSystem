@@ -245,24 +245,70 @@ def flatten_sub_services(clients: list[dict], dry_run: bool) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def normalize_info_files(clients: list[dict], dry_run: bool) -> list[str]:
-    """Rename *INFO*.md to canonical INFO-CLIENTE.md or INFO-SERVICO.md."""
+    """Rename *INFO*.md to pattern-based INFO file names."""
+    from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+    from datetime import date
     renamed = []
     for c in clients:
         # Client-level INFO
-        for f in c["path"].glob("*INFO*.md"):
-            if f.name.upper() not in ("INFO-CLIENTE.MD",):
-                dest = c["path"] / "INFO-CLIENTE.md"
-                if not dest.exists() and not dry_run:
-                    f.rename(dest)
-                    renamed.append(f"{c['name']}: {f.name} -> INFO-CLIENTE.md")
+        for f in list(c["path"].glob("*INFO*.md")):
+            # Skip if already matches pattern
+            cliente_glob = PathManager.get_info_glob("cliente")
+            import fnmatch
+            if fnmatch.fnmatch(f.name, cliente_glob):
+                continue
+            # Lê @CodCliente do conteúdo se possível
+            cod = ""
+            try:
+                for line in f.read_text(encoding="utf-8").splitlines():
+                    if line.strip().lower().startswith("@codcliente"):
+                        cod = line.split(";", 1)[-1].strip()
+            except Exception:
+                pass
+            if not cod:
+                cod = c["name"].upper()[:8]
+            resolver = PathManager.get_info_pattern("cliente")
+            new_name = resolver.resolve(
+                codCliente=cod,
+                nomeCliente=c["name"].upper(),
+                aliasCliente=c["name"],
+                versao="00",
+                revisao="00",
+                data=str(date.today()),
+            )
+            dest = c["path"] / new_name
+            if not dest.exists() and not dry_run:
+                f.rename(dest)
+                renamed.append(f"{c['name']}: {f.name} -> {new_name}")
         # Service-level INFO
         for s in c["services"]:
-            for f in s["path"].glob("*INFO*.md"):
-                if f.name.upper() not in ("INFO-SERVICO.MD",):
-                    dest = s["path"] / "INFO-SERVICO.md"
-                    if not dest.exists() and not dry_run:
-                        f.rename(dest)
-                        renamed.append(f"{c['name']}/{s['name']}: {f.name} -> INFO-SERVICO.md")
+            for f in list(s["path"].glob("*INFO*.md")):
+                servico_glob = PathManager.get_info_glob("servico")
+                if fnmatch.fnmatch(f.name, servico_glob):
+                    continue
+                cod = ""
+                try:
+                    for line in f.read_text(encoding="utf-8").splitlines():
+                        if line.strip().lower().startswith("@codservico"):
+                            cod = line.split(";", 1)[-1].strip()
+                except Exception:
+                    pass
+                if not cod:
+                    base = (c["name"][:3] + s["name"][:3]).upper()
+                    base = "".join(filter(str.isalnum, base))
+                    cod = f"{base}01"
+                resolver = PathManager.get_info_pattern("servico")
+                new_name = resolver.resolve(
+                    codServico=cod,
+                    aliasServico=s["name"],
+                    versao="00",
+                    revisao="00",
+                    data=str(date.today()),
+                )
+                dest = s["path"] / new_name
+                if not dest.exists() and not dry_run:
+                    f.rename(dest)
+                    renamed.append(f"{c['name']}/{s['name']}: {f.name} -> {new_name}")
     return renamed
 
 

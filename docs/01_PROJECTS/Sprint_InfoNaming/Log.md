@@ -19,8 +19,8 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
 | 0 — Config + PatternResolver + PathManager | ✅ | 2026-06-22 |
 | 1 — Criação de INFO files | ✅ | 2026-06-22 |
 | 2 — Leitura e sincronização | ✅ | 2026-06-22 |
-| 3 — Exportação versionada unificada | 🔲 | — |
-| 4 — Migração retroativa | 🔲 | — |
+| 3 — Exportação versionada unificada | ✅ | 2026-06-22 |
+| 4 — Migração retroativa | ✅ | 2026-06-22 |
 | 5 — Conformance checker | 🔲 | — |
 | 6 — Limpeza e documentação | 🔲 | — |
 
@@ -56,4 +56,21 @@ Cada fase é registrada com data, arquivos alterados, e resultado dos testes.
     • sync_service._collect_client_data: usa glob pattern + fallback INFO-CLIENTE.md
     • document_service._load_context_data: fnmatch com pattern + fallback legacy
     • Fallback mantido para compatibilidade com clientes existentes (INFO-CLIENTE.md)
+
+[2026-06-22] Fase 3 — Exportação versionada unificada
+  Δ arquivos: ~client_crud.py, ~test_client_service.py
+  ✅ Testes: 348/348 passed (zero regressão)
+  🔧 Mudanças:
+    • _generate_filename → _resolve_info_filename (via InfoPatternResolver)
+    • _parse_filename → _parse_revision_from_filename (via extract())
+    • _get_latest_file usa to_glob() do pattern em vez de alias fixo
+    • export_client_data / export_service_data refatorados
+
+[2026-06-22] Fase 4 — Migração retroativa
+  Δ arquivos: +scripts/migrate_info_to_pattern.py, ~migrate_client_structure.py
+  ✅ Testes: 348/348 passed (zero regressão)
+  🔧 Mudanças:
+    • Novo script migrate_info_to_pattern.py (dry-run / --apply / --rollback)
+    • normalize_info_files usa patterns do resolver (fnmatch + resolve)
+    • Backup .bak antes de renomear; rollback via JSON mapping
 ```
