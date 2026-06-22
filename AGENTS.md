@@ -1,6 +1,6 @@
 # Foton System v1.4.0 — Guia do Agente
 
-Sistema de gestão para escritório de arquitetura. Exposto via **MCP (34 ferramentas)**.
+Sistema de gestão para escritório de arquitetura. Exposto via **MCP (35 ferramentas)**.
 
 **Idioma obrigatório:** PT-BR. Todas as interações com o agente e o sistema em português brasileiro.
 
@@ -42,7 +42,7 @@ foton_system/
 
 ---
 
-## 34 Ferramentas MCP
+## 35 Ferramentas MCP (v1.4.0)
 
 ### 📂 Clientes (6)
 | Ferramenta | Descrição |
@@ -104,11 +104,12 @@ foton_system/
 | `consultar_auditoria` | Eventos POP auditados |
 | `configurar_agente` | Instala skill no CLI |
 
-### ✅ Conformidade (v1.4.0+)
+### ✅ Conformidade e Códigos (v1.4.0+)
 | Ferramenta | Descrição |
 |---|---|
 | `verificar_conformidade_clientes` | Audita pastas e nomes de INFO files contra o pattern |
-| `corrigir_conformidade` | Aplica correção sugerida para item não conforme |
+| `corrigir_conformidade` | Aplica correção sugerida para item não conforme (inclui criação de INFO files) |
+| `preencher_codigos_faltantes` | Preenche CodCliente/CodServico NaN no banco de dados |
 
 ---
 
@@ -153,7 +154,7 @@ indexar_conhecimento → consultar_conhecimento
 
 ```bash
 cd C:\Users\Lucas\OneDrive\LAMP_ARQUITETURA\fotonSystem
-python -m pytest           # 353 testes, zero regressão
+python -m pytest           # 362 testes, zero regressão
 python -m pytest -v -k "path_traversal"  # Testes de segurança
 python -m pytest -v -k "circuit_breaker" # Testes de resiliência
 ```
@@ -165,9 +166,78 @@ python -m pytest -v -k "circuit_breaker" # Testes de resiliência
 - Código: `C:\Users\Lucas\OneDrive\LAMP_ARQUITETURA\fotonSystem\`
 - Docs MCP: `docs/03_RESOURCES/DocsMcp.md`
 - Plano de auditoria: `docs/01_PROJECTS/Sprint_SystemAudit/SprintPlan.md`
+- Installer Inno Setup: `installer/foton_setup.iss`
 - Skills:
   - `skills/foton-architecture/SKILL.md` — Metaskill (visão geral)
   - `skills/foton-clients/SKILL.md` — Clientes e serviços
   - `skills/foton-documents/SKILL.md` — Documentos e templates
   - `skills/foton-finance/SKILL.md` — Financeiro
   - `skills/foton-rag/SKILL.md` — RAG e memória semântica
+
+---
+
+## Instalação e Distribuição
+
+### 2 formas de instalar
+
+| Método | Quando usar | Descrição |
+|---|---|---|
+| **Inno Setup** | Distribuição para usuários | Instalador .exe profissional (recomendado) |
+| **Menu Opção 7** | Teste local do build | Instala via `install_service.py` |
+
+### Fluxo de instalação (Inno Setup — recomendado)
+
+```powershell
+# 1. Build
+python foton_system/scripts/build.py --type lite
+
+# 2. Compilar instalador (abrir installer/foton_setup.iss no Inno Setup)
+#    Ou via CLI:
+iscc installer/foton_setup.iss
+
+# 3. Distribuir dist/FotonSystem_Setup_v1.xxx.exe
+```
+
+### Fluxo de instalação local (Menu Opção 7)
+
+```
+Usuário escolhe opção 7 (Instalação / Atalhos)
+  ↓
+install() copia o .exe para %LOCALAPPDATA%/FotonSystem/bin/  (sempre OK)
+  ↓
+Tenta copiar _internal/ diretamente (funciona em modo Python source)
+  ├── OK       → atalhos + config inline, "Instalação realizada!"
+  └── LOCKED   → deploy de script nativo, retorna KILL_SWITCH
+                    ↓
+Menu exibe: "Feche o programa para concluir" → os._exit(0)
+                    ↓
+Script nativo (shell do SO):
+  1. taskkill (Win) / pkill (Unix)  → mata TODAS as instâncias do Foton
+  2. rmdir (Win) / rm (Unix)        → deleta _internal destino (agora unlocked)
+  3. xcopy (Win) / cp (Unix)        → copia _internal
+  4. Cria .first_run marker
+  5. start (Win) / nohup (Unix)     → reabre o EXE de AppData
+  6. Auto-delete do script
+                    ↓
+main.py detecta .first_run → atalhos + config → deleta marcador
+```
+
+### Primeira execução pós-instalação
+
+Quando o EXE instalado inicia pela primeira vez, `main.py._first_run_setup()`:
+1. Detecta o marcador `.first_run` no `bin_dir`
+2. Cria atalhos via `porter.get_integrator()` (abstração cross-platform)
+3. Inicializa config via `BootstrapService.initialize()`
+4. Remove o marcador (execução única)
+
+### Estratégia cross-platform
+
+O instalador usa templates de shell script nativo para evitar dependências:
+
+| SO | Script | Matar processo | Copiar | Atalhos |
+|---|---|---|---|---|
+| Windows | `.bat` | `taskkill /f /im` | `xcopy` | `main.py` first-run |
+| Linux | `.sh` | `pkill -f` | `cp -r` | `main.py` first-run |
+| macOS | `.sh` | `pkill -f` | `cp -r` | `main.py` first-run |
+
+A camada Python (`install_service.py`) detecta `sys.platform` e gera o script apropriado — a lógica é idêntica, apenas a sintaxe do shell muda.

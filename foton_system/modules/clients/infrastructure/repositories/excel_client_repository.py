@@ -297,7 +297,7 @@ class ExcelClientRepository(ClientRepositoryPort):
             raise
 
     def list_client_folders(self) -> set:
-        return {pasta.name for pasta in self.base_pasta.iterdir() if pasta.is_dir()}
+        return {pasta.name for pasta in self.base_pasta.iterdir() if pasta.is_dir() and not pasta.name.startswith('.')}
 
     def list_service_folders(self, client_name: str) -> set:
         client_path = self.base_pasta / client_name

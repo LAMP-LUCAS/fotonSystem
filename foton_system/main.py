@@ -2,6 +2,7 @@ import sys
 import os
 import time
 import logging
+from pathlib import Path
 
 _logger = logging.getLogger("foton_bootstrap")
 
@@ -66,6 +67,26 @@ _bootstrap_start: float = 0.0
 """Global bootstrap timer baseline, set by safety_entry()."""
 
 
+def _first_run_setup():
+    """Runs first-time setup (shortcuts + config) when launched from install dir."""
+    if not getattr(sys, 'frozen', False):
+        return
+    bin_dir = Path(sys.executable).resolve().parent
+    marker = bin_dir / '.first_run'
+    if marker.exists():
+        try:
+            from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
+            from foton_system.modules.shared.infrastructure.services.environment_porter import get_porter
+            porter = get_porter()
+            integrator = porter.get_integrator()
+            integrator.create_shortcut(Path(sys.executable).resolve(), "FotonSystem", "Sistema de Gest\u00e3o para Arquitetos")
+            BootstrapService.initialize()
+            marker.unlink()
+            print("Configura\u00e7\u00e3o inicial conclu\u00edda.")
+        except Exception as e:
+            _logger.warning(f"First-run setup failed: {e}")
+
+
 # Ultra-Safe Entry Point
 def safety_entry():
     """Provides immediate visual feedback and robust error handling."""
@@ -118,6 +139,8 @@ def safety_entry():
 
         print("\033[32m[   OK   ]\033[0m System ready.")
         time.sleep(0.5)
+
+        _first_run_setup()
 
         step_time = time.perf_counter()
         main()

@@ -24,6 +24,13 @@ e o versionamento segue [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `_resolve_info_filename()`, `_parse_revision_from_filename()` em `client_crud.py`
 - Templates INFO agora usam headers configuráveis (`get_template_sections` + `to_header()`)
 - Busca de INFO files via glob pattern em `sync_service.py` e `document_service.py`
+- **Filtragem de pastas ocultas** (`.git`, `.obsidian`) em `list_client_folders()` e `sync_dashboard()` — não são mais tratadas como clientes fantasmas
+- **`fill_missing_codes()`**: preenche `CodCliente` e `CodServico` NaN no banco de dados, com geração de códigos únicos e anti-colisão
+- **`preencher_codigos_faltantes`**: nova ferramenta MCP (35 total) para preenchimento retroativo de códigos
+- **`auto_fix` para `missing_info`**: `corrigir_conformidade` agora cria INFO files faltantes automaticamente a partir dos dados do banco
+- **`generate_service_code()`**: função pública (antes privada `_generate_service_code`) com suporte a `existing_codes` para evitar colisões
+- Exportação de dados (`export_client_data`, `export_service_data`) agora persiste códigos gerados de volta ao banco (DRY)
+- `export_client_data` e `export_service_data` aceitam parâmetros `target_alias` para exportação seletiva
 
 ### Changed
 - `export_client_data()` / `export_service_data()` usam `InfoPatternResolver` em vez de nomes fixos
@@ -32,6 +39,17 @@ e o versionamento segue [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `criar_estrutura_servico` copia template com nome gerado pelo pattern
 - `pipeline_novo_cliente` busca INFO-CLIENTE via glob pattern
 - Fallback mantido para compatibilidade com `INFO-CLIENTE.md` legado
+- Pastas com nome iniciado por `.` são ignoradas em todas as varreduras do sistema
+- `_generate_service_code` refatorado para delegar a `generate_service_code()` (DRY)
+- **Kill-Switch Installer**: instalador local (Menu Opção 7) agora usa script de shell nativo como fallback quando DLLs do `_internal/` estão bloqueadas. O script mata instâncias, copia `_internal`, cria marcador `.first_run`, e reinicia o EXE do local de instalação
+- **First-run detection**: `main.py._first_run_setup()` cria atalhos e inicializa config na primeira execução pós-instalação (via marcador `.first_run`)
+- **Cross-platform**: instalador gera `.bat` (Windows) ou `.sh` (Linux/macOS) conforme `sys.platform`, usando apenas comandos nativos (`taskkill`/`pkill`, `xcopy`/`cp`, `rmdir`/`rm`)
+- Instalação agora é **agnóstica de SO** — eliminada dependência de PowerShell/COM para criação de atalhos (delegado ao first-run detection em `main.py`)
+
+### Fixed
+- Pasta `.git` dentro de `CLIENTES/` não é mais listada como cliente não registrado
+- `MCPClientService` faltava método `fill_missing_codes()` — adicionado em `mcp_services.py`
+- NaN do pandas retornava `float` em vez de `''` no `.get()` do iterrows — tratado em `client_crud.py:313-315`
 
 ### Deprecated
 - `fix_info_files.py` — redirecionado para `migrate_info_to_pattern.py`

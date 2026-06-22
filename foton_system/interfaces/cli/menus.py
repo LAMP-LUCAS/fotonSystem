@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import os
 from typing import Optional
 from foton_system.modules.clients.application.use_cases.client_service import ClientService
@@ -352,8 +352,15 @@ class MenuSystem:
         
         if input(f"\n{Fore.YELLOW}Deseja prosseguir? (S/N): {Style.RESET_ALL}").upper() == 'S':
             try:
-                InstallService().install()
-                self.print_success("Instalação realizada com sucesso!")
+                result = InstallService().install()
+                if result == "KILL_SWITCH":
+                    print(f"\n  {Fore.CYAN}⚡ O programa será fechado para concluir a instalação.{Style.RESET_ALL}")
+                    print(f"  {Fore.CYAN}  Ele será reaberto automaticamente em instantes.{Style.RESET_ALL}")
+                    print()
+                    input("Pressione Enter para sair...")
+                    os._exit(0)
+                else:
+                    self.print_success("Instalação realizada com sucesso!")
             except Exception as e:
                 logger.error(f"Erro crítico no menu de instalação: {e}", exc_info=True)
                 self.print_error(f"Erro na instalação: {e}")

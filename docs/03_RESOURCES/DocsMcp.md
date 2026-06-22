@@ -65,7 +65,7 @@ O MCP respeita as configurações globais do FotonSystem definidas em:
 
 ---
 
-## 3. Guia de Ferramentas (34 ferramentas)
+## 3. Guia de Ferramentas (35 ferramentas)
 
 ### 📂 Pilar: Clientes
 
@@ -101,6 +101,7 @@ O MCP respeita as configurações globais do FotonSystem definidas em:
 - `exportar_dados_clientes`: Exporta dados do DB para arquivos `.md` nas pastas dos clientes.
 - `exportar_dados_servicos`: Exporta dados de serviços do DB para arquivos `.md`.
 - `importar_dados_servicos`: Importa dados de serviços de arquivos `.md` de volta ao DB.
+- `preencher_codigos_faltantes`: Preenche automaticamente CodCliente e CodServico faltantes (NaN) no banco de dados.
 - `configurar_agente`: Instala formalmente o Skill Foton Architecture no CLI.
 
 ### 🧠 Pilar: Memória (RAG)
@@ -120,10 +121,11 @@ O MCP respeita as configurações globais do FotonSystem definidas em:
 - `consultar_auditoria`: Mostra eventos recentes de auditoria (operações POP).
 - `ping`: Verifica se o servidor MCP está responsivo.
 
-### ✅ Pilar: Conformidade (v1.4.0+)
+### ✅ Pilar: Conformidade e Códigos (v1.4.0+)
 
 - `verificar_conformidade_clientes`: Audita pastas e nomes de arquivos INFO contra o pattern configurado. Detecta pastas com caracteres inválidos, INFO ausente, pattern mismatch e duplicatas.
-- `corrigir_conformidade`: Aplica a correção sugerida para um item não conforme (rename de pasta ou arquivo).
+- `corrigir_conformidade`: Aplica a correção sugerida para um item não conforme (rename de pasta, arquivo, ou criação de INFO files faltantes).
+- `preencher_codigos_faltantes`: Varre o banco de dados e gera `CodCliente`/`CodServico` únicos para registros com valor NaN.
 
 ---
 

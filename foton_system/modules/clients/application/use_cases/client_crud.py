@@ -278,10 +278,74 @@ def _write_formatted_file_content(path, data, template_str):
         f.write('\n'.join(output_lines))
 
 
-def _generate_service_code(client_alias, service_alias):
+def generate_service_code(client_alias, service_alias, existing_codes=None):
+    """Gera código único para serviço. Se existing_codes for fornecido, evita colisões."""
     base = (client_alias[:3] + service_alias[:3]).upper()
     base = ''.join(filter(str.isalnum, base))
-    return f"{base}01"
+    code = f"{base}01"
+    if existing_codes is not None:
+        counter = 1
+        while code in existing_codes:
+            counter += 1
+            code = f"{base}{counter:02d}"
+    return code
+
+
+def _generate_service_code(client_alias, service_alias):
+    return generate_service_code(client_alias, service_alias)
+
+
+def fill_missing_codes(repository, config=None) -> dict:
+    """Preenche CodCliente e CodServico faltantes (NaN) no banco de dados.
+
+    Returns:
+        dict com contadores: clientes_alterados, servicos_alterados
+    """
+    result = {"clientes_alterados": 0, "servicos_alterados": 0}
+
+    # Preenche CodCliente
+    df = repository.get_clients_dataframe()
+    existing_codes = set(df['CodCliente'].dropna().values) if 'CodCliente' in df else set()
+    changed = False
+    for idx, row in df.iterrows():
+        cod = row.get('CodCliente')
+        if not cod or (isinstance(cod, float) and pd.isna(cod)):
+            name = row.get('NomeCliente')
+            if isinstance(name, float) and pd.isna(name):
+                name = ''
+            cod = generate_client_code(name, existing_codes)
+            df.at[idx, 'CodCliente'] = str(cod) if cod is not None else cod
+            existing_codes.add(cod)
+            result["clientes_alterados"] += 1
+            changed = True
+    if changed:
+        df['CodCliente'] = df['CodCliente'].astype(object)
+        repository.save_clients(df)
+
+    # Preenche CodServico
+    sdf = repository.get_services_dataframe()
+    existing_service_codes = set(sdf['CodServico'].dropna().values) if 'CodServico' in sdf else set()
+    changed_svc = False
+    for idx, row in sdf.iterrows():
+        cod = row.get('CodServico')
+        if not cod or (isinstance(cod, float) and pd.isna(cod)):
+            client_alias = row.get('AliasCliente')
+            if isinstance(client_alias, float) and pd.isna(client_alias):
+                client_alias = ''
+            service_alias = row.get('Alias')
+            if isinstance(service_alias, float) and pd.isna(service_alias):
+                service_alias = ''
+            cod = generate_service_code(client_alias, service_alias, existing_service_codes)
+            sdf.at[idx, 'CodServico'] = str(cod) if cod is not None else cod
+            existing_service_codes.add(cod)
+            result["servicos_alterados"] += 1
+            changed_svc = True
+    if changed_svc:
+        sdf['CodServico'] = sdf['CodServico'].astype(object)
+        repository.save_services(sdf)
+
+    logger.info(f"Códigos preenchidos: {result['clientes_alterados']} clientes, {result['servicos_alterados']} serviços.")
+    return result
 
 
 def create_client(name: str, repository, config: Config, tax_id: str = "",
@@ -320,19 +384,26 @@ def create_client(name: str, repository, config: Config, tax_id: str = "",
     return CreatedClient(codigo=codigo, caminho=caminho, dados=dados)
 
 
-def export_client_data(repository, config: Config):
-    logger.info("Exporting client data to files...")
+def export_client_data(repository, config: Config, target_alias: str = None):
+    """Export client data to INFO files. If target_alias set, only export that client."""
+    logger.info(f"Exporting client data to files...{' (filter: ' + target_alias + ')' if target_alias else ''}")
     count = 0
     try:
         client_template, _ = get_template_sections(config)
         df = repository.get_clients_dataframe()
         latest_df = df.groupby('Alias').last().reset_index()
 
+        df_updated = False
         for _, row in latest_df.iterrows():
             alias = row['Alias']
+            if target_alias and alias != target_alias:
+                continue
             cod = row.get('CodCliente')
-            if not cod:
-                cod = generate_client_code(row.get('NomeCliente', ''), set())
+            if not cod or (isinstance(cod, float) and pd.isna(cod)):
+                existing = set(df['CodCliente'].dropna().values) if 'CodCliente' in df else set()
+                cod = generate_client_code(row.get('NomeCliente', ''), existing)
+                df.loc[df['Alias'] == alias, 'CodCliente'] = cod
+                df_updated = True
 
             folder = config.base_pasta_clientes / alias
             if not folder.exists():
@@ -365,26 +436,38 @@ def export_client_data(repository, config: Config):
                 _write_formatted_file_content(folder / filename, file_data, client_template)
                 count += 1
 
+        if df_updated:
+            repository.save_clients(df)
         logger.info(f"{count} arquivos de cliente exportados/atualizados.")
     except Exception as e:
         logger.error(f"Erro ao exportar dados de clientes: {e}")
 
 
-def export_service_data(repository, config: Config):
-    logger.info("Exporting service data to files...")
+def export_service_data(repository, config: Config, target_client_alias: str = None, target_service_alias: str = None):
+    """Export service data to INFO files. If target* set, only export matching service."""
+    client_filter = f" ({target_client_alias}/{target_service_alias})" if target_client_alias else ""
+    logger.info(f"Exporting service data to files...{client_filter}")
     count = 0
     try:
         _, service_template = get_template_sections(config)
         df = repository.get_services_dataframe()
         latest_df = df.groupby(['AliasCliente', 'Alias']).last().reset_index()
 
+        df_updated = False
         for _, row in latest_df.iterrows():
             client_alias = row['AliasCliente']
             service_alias = row['Alias']
+            if target_client_alias and client_alias != target_client_alias:
+                continue
+            if target_service_alias and service_alias != target_service_alias:
+                continue
 
             cod = row.get('CodServico')
             if not cod or pd.isna(cod):
-                cod = _generate_service_code(client_alias, service_alias)
+                existing = set(df['CodServico'].dropna().values) if 'CodServico' in df else set()
+                cod = generate_service_code(client_alias, service_alias, existing)
+                df.loc[(df['AliasCliente'] == client_alias) & (df['Alias'] == service_alias), 'CodServico'] = cod
+                df_updated = True
 
             folder = config.base_pasta_clientes / client_alias / service_alias
             if not folder.exists():
@@ -419,6 +502,8 @@ def export_service_data(repository, config: Config):
                 _write_formatted_file_content(folder / filename, file_data, service_template)
                 count += 1
 
+        if df_updated:
+            repository.save_services(df)
         logger.info(f"{count} arquivos de serviço exportados/atualizados.")
     except Exception as e:
         logger.error(f"Erro ao exportar dados de serviços: {e}")

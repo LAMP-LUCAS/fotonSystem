@@ -1015,6 +1015,31 @@ def importar_dados_servicos() -> str:
         return f"❌ Error: {e}"
 
 
+@mcp.tool()
+@_log_tool_call
+def preencher_codigos_faltantes() -> str:
+    """
+    Preenche automaticamente CodCliente e CodServico faltantes (NaN) no banco de dados.
+    Gera códigos únicos para todos os registros que ainda não possuem código.
+    """
+    try:
+        result = _get_factory().get_client_service().fill_missing_codes()
+        clientes = result['clientes_alterados']
+        servicos = result['servicos_alterados']
+        parts = []
+        if clientes:
+            parts.append(f"{clientes} cliente(s)")
+        if servicos:
+            parts.append(f"{servicos} serviço(s)")
+        if not parts:
+            return "✅ Nenhum código faltante encontrado. Todos os registros já possuem código."
+        return f"✅ Códigos preenchidos para {' e '.join(parts)}."
+    except OSError as e:
+        return f"❌ File access error: {e}"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
 # ==============================================================================
 # PIPELINES (AI RECOMMENDED FLOWS)
 # ==============================================================================

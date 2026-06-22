@@ -171,5 +171,87 @@ class TestClientConformanceChecker(unittest.TestCase):
             accepted_file.unlink()
 
 
+    # ------------------------------------------------------------------
+    # auto_fix: missing_info creates INFO file
+    # ------------------------------------------------------------------
+
+    @patch(_CONFIG_PATH)
+    def test_auto_fix_cria_info_para_cliente_sem_info(self, MockConfig):
+        """auto_fix must create an INFO file for a client with missing_info."""
+        import pandas as pd
+        client_dir = self.temp_dir / "CLIENTE_NOVO"
+        client_dir.mkdir()
+
+        excel_path = self.temp_dir / "baseDados.xlsx"
+        with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
+            pd.DataFrame({
+                'Alias': ['CLIENTE_NOVO'],
+                'NomeCliente': ['Cliente Novo Teste'],
+                'CodCliente': ['CN001'],
+            }).to_excel(writer, sheet_name='baseClientes', index=False)
+            pd.DataFrame(columns=['AliasCliente', 'Alias']).to_excel(
+                writer, sheet_name='baseServicos', index=False
+            )
+
+        cfg = self._make_config()
+        cfg.base_dados = excel_path
+        MockConfig.return_value = cfg
+
+        from foton_system.modules.clients.application.use_cases.client_conformance import (
+            ClientConformanceChecker,
+        )
+        checker = ClientConformanceChecker(cfg)
+        items = checker.check()
+        missing = [i for i in items if i.tipo == "missing_info" and "CLIENTE_NOVO" in i.description]
+        self.assertTrue(len(missing) > 0, "Expected a missing_info item for CLIENTE_NOVO")
+
+        success = checker.auto_fix(missing[0])
+        self.assertTrue(success, "auto_fix should succeed for missing_info")
+
+        # Now an INFO file should exist
+        info_files = list(client_dir.glob("*INFO*.md"))
+        self.assertTrue(len(info_files) > 0, "INFO file should have been created")
+
+    @patch(_CONFIG_PATH)
+    def test_auto_fix_cria_info_para_servico_sem_info(self, MockConfig):
+        """auto_fix must create an INFO file for a service with missing_info."""
+        import pandas as pd
+        client_dir = self.temp_dir / "CLIENTE_SERV"
+        client_dir.mkdir()
+        service_dir = client_dir / "SERVICO_1"
+        service_dir.mkdir()
+
+        excel_path = self.temp_dir / "baseDados_serv.xlsx"
+        with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
+            pd.DataFrame({
+                'Alias': ['CLIENTE_SERV'],
+                'NomeCliente': ['Cliente Serv'],
+                'CodCliente': ['CS01'],
+            }).to_excel(writer, sheet_name='baseClientes', index=False)
+            pd.DataFrame({
+                'AliasCliente': ['CLIENTE_SERV'],
+                'Alias': ['SERVICO_1'],
+                'CodServico': ['CSSER01'],
+            }).to_excel(writer, sheet_name='baseServicos', index=False)
+
+        cfg = self._make_config()
+        cfg.base_dados = excel_path
+        MockConfig.return_value = cfg
+
+        from foton_system.modules.clients.application.use_cases.client_conformance import (
+            ClientConformanceChecker,
+        )
+        checker = ClientConformanceChecker(cfg)
+        items = checker.check()
+        missing = [i for i in items if i.tipo == "missing_info" and "SERVICO_1" in str(i.path)]
+        self.assertTrue(len(missing) > 0, "Expected missing_info for service")
+
+        success = checker.auto_fix(missing[0])
+        self.assertTrue(success, "auto_fix should succeed for missing service INFO")
+
+        info_files = list(service_dir.glob("*INFO*.md"))
+        self.assertTrue(len(info_files) > 0, "Service INFO file should have been created")
+
+
 if __name__ == "__main__":
     unittest.main()

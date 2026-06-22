@@ -14,7 +14,13 @@ Este documento serve como a **Ubiquitous Language** (DDD) do FOTON System. Aqui 
 - **Placeholder:** Token `{nome}` dentro de um pattern de arquivo INFO que é substituído por um valor real. Ex: `{codCliente}` → `JOS01`.
 - **Pattern (InfoPattern):** Template de nome de arquivo com placeholders, configurado em `settings.json` sob `info_file_patterns`. Ex: `INFO-CLIENTE-{codCliente}_{versao}_R{revisao}.md`.
 - **Glob Pattern:** Versão de busca onde placeholders são substituídos por `*`. Gerado automaticamente pelo `to_glob()`.
-- **Conformance Checker:** Auditoria automatizada (MCP + classe) que verifica se todos os clientes/serviços seguem o pattern configurado.
+- **Pasta Oculta:** Diretório com nome iniciado por `.` (ex: `.git`, `.obsidian`). É automaticamente ignorado pelo sistema em todas as varreduras de pastas de clientes.
+- **Preencher Códigos (fill_missing_codes):** Operação que varre o banco de dados e gera `CodCliente`/`CodServico` para registros que possuem `NaN`, persistindo os códigos gerados no Excel.
+- **Conformance Checker:** Auditoria automatizada (MCP + classe) que verifica se todos os clientes/serviços seguem o pattern configurado. A partir da v1.4.1, também consegue **criar** INFO files faltantes via auto-fix.
+- **Kill-Switch Installer:** Estratégia de instalação onde o EXE copia a si mesmo e delega a cópia das DLLs travadas (`_internal`) para um script nativo do SO. O script mata todas as instâncias do Foton, copia os arquivos (agora destravados), cria um marcador `.first_run`, e reinicia o EXE do local de instalação.
+- **Deferred Copy:** Cópia adiada de `_internal/` via script de shell nativo (`.bat` no Windows, `.sh` no Unix). Necessário porque DLLs carregadas pelo PyInstaller ficam locked enquanto o processo existe.
+- **First-Run Marker (`\`.first_run\`):** Arquivo temporário criado pelo script deferred no `bin_dir`. Na próxima inicialização, `main.py._first_run_setup()` detecta o marcador, cria atalhos via `integrator`, inicializa config, e remove o marcador.
+- **Native Shell Template:** Script de shell gerado dinamicamente pelo `install_service.py` conforme `sys.platform`. Usa apenas comandos nativos do SO (`taskkill`/`pkill`, `xcopy`/`cp`, `rmdir`/`rm`), sem dependências externas.
 - **RalphLoop:** Ciclo agêntico de "Pesquisa -> Plano -> Ação -> Validação".
 - **Hexagonal Architecture:** Padrão que isola a lógica de negócio (Core) de implementações externas (Adapters).
 - **Zettelkasten + PARA:** Sistema de organização de notas interligadas por grafos e esferas de responsabilidade.

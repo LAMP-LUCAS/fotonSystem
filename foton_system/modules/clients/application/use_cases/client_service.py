@@ -80,6 +80,9 @@ class ClientService:
     def sync_service_folders_from_db(self, client_alias=None):
         client_crud.sync_service_folders_from_db(self.repository, self._config, client_alias=client_alias)
 
+    def fill_missing_codes(self):
+        return client_crud.fill_missing_codes(self.repository, self._config)
+
     def export_client_data(self):
         client_crud.export_client_data(self.repository, self._config)
 

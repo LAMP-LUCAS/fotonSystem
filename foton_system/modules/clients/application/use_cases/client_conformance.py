@@ -232,6 +232,18 @@ class ClientConformanceChecker:
                         item.path.rename(dest)
                         logger.info(f"Fixed: folder renamed to '{fixed_name}'")
                         return True
+            elif item.tipo == "missing_info":
+                from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+                from foton_system.modules.clients.application.use_cases.client_crud import export_client_data, export_service_data
+                tipo = item.details.get("tipo", "")
+                folder = item.path
+                repo = ExcelClientRepository(config=self._config)
+                if tipo == "cliente":
+                    export_client_data(repo, self._config, target_alias=folder.name)
+                else:
+                    export_service_data(repo, self._config, target_client_alias=folder.parent.name, target_service_alias=folder.name)
+                logger.info(f"Fixed: created INFO file in '{folder.name}'")
+                return True
             return False
         except Exception as e:
             logger.error(f"Failed to fix {item.item_id}: {e}")
