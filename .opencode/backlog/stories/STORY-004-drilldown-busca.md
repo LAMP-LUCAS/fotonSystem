@@ -1,5 +1,5 @@
 ---
-status: "ready"
+status: "done"
 sprint: "2026-07-SPRINT-4"
 estimativa: "4h"
 ---

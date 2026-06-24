@@ -145,6 +145,7 @@ class MenuSystem:
     def display_clients_menu(self):
         TUILayout.clear()
         TUILayout.print_header("GERENCIAR CLIENTES")
+        self.print_breadcrumb(["Clientes"])
         
         options = [
             ("1", "Sincronizar Base (Pastas -> DB)"),
@@ -183,6 +184,7 @@ class MenuSystem:
     def display_services_menu(self):
         TUILayout.clear()
         TUILayout.print_header("GERENCIAR SERVIÇOS")
+        self.print_breadcrumb(["Serviços"])
         
         options = [
             ("1", "Sincronizar Base (Pastas -> DB)"),
@@ -206,6 +208,7 @@ class MenuSystem:
     def display_documents_menu(self):
         TUILayout.clear()
         TUILayout.print_header("DOCUMENTOS")
+        self.print_breadcrumb(["Documentos"])
         
         options = [
             ("1", "Gerar Proposta (PPTX)"),
@@ -228,6 +231,7 @@ class MenuSystem:
     def display_productivity_menu(self):
         TUILayout.clear()
         TUILayout.print_header("PRODUTIVIDADE")
+        self.print_breadcrumb(["Produtividade"])
         
         options = [
             ("1", "Iniciar Pomodoro"),
@@ -248,6 +252,7 @@ class MenuSystem:
     def display_settings_menu(self, config):
         TUILayout.clear()
         TUILayout.print_header("CONFIGURAÇÕES")
+        self.print_breadcrumb(["Configurações"])
         
         # Exibe caminhos truncados para caber no menu se necessário
         TUILayout.print_menu_option("1", f"Pasta Clientes: {os.path.basename(config.get('caminho_pastaClientes'))}")
@@ -453,13 +458,14 @@ class MenuSystem:
             else:
                 self.print_error("Opção inválida.")
 
-    def read_client_info_ui(self):
+    def read_client_info_ui(self, client_name=None):
         TUILayout.clear()
         TUILayout.print_header("LER FICHA DO CLIENTE")
-        client_name = input("\n  Nome ou Alias do Cliente: ").strip()
         if not client_name:
-            self.print_warning("Operação cancelada.")
-            return
+            client_name = input("\n  Nome ou Alias do Cliente: ").strip()
+            if not client_name:
+                self.print_warning("Operação cancelada.")
+                return
         try:
             result = self.client_service.read_client_info(client_name)
             print(f"\n  {Fore.CYAN}Arquivo: {result['filename']}{Style.RESET_ALL}")
@@ -594,20 +600,31 @@ class MenuSystem:
             df_clients = self.client_service.repository.get_clients_dataframe()
             df_services = self.client_service.repository.get_services_dataframe()
             
-            results = []
+            client_results = []
             for _, row in df_clients.iterrows():
                 if query.lower() in str(row.get('NomeCliente', '')).lower() or \
                    query.lower() in str(row.get('Alias', '')).lower():
-                    results.append(f"  👤 Cliente: {row.get('Alias')} ({row.get('NomeCliente')})")
+                    client_results.append(row)
             
+            service_results = []
             for _, row in df_services.iterrows():
                 if query.lower() in str(row.get('Alias', '')).lower():
-                    results.append(f"  📁 Serviço: {row.get('AliasCliente')}/{row.get('Alias')}")
+                    service_results.append(f"  📁 Serviço: {row.get('AliasCliente')}/{row.get('Alias')}")
             
-            if results:
+            if client_results or service_results:
                 print(f"\n  Resultados para '{query}':\n")
-                for r in results:
+                for i, row in enumerate(client_results, start=1):
+                    print(f"  {Fore.YELLOW}{i}.{Style.RESET_ALL} 👤 Cliente: {row.get('Alias')} ({row.get('NomeCliente')})")
+                for r in service_results:
                     print(r)
+                
+                if client_results:
+                    choice = input("\n  Digite o número para abrir a ficha (ENTER para voltar): ").strip()
+                    if choice.isdigit():
+                        idx = int(choice) - 1
+                        if 0 <= idx < len(client_results):
+                            selected = client_results[idx]
+                            self.read_client_info_ui(selected.get('Alias', '') or '')
             else:
                 print(f"\n  Nenhum resultado para '{query}'.")
         except Exception as e:
@@ -829,6 +846,7 @@ class MenuSystem:
     def display_finance_menu(self):
         TUILayout.clear()
         TUILayout.print_header("FINANCEIRO")
+        self.print_breadcrumb(["Financeiro"])
         options = [
             ("1", "Registrar Entrada/Saída"),
             ("2", "Consultar Financeiro do Cliente"),
@@ -1089,6 +1107,7 @@ class MenuSystem:
         TUILayout.print_header("BUSCAR CLIENTE")
         term = input("\n  Digite o nome ou alias: ").strip().lower()
         if not term:
+            self.list_all_clients_ui()
             return
 
         try:
@@ -1103,8 +1122,16 @@ class MenuSystem:
                 self.print_warning("\n📭 Nenhum cliente encontrado.")
             else:
                 self.print_success(f"\n🔍 {len(results)} clientes encontrados:")
-                for _, row in results.iterrows():
-                    print(f"  - {row['NomeCliente']} (Alias: {row['Alias']})")
+                for i, (_, row) in enumerate(results.iterrows(), start=1):
+                    nome = row.get('NomeCliente', '') or ''
+                    alias = row.get('Alias', '') or ''
+                    print(f"  {Fore.YELLOW}{i}.{Style.RESET_ALL} {nome} ({alias})")
+                choice = input("\n  Digite o número para abrir a ficha (ENTER para voltar): ").strip()
+                if choice.isdigit():
+                    idx = int(choice) - 1
+                    if 0 <= idx < len(results):
+                        selected = results.iloc[idx]
+                        self.read_client_info_ui(selected.get('Alias', '') or '')
 
         except Exception as e:
             self.print_error(f"\n❌ Erro ao buscar clientes: {e}")
