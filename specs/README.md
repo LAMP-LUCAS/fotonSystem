@@ -53,3 +53,4 @@ Exemplo: `RULE-CLIENTES-4.2.1`
 | `MOD-FINANCEIRO/SPEC-FINANCEIRO-v1.0.md` | Entradas financeiras, saldos, tipos |
 | `MOD-DOCUMENTOS/SPEC-DOCUMENTOS-v1.0.md` | Templates, validação, geração de documentos |
 | `MOD-SYNC/SPEC-SYNC-v1.0.md` | Sincronização DB ↔ filesystem, direções, pipeline |
+| `MOD-UX/SPEC-UX-v1.0.md` | Interface TUI: navegabilidade, terminologia, confirmações, formulários |
