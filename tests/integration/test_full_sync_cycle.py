@@ -63,6 +63,22 @@ class TempFileClientRepository(ClientRepositoryPort):
     def create_folder(self, path):
         Path(path).mkdir(parents=True, exist_ok=True)
 
+    # --- New abstract methods (stub implementations for tests) ---
+    def soft_delete_client(self, alias: str) -> bool:
+        # For integration tests we don't need actual deletion logic.
+        # Return True to indicate a successful operation.
+        return True
+
+    def soft_delete_service(self, client_alias: str, service_alias: str) -> bool:
+        return True
+
+    def restore_client(self, alias: str) -> bool:
+        return True
+
+    def get_deleted_clients(self) -> list:
+        # Return an empty list as there are no soft‑deleted records in test environment.
+        return []
+
 
 class TestFullSyncCycle(unittest.TestCase):
     """Tests the full bidirectional sync cycle with real files."""

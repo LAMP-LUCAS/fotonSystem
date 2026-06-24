@@ -1,6 +1,6 @@
 # Foton System v1.4.0 — Guia do Agente
 
-Sistema de gestão para escritório de arquitetura. Exposto via **MCP (35 ferramentas)**.
+Sistema de gestão para escritório de arquitetura. Exposto via **MCP (38 ferramentas)**.
 
 **Idioma obrigatório:** PT-BR. Todas as interações com o agente e o sistema em português brasileiro.
 
@@ -34,7 +34,7 @@ foton_system/
 │   ├── finance/                 # Financeiro por cliente
 │   └── shared/                  # Config, PathManager, bootstrap
 ├── interfaces/
-│   ├── mcp/foton_mcp.py         # 34 ferramentas MCP
+│   ├── mcp/foton_mcp.py         # 37 ferramentas MCP
 │   └── cli/                     # CLI legado
 └── infrastructure/
     └── dependency_manager.py    # AI Pack (torch, chromadb, etc.)
@@ -42,7 +42,7 @@ foton_system/
 
 ---
 
-## 35 Ferramentas MCP (v1.4.0)
+## 38 Ferramentas MCP (v1.4.0)
 
 ### 📂 Clientes (6)
 | Ferramenta | Descrição |
@@ -71,7 +71,7 @@ foton_system/
 | `validar_template` | Pré-voo de variáveis do template |
 | `gerar_documento` | Merge template + dados → DOCX/PPTX |
 
-### 🔄 Sincronização (7)
+### 🔄 Sincronização (8)
 | Ferramenta | Descrição |
 |---|---|
 | `info_sistema` | Diagnóstico do sistema |
@@ -82,6 +82,7 @@ foton_system/
 | `exportar_dados_clientes` | DB → .md nas pastas |
 | `exportar_dados_servicos` | DB → .md de serviços |
 | `importar_dados_servicos` | .md → DB |
+| `importar_dados_clientes` | INFO files → DB |
 
 ### 🧠 RAG (2)
 | Ferramenta | Descrição |
@@ -110,6 +111,8 @@ foton_system/
 | `verificar_conformidade_clientes` | Audita pastas e nomes de INFO files contra o pattern |
 | `corrigir_conformidade` | Aplica correção sugerida para item não conforme (inclui criação de INFO files) |
 | `preencher_codigos_faltantes` | Preenche CodCliente/CodServico NaN no banco de dados |
+| `validar_codigos_servicos` | Valida todos os CodServico (ausentes, placeholders, formato, duplicatas) |
+| `corrigir_codigos_servicos` | Corrige automaticamente códigos de serviço inválidos |
 
 ---
 
@@ -154,7 +157,7 @@ indexar_conhecimento → consultar_conhecimento
 
 ```bash
 cd C:\Users\Lucas\OneDrive\LAMP_ARQUITETURA\fotonSystem
-python -m pytest           # 362 testes, zero regressão
+python -m pytest           # 410 testes, zero regressão
 python -m pytest -v -k "path_traversal"  # Testes de segurança
 python -m pytest -v -k "circuit_breaker" # Testes de resiliência
 ```

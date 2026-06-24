@@ -22,7 +22,7 @@ _ACCEPTED_STATE_FILE = ".conformance_accepted.json"
 @dataclass
 class ConformanceItem:
     item_id: str
-    tipo: str  # 'folder_name' | 'missing_info' | 'pattern_mismatch' | 'duplicate_info'
+    tipo: str  # 'folder_name' | 'missing_info' |     'pattern_mismatch' | 'duplicate_info' | 'invalid_service_code'
     severity: str  # 'error' | 'warning'
     description: str
     path: Path
@@ -208,6 +208,30 @@ class ClientConformanceChecker:
                 if item and not self._is_accepted(item):
                     items.append(item)
 
+        # Service code validation (DB-level check)
+        try:
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            from foton_system.modules.clients.application.use_cases.client_crud import validate_service_codes
+            repo = ExcelClientRepository(config=self._config)
+            code_issues = validate_service_codes(repo)
+            for ci in code_issues:
+                svc_alias = ci['service_alias']
+                client_alias = ci['client_alias']
+                svc_path = self._base_path / client_alias / svc_alias if client_alias and svc_alias else self._base_path
+                item = ConformanceItem(
+                    item_id=f"invalid_service_code:{client_alias}/{svc_alias}",
+                    tipo="invalid_service_code",
+                    severity="error",
+                    description=f"Service code '{ci['cod_servico']}' for '{client_alias}/{svc_alias}': {ci['issue']}",
+                    path=svc_path,
+                    suggested_fix=ci['suggested_fix'],
+                    details=ci,
+                )
+                if not self._is_accepted(item):
+                    items.append(item)
+        except Exception as e:
+            logger.warning(f"Service code validation skipped: {e}")
+
         return items
 
     def auto_fix(self, item: ConformanceItem) -> bool:
@@ -244,6 +268,16 @@ class ClientConformanceChecker:
                     export_service_data(repo, self._config, target_client_alias=folder.parent.name, target_service_alias=folder.name)
                 logger.info(f"Fixed: created INFO file in '{folder.name}'")
                 return True
+            elif item.tipo == "invalid_service_code":
+                from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+                from foton_system.modules.clients.application.use_cases.client_crud import fix_service_codes, validate_service_codes
+                repo = ExcelClientRepository(config=self._config)
+                issues = [item.details]
+                count = fix_service_codes(repo, issues)
+                if count > 0:
+                    logger.info(f"Fixed: service code corrected for '{item.path.name}'")
+                    return True
+                return False
             return False
         except Exception as e:
             logger.error(f"Failed to fix {item.item_id}: {e}")

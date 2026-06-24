@@ -45,11 +45,24 @@ e o versionamento segue [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **First-run detection**: `main.py._first_run_setup()` cria atalhos e inicializa config na primeira execução pós-instalação (via marcador `.first_run`)
 - **Cross-platform**: instalador gera `.bat` (Windows) ou `.sh` (Linux/macOS) conforme `sys.platform`, usando apenas comandos nativos (`taskkill`/`pkill`, `xcopy`/`cp`, `rmdir`/`rm`)
 - Instalação agora é **agnóstica de SO** — eliminada dependência de PowerShell/COM para criação de atalhos (delegado ao first-run detection em `main.py`)
+- **TUI — Clientes menu expandido**: opções 5 (Ler Ficha), 6 (Atualizar Ficha), 7 (Preencher Códigos), 8 (Serviços do Cliente: Listar/Criar)
+- **TUI — Financeiro**: novo menu principal (5) com Registrar Entrada/Saída, Consultar por Cliente e Resumo Geral
+- **TUI — Cadastro com verificação**: `create_client_ui` agora verifica duplicatas (nome + NIF) antes de cadastrar (pipeline seguro)
+- **`create_service_entry()`** em `client_crud.py` — persiste serviço no DB com `CodServico` gerado automaticamente (ou explícito), com verificação de duplicata
+- **`validate_service_codes()`** em `client_crud.py` — valida todos os `CodServico` no DB: detecta ausentes, placeholders (`000`), formato inválido e duplicatas
+- **`fix_service_codes()`** em `client_crud.py` — corrige automaticamente códigos inválidos gerando novos únicos
+- **MCP `criar_estrutura_servico`** agora persiste o serviço no DB com `CodServico` real (em vez de placeholder `normalized[:8]`)
+- **TUI `create_client_servico_ui`** agora persiste o serviço no DB com `CodServico` real (em vez de `"000"`)
+- **`validar_codigos_servicos`**: nova ferramenta MCP (37) + TUI (menu Serviços opção 3)
+- **`corrigir_codigos_servicos`**: nova ferramenta MCP (38) + TUI (menu Serviços opção 4)
+- **Conformance checker**: `check()` agora valida códigos de serviço do DB (`invalid_service_code`); `auto_fix()` corrige automaticamente
+- 17 novos testes (create_service_entry, validate_service_codes, fix_service_codes, conformance)
 
 ### Fixed
 - Pasta `.git` dentro de `CLIENTES/` não é mais listada como cliente não registrado
 - `MCPClientService` faltava método `fill_missing_codes()` — adicionado em `mcp_services.py`
 - NaN do pandas retornava `float` em vez de `''` no `.get()` do iterrows — tratado em `client_crud.py:313-315`
+- **BUG** `resource_financeiro_resumo` (`foton://financeiro/resumo`) chamava `get_general_summary()` inexistente — corrigido para `get_firm_summary()`
 
 ### Deprecated
 - `fix_info_files.py` — redirecionado para `migrate_info_to_pattern.py`

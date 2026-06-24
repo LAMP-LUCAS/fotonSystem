@@ -59,6 +59,38 @@ def fake_client_repository():
 
         def create_folder(self, path):
             self._created_folders.append(Path(path))
+        
+        def soft_delete_client(self, alias: str) -> bool:
+            if 'Status' not in self._clients.columns:
+                self._clients['Status'] = 'ATIVO'
+            mask = self._clients['Alias'] == alias
+            if not mask.any():
+                return False
+            self._clients.loc[mask, 'Status'] = 'DELETADO'
+            return True
+        
+        def soft_delete_service(self, client_alias: str, service_alias: str) -> bool:
+            if 'Status' not in self._services.columns:
+                self._services['Status'] = 'ATIVO'
+            mask = (self._services['AliasCliente'] == client_alias) & (self._services['Alias'] == service_alias)
+            if not mask.any():
+                return False
+            self._services.loc[mask, 'Status'] = 'DELETADO'
+            return True
+        
+        def restore_client(self, alias: str) -> bool:
+            if 'Status' not in self._clients.columns:
+                return False
+            mask = (self._clients['Alias'] == alias) & (self._clients['Status'] == 'DELETADO')
+            if not mask.any():
+                return False
+            self._clients.loc[mask, 'Status'] = 'ATIVO'
+            return True
+        
+        def get_deleted_clients(self):
+            if 'Status' not in self._clients.columns:
+                return []
+            return self._clients[self._clients['Status'] == 'DELETADO'].to_dict('records')
 
     return FakeClientRepository
 

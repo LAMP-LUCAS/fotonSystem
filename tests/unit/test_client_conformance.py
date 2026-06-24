@@ -253,5 +253,72 @@ class TestClientConformanceChecker(unittest.TestCase):
         self.assertTrue(len(info_files) > 0, "Service INFO file should have been created")
 
 
+    # ------------------------------------------------------------------
+    # check: invalid_service_code flagged by conformance checker
+    # ------------------------------------------------------------------
+
+    @patch(_CONFIG_PATH)
+    @patch("foton_system.modules.clients.infrastructure.repositories.excel_client_repository.ExcelClientRepository")
+    def test_check_detecta_codigo_servico_invalido(self, MockRepo, MockConfig):
+        """Conformance checker deve detectar códigos de serviço inválidos no DB."""
+        import pandas as pd
+        client_dir = self.temp_dir / "CLI_A"
+        client_dir.mkdir()
+        svc_dir = client_dir / "REFORMA"
+        svc_dir.mkdir()
+
+        fake_repo = MagicMock()
+        fake_repo.get_services_dataframe.return_value = pd.DataFrame({
+            'AliasCliente': ['CLI_A'],
+            'Alias': ['REFORMA'],
+            'CodServico': ['000'],
+        })
+        MockRepo.return_value = fake_repo
+
+        cfg = self._make_config()
+        MockConfig.return_value = cfg
+
+        from foton_system.modules.clients.application.use_cases.client_conformance import (
+            ClientConformanceChecker,
+        )
+        checker = ClientConformanceChecker(cfg)
+        items = checker.check()
+        code_items = [i for i in items if i.tipo == "invalid_service_code"]
+        self.assertTrue(len(code_items) > 0,
+                        "Expected invalid_service_code items")
+
+    @patch(_CONFIG_PATH)
+    @patch("foton_system.modules.clients.infrastructure.repositories.excel_client_repository.ExcelClientRepository")
+    def test_auto_fix_corrige_codigo_servico_invalido(self, MockRepo, MockConfig):
+        """auto_fix para invalid_service_code deve corrigir o código."""
+        import pandas as pd
+        client_dir = self.temp_dir / "CLI_B"
+        client_dir.mkdir()
+        svc_dir = client_dir / "PROJETO"
+        svc_dir.mkdir()
+
+        fake_repo = MagicMock()
+        fake_repo.get_services_dataframe.return_value = pd.DataFrame({
+            'AliasCliente': ['CLI_B'],
+            'Alias': ['PROJETO'],
+            'CodServico': ['000'],
+        })
+        MockRepo.return_value = fake_repo
+
+        cfg = self._make_config()
+        MockConfig.return_value = cfg
+
+        from foton_system.modules.clients.application.use_cases.client_conformance import (
+            ClientConformanceChecker,
+        )
+        checker = ClientConformanceChecker(cfg)
+        items = checker.check()
+        code_items = [i for i in items if i.tipo == "invalid_service_code"]
+        self.assertTrue(len(code_items) > 0)
+
+        success = checker.auto_fix(code_items[0])
+        self.assertTrue(success, "auto_fix should fix invalid service code")
+
+
 if __name__ == "__main__":
     unittest.main()

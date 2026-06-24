@@ -111,10 +111,15 @@ class TUILayout:
 
     @staticmethod
     def print_menu_option(key: str, label: str, color: str = Fore.CYAN):
-        """Renderiza uma opção de menu alinhada."""
+        """Renderiza uma opção de menu alinhada ou um separador visual."""
         width = TUILayout.get_width()
-        content = f"{Fore.YELLOW}{key}. {Fore.WHITE}{label}"
-        TUILayout.print_line(content, width, color)
+        if key.startswith("---"):
+            # Separador visual
+            content = f"{Fore.LIGHTBLACK_EX}{'─' * 3} {label} {'─' * (width - len(label) - 12)}{Style.RESET_ALL}"
+            print(f"{color}║ {content}{' ' * 2}{color}║")
+        else:
+            content = f"{Fore.YELLOW}{key}. {Fore.WHITE}{label}"
+            TUILayout.print_line(content, width, color)
 
     @staticmethod
     def print_field(label: str, value: str, tag: str = "", is_calc: bool = False):

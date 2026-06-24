@@ -67,6 +67,10 @@ class ClientServiceProtocol(Protocol):
     def export_service_data(self) -> None: ...
     def import_service_data(self) -> None: ...
     def fill_missing_codes(self) -> dict: ...
+    def import_client_data(self) -> None: ...
+    def create_service_entry(self, client_alias: str, service_alias: str, cod_servico: str = None) -> dict: ...
+    def validate_service_codes(self) -> list: ...
+    def fix_service_codes(self, issues: list = None) -> int: ...
     def list_clients(self) -> list: ...
     def read_client_info(self, client_name: str) -> dict: ...
     def update_client_info(self, client_name: str, section: str, content: str) -> str: ...
@@ -219,6 +223,10 @@ class MCPClientService:
         self._client.import_service_data()
         return "Service data imported from files."
 
+    def import_client_data(self) -> str:
+        self._client.import_client_data()
+        return "Client data imported from files."
+
     def create_client(self, name: str, tax_id: str = "", email: str = "",
                       phone: str = "", alias: str = "") -> dict:
         result = self._client.create_client(name, tax_id=tax_id, email=email,
@@ -228,6 +236,15 @@ class MCPClientService:
             'client_path': str(result.caminho),
             'dados': result.dados,
         }
+
+    def create_service_entry(self, client_alias: str, service_alias: str, cod_servico: str = None) -> dict:
+        return self._client.create_service_entry(client_alias, service_alias, cod_servico)
+
+    def validate_service_codes(self) -> list:
+        return self._client.validate_service_codes()
+
+    def fix_service_codes(self, issues: list = None) -> int:
+        return self._client.fix_service_codes(issues)
 
     def list_services(self, client_name: str) -> list:
         """List sub-services for a client folder using __ hierarchy detection."""

@@ -13,9 +13,9 @@ tags: [roadmap, sprints, tracking]
 [2025]                         [2026]
   |                              |
   v                              v
-SystemAudit ──> DualInterface ──> Resiliência ──> InfoNaming ──> [Próximo]
-(Arquitetura)    (TUI + MCP)      (Segurança +     (Nomenclatura   (UX Agêntica?)
-                                    Robustez)        Configurável)
+SystemAudit ──> DualInterface ──> Resiliência ──> InfoNaming ──> DomainCRUD
+(Arquitetura)    (TUI + MCP)      (Segurança +     (Nomenclatura   (Domain Model
+                                    Robustez)        Configurável)   CRUD + UX)
 ```
 
 ## Sprints Concluídas
@@ -31,6 +31,7 @@ SystemAudit ──> DualInterface ──> Resiliência ──> InfoNaming ──
 |--------|------|-------|---------|
 | **Resiliência** | Segurança (`eval`→parser), bare excepts, bugs, vapor, arquitetura, testes | 8 fases | ~21h |
 | **InfoNaming** | Sistema de nomenclatura configurável de arquivos INFO com placeholders | 7 fases | ~20h |
+| **DomainCRUD** | Domain Model (entidades, VOs), CRUD completo (soft delete), Pipeline sync, UI/UX, Navegação | 5 fases | ~30-40h |
 
 ## Próximas Candidatas (não planejadas)
 

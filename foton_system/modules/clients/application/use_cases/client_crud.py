@@ -566,6 +566,218 @@ def import_service_data(repository, config: Config):
         logger.error(f"Erro ao importar dados de serviços: {e}")
 
 
+def import_client_data(repository, config: Config):
+    import pandas as pd
+    logger.info("Importing client data from files...")
+    count = 0
+    try:
+        df = repository.get_clients_dataframe()
+        folder_aliases = repository.list_client_folders()
+
+        new_rows = []
+
+        for client_alias in folder_aliases:
+            folder = config.base_pasta_clientes / client_alias
+            latest_file = _get_latest_file(folder, "cliente")
+
+            if not latest_file:
+                continue
+
+            file_data = _read_file_content(latest_file)
+            if not file_data:
+                continue
+
+            db_entry = df[df['Alias'] == client_alias]
+            if not db_entry.empty:
+                last_db_row = db_entry.iloc[-1]
+                is_different = False
+                for k, v in file_data.items():
+                    if k in last_db_row and str(last_db_row[k]) != str(v):
+                        is_different = True
+                        break
+                    if k not in last_db_row:
+                        is_different = True
+                        break
+
+                if not is_different:
+                    continue
+
+            file_data['DataAtualizacao'] = pd.Timestamp.now()
+            file_data['Alias'] = client_alias
+            # Garante que NomeCliente seja preenchido se ausente
+            if 'NomeCliente' not in file_data or not file_data['NomeCliente']:
+                file_data['NomeCliente'] = client_alias
+
+            new_rows.append(file_data)
+            count += 1
+
+        if new_rows:
+            new_df = pd.DataFrame(new_rows)
+            updated_df = pd.concat([df, new_df], ignore_index=True)
+            repository.save_clients(updated_df)
+            logger.info(f"{count} registros de cliente importados/atualizados.")
+        else:
+            logger.info("Nenhuma alteração encontrada nos arquivos de cliente.")
+
+    except Exception as e:
+        logger.error(f"Erro ao importar dados de clientes: {e}")
+
+
+def create_service_entry(repository, config: Config, client_alias: str, service_alias: str, cod_servico: str = None) -> dict:
+    """Cria um registro de serviço no banco de dados com código único.
+
+    Se cod_servico não for fornecido, gera automaticamente via generate_service_code().
+    Verifica duplicata de alias antes de inserir.
+
+    Returns:
+        dict com 'AliasCliente', 'Alias', 'CodServico'
+    Raises:
+        ValueError se o par (client_alias, service_alias) já existir no DB
+    """
+    if not client_alias or not service_alias:
+        raise ValueError("client_alias e service_alias são obrigatórios.")
+
+    sdf = repository.get_services_dataframe()
+
+    exists = not sdf[(sdf['AliasCliente'] == client_alias) & (sdf['Alias'] == service_alias)].empty
+    if exists:
+        raise ValueError(f"Serviço '{service_alias}' já existe para o cliente '{client_alias}'.")
+
+    existing_codes = set(sdf['CodServico'].dropna().values) if 'CodServico' in sdf else set()
+    if not cod_servico:
+        cod_servico = generate_service_code(client_alias, service_alias, existing_codes)
+
+    new_row = pd.DataFrame([{
+        'AliasCliente': client_alias,
+        'Alias': service_alias,
+        'CodServico': cod_servico,
+    }])
+    updated_df = pd.concat([sdf, new_row], ignore_index=True)
+    repository.save_services(updated_df)
+
+    logger.info(f"Serviço '{service_alias}' ({cod_servico}) criado para '{client_alias}'.")
+    return {'AliasCliente': client_alias, 'Alias': service_alias, 'CodServico': cod_servico}
+
+
+def validate_service_codes(repository, config=None) -> list[dict]:
+    """Valida todos os CodServico no banco de dados.
+
+    Verifica:
+    - Ausente (NaN/None)
+    - Placeholder (códigos como '000' ou que não seguem o padrão alfanumérico)
+    - Formato inválido (caracteres especiais, muito curto)
+    - Duplicatas (mesmo código em mais de um serviço)
+
+    Returns:
+        list[dict] com: cod_servico, client_alias, service_alias, issue, suggested_fix
+    """
+    sdf = repository.get_services_dataframe()
+    issues = []
+
+    if 'CodServico' not in sdf:
+        return issues
+
+    code_counts = sdf['CodServico'].value_counts()
+
+    for idx, row in sdf.iterrows():
+        cod = row.get('CodServico')
+        client_alias = row.get('AliasCliente', '')
+        service_alias = row.get('Alias', '')
+
+        # Missing code
+        if not cod or (isinstance(cod, float) and pd.isna(cod)):
+            issues.append({
+                'cod_servico': '',
+                'client_alias': str(client_alias) if not pd.isna(client_alias) else '',
+                'service_alias': str(service_alias) if not pd.isna(service_alias) else '',
+                'issue': 'missing',
+                'suggested_fix': 'Preencher via preencher_codigos_faltantes()',
+            })
+            continue
+
+        cod_str = str(cod)
+
+        # Placeholder code (all zeros)
+        import re
+        if re.match(r'^0+$', cod_str):
+            issues.append({
+                'cod_servico': cod_str,
+                'client_alias': str(client_alias) if not pd.isna(client_alias) else '',
+                'service_alias': str(service_alias) if not pd.isna(service_alias) else '',
+                'issue': 'placeholder',
+                'suggested_fix': f'Gerar código único via generate_service_code("{client_alias}", "{service_alias}")',
+            })
+            continue
+
+        # Invalid format (non-alphanumeric or too short)
+        clean = ''.join(filter(str.isalnum, cod_str))
+        if clean != cod_str or len(clean) < 4:
+            issues.append({
+                'cod_servico': cod_str,
+                'client_alias': str(client_alias) if not pd.isna(client_alias) else '',
+                'service_alias': str(service_alias) if not pd.isna(service_alias) else '',
+                'issue': 'invalid_format',
+                'suggested_fix': f'Corrigir formato: usar apenas caracteres alfanuméricos, mínimo 4 caracteres',
+            })
+            continue
+
+        # Duplicate code
+        if code_counts.get(cod_str, 0) > 1:
+            issues.append({
+                'cod_servico': cod_str,
+                'client_alias': str(client_alias) if not pd.isna(client_alias) else '',
+                'service_alias': str(service_alias) if not pd.isna(service_alias) else '',
+                'issue': 'duplicate',
+                'suggested_fix': f'Regenerar código único para evitar conflito com outro serviço',
+            })
+
+    logger.info(f"Validação de códigos de serviço: {len(issues)} issue(s) encontrada(s).")
+    return issues
+
+
+def fix_service_codes(repository, issues: list[dict]) -> int:
+    """Corrige códigos de serviço inválidos/ausentes com base na lista de issues.
+
+    Para cada issue, gera um novo código via generate_service_code().
+    Persiste as correções no banco.
+
+    Returns:
+        int: número de correções aplicadas
+    """
+    if not issues:
+        return 0
+
+    sdf = repository.get_services_dataframe()
+    existing_codes = set(sdf['CodServico'].dropna().values) if 'CodServico' in sdf else set()
+    fixed_count = 0
+
+    for issue in issues:
+        client_alias = issue['client_alias']
+        service_alias = issue['service_alias']
+        old_code = issue['cod_servico']
+
+        if not client_alias or not service_alias:
+            continue
+
+        mask = (sdf['AliasCliente'] == client_alias) & (sdf['Alias'] == service_alias)
+        if not mask.any():
+            continue
+
+        new_code = generate_service_code(client_alias, service_alias, existing_codes)
+        sdf.loc[mask, 'CodServico'] = new_code
+        existing_codes.add(new_code)
+        if old_code and old_code in existing_codes and old_code != new_code:
+            existing_codes.discard(old_code)
+        fixed_count += 1
+
+    if fixed_count:
+        sdf['CodServico'] = sdf['CodServico'].astype(object)
+        repository.save_services(sdf)
+
+    logger.info(f"{fixed_count} código(s) de serviço corrigido(s).")
+    return fixed_count
+
+
 def sync_clients_db_from_folders(repository):
     logger.info("Sincronizando base de clientes a partir das pastas...")
     try:
@@ -673,3 +885,61 @@ def sync_service_folders_from_db(repository, config: Config, client_alias=None):
 
     except Exception as e:
         logger.error(f"Erro na sincronização de serviços (Pastas <- DB): {e}")
+
+
+def soft_delete_client(alias: str, repository, config: Config) -> dict:
+    if not alias or not isinstance(alias, str):
+        return {"success": False, "error": "Alias inválido"}
+    
+    df = repository.get_clients_dataframe()
+    if 'Alias' not in df.columns:
+        return {"success": False, "error": "Coluna Alias não encontrada"}
+    
+    mask = df['Alias'] == alias
+    if not mask.any():
+        return {"success": False, "error": f"Cliente '{alias}' não encontrado"}
+    
+    result = repository.soft_delete_client(alias)
+    if result:
+        logger.info(f"Cliente '{alias}' marcado como DELETADO")
+        return {"success": True, "message": f"Cliente '{alias}' removido com sucesso"}
+    return {"success": False, "error": "Falha ao remover cliente"}
+
+
+def restore_client(alias: str, repository, config: Config) -> dict:
+    if not alias or not isinstance(alias, str):
+        return {"success": False, "error": "Alias inválido"}
+    
+    result = repository.restore_client(alias)
+    if result:
+        logger.info(f"Cliente '{alias}' restaurado")
+        return {"success": True, "message": f"Cliente '{alias}' restaurado com sucesso"}
+    return {"success": False, "error": f"Cliente '{alias}' não está deletado ou não existe"}
+
+
+def get_deleted_clients(repository) -> list:
+    return repository.get_deleted_clients()
+
+
+def update_service_info(client_alias: str, service_alias: str, field: str, value, repository, config: Config) -> dict:
+    valid_fields = [
+        'Modalidade', 'Ano', 'Demanda', 'AreaTotal', 'AreaCoberta', 
+        'AreaDescoberta', 'Detalhes', 'Estilo', 'Ambientes', 
+        'ValorProposta', 'ValorContrato'
+    ]
+    
+    if field not in valid_fields:
+        return {"success": False, "error": f"Campo inválido: {field}. Campos válidos: {', '.join(valid_fields)}"}
+    
+    df = repository.get_services_dataframe()
+    if 'AliasCliente' not in df.columns or 'Alias' not in df.columns:
+        return {"success": False, "error": "Estrutura da tabela inválida"}
+    
+    mask = (df['AliasCliente'] == client_alias) & (df['Alias'] == service_alias)
+    if not mask.any():
+        return {"success": False, "error": f"Serviço '{client_alias}/{service_alias}' não encontrado"}
+    
+    df.loc[mask, field] = value
+    repository.save_services(df)
+    logger.info(f"Serviço '{client_alias}/{service_alias}' atualizado: {field}={value}")
+    return {"success": True, "message": f"Campo '{field}' atualizado com sucesso"}

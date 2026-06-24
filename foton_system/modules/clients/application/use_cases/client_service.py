@@ -92,3 +92,29 @@ class ClientService:
     def import_service_data(self):
         client_crud.import_service_data(self.repository, self._config)
 
+    def import_client_data(self):
+        client_crud.import_client_data(self.repository, self._config)
+
+    def create_service_entry(self, client_alias: str, service_alias: str, cod_servico: str = None) -> dict:
+        return client_crud.create_service_entry(self.repository, self._config, client_alias, service_alias, cod_servico)
+
+    def validate_service_codes(self) -> list[dict]:
+        return client_crud.validate_service_codes(self.repository, self._config)
+
+    def fix_service_codes(self, issues: list[dict] = None) -> int:
+        if issues is None:
+            issues = self.validate_service_codes()
+        return client_crud.fix_service_codes(self.repository, issues)
+    
+    def soft_delete_client(self, alias: str) -> dict:
+        return client_crud.soft_delete_client(alias, self.repository, self._config)
+    
+    def restore_client(self, alias: str) -> dict:
+        return client_crud.restore_client(alias, self.repository, self._config)
+    
+    def get_deleted_clients(self) -> list:
+        return client_crud.get_deleted_clients(self.repository)
+    
+    def update_service_info(self, client_alias: str, service_alias: str, field: str, value) -> dict:
+        return client_crud.update_service_info(client_alias, service_alias, field, value, self.repository, self._config)
+

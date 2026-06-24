@@ -43,20 +43,30 @@ class OpFinanceEntry(BaseOp):
         return kwargs
 
     def execute_logic(self, validated_data: Dict[str, Any]) -> Dict[str, Any]:
-        # 1. Resolve Client Path
-        # This logic mimics _get_client_path but is self-contained or reuses service
         raw_client = validated_data.get("client_name") or validated_data.get("client_path")
         
-        # Try to resolve if it's just a name
         client_path = Path(raw_client)
         if not client_path.is_absolute():
-             base = Config().base_pasta_clientes
-             client_path = base / raw_client
+            base = Config().base_pasta_clientes
+            client_path = base / raw_client
         
         if not client_path.exists():
             raise FileNotFoundError(f"Client folder not found: {client_path}")
-
-        # 2. Setup Service
+        
+        # Verify client exists in clients database
+        try:
+            from foton_system.modules.clients.application.use_cases.client_service import ClientService
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            
+            repo = ExcelClientRepository(Config())
+            client_service = ClientService(repo)
+            clients_df = repo.get_clients_dataframe()
+            if client_path.name not in clients_df['Alias'].values:
+                raise ValueError(f"Client '{client_path.name}' not found in clients database")
+        except Exception as e:
+            if "not found" in str(e).lower():
+                raise
+        
         repo = CSVFinanceRepository()
         service = FinanceService(repo)
 

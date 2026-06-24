@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import pandas as pd
+from typing import List, Dict, Any
 
 class ClientRepositoryPort(ABC):
     @abstractmethod
@@ -28,4 +29,20 @@ class ClientRepositoryPort(ABC):
 
     @abstractmethod
     def create_folder(self, path: str):
+        pass
+
+    @abstractmethod
+    def soft_delete_client(self, alias: str) -> bool:
+        pass
+
+    @abstractmethod
+    def soft_delete_service(self, client_alias: str, service_alias: str) -> bool:
+        pass
+
+    @abstractmethod
+    def restore_client(self, alias: str) -> bool:
+        pass
+
+    @abstractmethod
+    def get_deleted_clients(self) -> List[Dict[str, Any]]:
         pass

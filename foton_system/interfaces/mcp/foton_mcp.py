@@ -414,10 +414,82 @@ def listar_servicos_cliente(cliente: str) -> str:
 
 @mcp.tool()
 @_log_tool_call
+def remover_cliente(cliente: str, confirmar: bool = False) -> str:
+    """
+    Removes a client by marking as DELETADO (soft delete).
+    Use with caution - this is irreversible without restore.
+    """
+    try:
+        svc = _get_factory().get_client_service()
+        result = svc.soft_delete_client(cliente)
+        if result["success"]:
+            return f"✅ {result['message']}"
+        return f"❌ {result['error']}"
+    except Exception as e:
+        _logger.error(f"remover_cliente failed: {e}", exc_info=True)
+        return f"❌ Error removing client: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def restaurar_cliente(cliente: str) -> str:
+    """
+    Restores a previously deleted client.
+    """
+    try:
+        svc = _get_factory().get_client_service()
+        result = svc.restore_client(cliente)
+        if result["success"]:
+            return f"✅ {result['message']}"
+        return f"❌ {result['error']}"
+    except Exception as e:
+        _logger.error(f"restaurar_cliente failed: {e}", exc_info=True)
+        return f"❌ Error restoring client: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def remover_servico(cliente: str, servico: str, confirmar: bool = False) -> str:
+    """
+    Removes a service by marking as DELETADO (soft delete).
+    """
+    try:
+        svc = _get_factory().get_client_service()
+        result = svc.soft_delete_service(cliente, servico)
+        if result:
+            return f"✅ Serviço '{cliente}/{servico}' removido com sucesso"
+        return f"❌ Serviço '{cliente}/{servico}' não encontrado"
+    except Exception as e:
+        _logger.error(f"remover_servico failed: {e}", exc_info=True)
+        return f"❌ Error removing service: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def atualizar_servico(cliente: str, servico: str, campo: str, valor) -> str:
+    """
+    Updates a specific field of a service.
+    Valid fields: Modalidade, Ano, Demanda, AreaTotal, AreaCoberta, AreaDescoberta,
+                  Detalhes, Estilo, Ambientes, ValorProposta, ValorContrato
+    """
+    try:
+        svc = _get_factory().get_client_service()
+        result = svc.update_service_info(cliente, servico, campo, valor)
+        if result["success"]:
+            return f"✅ {result['message']}"
+        return f"❌ {result['error']}"
+    except Exception as e:
+        _logger.error(f"atualizar_servico failed: {e}", exc_info=True)
+        return f"❌ Error updating service: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
 def criar_estrutura_servico(cliente: str, nome: str) -> str:
     """
     Creates the full folder structure for a new service under a client.
     Includes {DOC}, {ADM}, {OP} with configurable op phases.
+    The service is automatically registered in the database with a unique CodServico.
     PARAMETERS:
       cliente: Client name (supports fuzzy match)
       nome: Service name
@@ -428,6 +500,7 @@ def criar_estrutura_servico(cliente: str, nome: str) -> str:
         config = _get_config()
         svc = _get_factory().get_client_service()
         client_path = svc.resolve_client_path(cliente)
+        client_alias = client_path.name
         service_path = client_path / normalized
         if service_path.exists():
             return f"⚠️ Service '{normalized}' already exists under '{cliente}'."
@@ -438,24 +511,27 @@ def criar_estrutura_servico(cliente: str, nome: str) -> str:
         op_path.mkdir()
         for phase in config.folder_op_phases:
             (op_path / phase).mkdir()
+        entry = svc.create_service_entry(client_alias, normalized)
+        cod_servico = entry['CodServico']
         from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
         template_path = PathManager.get_info_template_path()
         if template_path.exists():
-            import shutil
             from foton_system.modules.shared.domain.info_pattern_resolver import InfoPatternResolver
             resolver = InfoPatternResolver(config.info_file_patterns['servico'])
             info_filename = resolver.resolve(
-                codServico=normalized.upper()[:8],
+                codServico=cod_servico,
                 aliasServico=normalized,
                 versao="00",
                 revisao="00"
             )
+            import shutil
             shutil.copy(template_path, service_path / info_filename)
         return (
             f"✅ Estrutura de serviço criada: '{normalized}' em '{cliente}'\n"
             f"   📁 {config.folder_doc}/\n"
             f"   📁 {config.folder_adm}/\n"
-            f"   📁 {config.folder_op}/ ({', '.join(config.folder_op_phases)})"
+            f"   📁 {config.folder_op}/ ({', '.join(config.folder_op_phases)})\n"
+            f"   🆔 Código do serviço: {cod_servico}"
         )
     except ValueError as e:
         return f"❌ {e}"
@@ -559,6 +635,28 @@ def resumo_financeiro_geral() -> str:
     except Exception as e:
         _logger.error(f"resumo_financeiro_geral failed: {e}", exc_info=True)
         return f"❌ Error: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def pipeline_sincronizacao(direcao: str = "bidir") -> str:
+    """
+    Unified sync pipeline for Clients and Services.
+    
+    DIRECTIONS:
+    - "pastas_to_db": Discover new folders -> add to database
+    - "db_to_pastas": Ensure database entries have folders
+    - "bidir": Both directions (default)
+    
+    Returns a consolidated JSON report with counts and errors.
+    """
+    try:
+        from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao, format_sync_report
+        report = pipeline_sincronizacao(direcao)
+        return format_sync_report(report)
+    except Exception as e:
+        _logger.error(f"pipeline_sincronizacao failed: {e}", exc_info=True)
+        return f"❌ Error running sync pipeline: {e}"
 
 
 # ==============================================================================
@@ -1002,6 +1100,21 @@ def exportar_dados_servicos() -> str:
 
 @mcp.tool()
 @_log_tool_call
+def importar_dados_clientes() -> str:
+    """
+    Importa dados de clientes dos arquivos INFO de volta para o banco de dados.
+    """
+    try:
+        result = _get_factory().get_client_service().import_client_data()
+        return f"✅ {result}"
+    except OSError as e:
+        return f"❌ File access error: {e}"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
 def importar_dados_servicos() -> str:
     """
     Imports service data from MD files back into the database.
@@ -1037,6 +1150,57 @@ def preencher_codigos_faltantes() -> str:
     except OSError as e:
         return f"❌ File access error: {e}"
     except Exception as e:
+        return f"❌ Error: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def validar_codigos_servicos() -> str:
+    """
+    Valida todos os códigos de serviço (CodServico) no banco de dados.
+    Verifica códigos ausentes, placeholders, formato inválido e duplicatas.
+    Sempre executa preencher_codigos_faltantes primeiro.
+    """
+    try:
+        svc = _get_factory().get_client_service()
+        svc.fill_missing_codes()
+        issues = svc.validate_service_codes()
+        if not issues:
+            return "✅ Todos os códigos de serviço são válidos."
+        lines = [f"📋 {len(issues)} código(s) de serviço com problema:\n"]
+        for i, iss in enumerate(issues, 1):
+            svc_label = f"{iss['client_alias']}/{iss['service_alias']}"
+            lines.append(f"  [{i}] [{iss['issue'].upper()}] {svc_label}")
+            lines.append(f"      Código atual: '{iss['cod_servico']}'")
+            lines.append(f"      💡 Sugestão: {iss['suggested_fix']}")
+            lines.append("")
+        return "\n".join(lines)
+    except OSError as e:
+        return f"❌ File access error: {e}"
+    except Exception as e:
+        _logger.error(f"validar_codigos_servicos failed: {e}", exc_info=True)
+        return f"❌ Error: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def corrigir_codigos_servicos() -> str:
+    """
+    Corrige automaticamente todos os códigos de serviço inválidos no banco de dados.
+    Gera novos códigos únicos para placeholders, formatos inválidos e duplicatas.
+    """
+    try:
+        svc = _get_factory().get_client_service()
+        svc.fill_missing_codes()
+        issues = svc.validate_service_codes()
+        if not issues:
+            return "✅ Todos os códigos de serviço já são válidos. Nenhuma correção necessária."
+        fixed = svc.fix_service_codes(issues)
+        return f"✅ {fixed} código(s) de serviço corrigido(s) automaticamente."
+    except OSError as e:
+        return f"❌ File access error: {e}"
+    except Exception as e:
+        _logger.error(f"corrigir_codigos_servicos failed: {e}", exc_info=True)
         return f"❌ Error: {e}"
 
 
@@ -1400,9 +1564,9 @@ def resource_cliente_servicos(nome: str) -> str:
 def resource_financeiro_resumo() -> str:
     """Retorna o dashboard financeiro geral do escritório."""
     try:
-        summary = _get_factory().get_finance_service().get_general_summary()
-        total_entradas = summary.get('total_entradas', 0)
-        total_saidas = summary.get('total_saidas', 0)
+        client_list = _get_factory().get_finance_service().get_firm_summary()
+        total_entradas = sum(c.get('income', 0) for c in client_list)
+        total_saidas = sum(c.get('expense', 0) for c in client_list)
         saldo = total_entradas - total_saidas
         return (
             f"📊 Resumo Financeiro Geral\n"
@@ -1410,7 +1574,7 @@ def resource_financeiro_resumo() -> str:
             f"  ✅ Entradas: R$ {total_entradas:,.2f}\n"
             f"  ❌ Saídas:   R$ {total_saidas:,.2f}\n"
             f"  {'🟢' if saldo >= 0 else '🔴'} Saldo:    R$ {saldo:,.2f}\n"
-            f"  📁 Clientes: {summary.get('total_clientes', 0)}\n"
+            f"  📁 Clientes: {len(client_list)}\n"
         )
     except Exception as e:
         _logger.error(f"resource_financeiro_resumo failed: {e}", exc_info=True)
