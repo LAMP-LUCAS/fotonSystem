@@ -1,6 +1,8 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
+from typing import Any, Callable
 from foton_system.interfaces.cli.menus import MenuSystem
+from foton_system.interfaces.cli.views.tui_layout import TUILayout
 
 class TestMenuUI(unittest.TestCase):
     def setUp(self):
@@ -194,6 +196,73 @@ class TestMenuUI(unittest.TestCase):
             with patch.object(self.menu, 'read_client_info_ui') as mock_read:
                 self.menu.global_search_ui()
         mock_read.assert_called_once()
+
+
+# ----- pagination tests (STORY-005 / RULE-UX-2.2, RULE-UX-2.3) -----
+
+class TestPagination(unittest.TestCase):
+    """Testes para o helper paginate_items."""
+
+    def test_paginate_items_empty(self):
+        """Lista vazia exibe mensagem amigável."""
+        items = []
+        with patch('builtins.print') as mock_print:
+            TUILayout.paginate_items(items, render_item=lambda x, i: None, empty_msg="Nada aqui.")
+        printed = "".join(c.args[0] for c in mock_print.call_args_list if c.args)
+        self.assertIn("Nada aqui.", printed)
+
+    def test_paginate_items_single_page(self):
+        """Menos de 10 itens mostra tudo em uma página."""
+        items = list(range(5))
+        rendered = []
+        with patch('builtins.input', return_value=''):
+            TUILayout.paginate_items(items, render_item=lambda x, i: rendered.append((x, i)))
+        self.assertEqual(len(rendered), 5)
+        self.assertEqual(rendered[0], (0, 1))
+        self.assertEqual(rendered[4], (4, 5))
+
+    def test_paginate_items_multi_page(self):
+        """25 itens → 3 páginas, render_item chamado para todos."""
+        items = list(range(25))
+        rendered = []
+        with patch('builtins.input', side_effect=['', '']):
+            TUILayout.paginate_items(items, render_item=lambda x, i: rendered.append((x, i)))
+        self.assertEqual(len(rendered), 25)
+
+    def test_paginate_items_page_indicator(self):
+        """Indicador 'Página X de Y' aparece nos cabeçalhos."""
+        items = list(range(25))
+        with patch('builtins.input', side_effect=['', '']), \
+             patch('builtins.print') as mock_print:
+            TUILayout.paginate_items(items, render_item=lambda x, i: None)
+        printed = "".join(c.args[0] for c in mock_print.call_args_list if c.args)
+        self.assertIn("Página 1 de 3", printed)
+        self.assertIn("Página 2 de 3", printed)
+        self.assertIn("Página 3 de 3", printed)
+
+    def test_paginate_items_exact_page_size(self):
+        """Exatamente 10 itens exibe tudo em uma página."""
+        items = list(range(10))
+        rendered = []
+        with patch('builtins.input', return_value=''):
+            TUILayout.paginate_items(items, render_item=lambda x, i: rendered.append((x, i)))
+        self.assertEqual(len(rendered), 10)
+
+    def test_paginate_items_returns_count(self):
+        """Retorna o número total de itens (0 se vazio)."""
+        self.assertEqual(TUILayout.paginate_items([], render_item=lambda x, i: None), 0)
+        self.assertEqual(TUILayout.paginate_items([1, 2, 3], render_item=lambda x, i: None), 3)
+        with patch('builtins.input', return_value=''):
+            result = TUILayout.paginate_items(list(range(25)), render_item=lambda x, i: None)
+        self.assertEqual(result, 25)
+
+    def test_paginate_items_correct_index_per_page(self):
+        """Índices reiniciam em cada página? Não — devem ser contínuos."""
+        items = list(range(15))
+        indices = []
+        with patch('builtins.input', side_effect=['']):
+            TUILayout.paginate_items(items, render_item=lambda x, i: indices.append(i))
+        self.assertEqual(indices, list(range(1, 16)))
 
 
 if __name__ == '__main__':

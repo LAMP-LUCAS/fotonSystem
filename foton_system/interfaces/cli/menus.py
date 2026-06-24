@@ -550,16 +550,19 @@ class MenuSystem:
             self.print_error(f"\n❌ Erro: {e}")
 
     def restore_client_ui(self):
-        TUILayout.clear()
-        TUILayout.print_header("RESTAURAR CLIENTE")
         try:
             deleted = self.client_service.get_deleted_clients()
             if not deleted:
+                TUILayout.clear()
+                TUILayout.print_header("RESTAURAR CLIENTE")
                 self.print_warning("\n  Nenhum cliente deletado encontrado.")
                 return
-            print(f"\n  Clientes deletados: {len(deleted)}\n")
-            for c in deleted:
-                print(f"  - {c.get('Alias', '?')} ({c.get('NomeCliente', '?')})")
+            TUILayout.paginate_items(
+                deleted,
+                render_item=lambda c, i: print(f"  {i}. {c.get('Alias', '?')} ({c.get('NomeCliente', '?')})"),
+                header_title="RESTAURAR CLIENTE",
+                empty_msg="Nenhum cliente deletado encontrado.",
+            )
             client_name = input("\n  Alias do cliente a restaurar: ").strip()
             if not client_name:
                 self.print_warning("Operação cancelada.")
@@ -660,8 +663,6 @@ class MenuSystem:
                 self.print_error("Opção inválida.")
 
     def list_client_servicos_ui(self):
-        TUILayout.clear()
-        TUILayout.print_header("LISTAR SERVIÇOS DO CLIENTE")
         client_name = input("\n  Nome ou Alias do Cliente: ").strip()
         if not client_name:
             self.print_warning("Operação cancelada.")
@@ -669,18 +670,23 @@ class MenuSystem:
         try:
             servicos = self.client_service.list_service_nodes(client_name)
             if not servicos:
+                TUILayout.clear()
+                TUILayout.print_header("LISTAR SERVIÇOS DO CLIENTE")
                 self.print_warning(f"\n  Nenhum serviço encontrado para '{client_name}'.")
                 return
-            self.print_success(f"\n  Serviços encontrados: {len(servicos)}")
+            # Pre-computa subpastas para exibição paginada
             for svc in servicos:
-                name = svc['name']
-                parent = svc['parent']
-                depth = svc['depth']
-                indent = "  " * depth
-                subdirs = ', '.join(s.name for s in Path(svc['path']).iterdir() if s.is_dir())
-                print(f"  {indent}📁 {name} ({svc['file_count']} arquivo(s))")
-                if subdirs:
-                    print(f"  {indent}   Subpastas: {subdirs}")
+                svc['_subdirs'] = ', '.join(s.name for s in Path(svc['path']).iterdir() if s.is_dir())
+            header = f"SERVIÇOS DE {client_name.upper()} ({len(servicos)} encontrado(s))"
+            TUILayout.paginate_items(
+                servicos,
+                render_item=lambda svc, i: (
+                    print(f"  {'  ' * svc['depth']}{i}. 📁 {svc['name']} ({svc['file_count']} arquivo(s))"),
+                    svc['_subdirs'] and print(f"  {'  ' * svc['depth']}    Subpastas: {svc['_subdirs']}")
+                ),
+                header_title=header,
+                empty_msg=f"Nenhum serviço encontrado para '{client_name}'.",
+            )
         except ValueError as e:
             self.print_error(f"\n❌ {e}")
         except Exception as e:
@@ -938,8 +944,6 @@ class MenuSystem:
             self.print_error(f"\n❌ Erro: {e}")
 
     def resumo_financeiro_ui(self):
-        TUILayout.clear()
-        TUILayout.print_header("RESUMO FINANCEIRO GERAL")
         try:
             from foton_system.modules.shared.infrastructure.config.config import Config
             from foton_system.modules.finance.application.use_cases.finance_service import FinanceService
@@ -957,20 +961,27 @@ class MenuSystem:
             service = FinanceService(repo)
             results = service.get_firm_summary(client_paths)
             if not results:
+                TUILayout.clear()
+                TUILayout.print_header("RESUMO FINANCEIRO GERAL")
                 self.print_warning("\n  Nenhum dado financeiro encontrado.")
                 return
             total_entradas = sum(r.get('income', 0) for r in results)
             total_saidas = sum(r.get('expense', 0) for r in results)
             saldo = total_entradas - total_saidas
-            print(f"  {'─' * 50}")
-            print(f"  📊 Resumo Geral ({len(results)} cliente(s))")
-            print(f"  {'─' * 50}")
-            for r in results:
+
+            def render_finance(r, i):
                 s = r.get('balance', 0)
                 c = Fore.GREEN if s >= 0 else Fore.RED
-                print(f"  {r.get('name', '?'):20s}  E: R$ {r.get('income', 0):>8.2f}  "
+                print(f"  {i:3d}. {r.get('name', '?'):20s}  E: R$ {r.get('income', 0):>8.2f}  "
                       f"S: R$ {r.get('expense', 0):>8.2f}  "
                       f"{c}Saldo: R$ {s:>8.2f}{Style.RESET_ALL}")
+
+            TUILayout.paginate_items(
+                results,
+                render_item=render_finance,
+                header_title="RESUMO FINANCEIRO GERAL",
+                empty_msg="Nenhum dado financeiro encontrado.",
+            )
             print(f"  {'─' * 50}")
             cor = Fore.GREEN if saldo >= 0 else Fore.RED
             print(f"  TOTAL{'':18s}  E: R$ {total_entradas:>8.2f}  "
