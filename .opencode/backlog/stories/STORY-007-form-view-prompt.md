@@ -1,5 +1,5 @@
 ---
-status: "ready"
+status: "done"
 sprint: "2026-07-SPRINT-4"
 estimativa: "1h"
 ---
@@ -13,12 +13,12 @@ estimativa: "1h"
 O prompt do `TUIFormView` é `">> Ação ou Novo Valor: "`, que conflita comandos de navegação (`n`, `p`, `v`, `s`, `a`, `c`) com valores literais. Se um campo precisa do valor "n", o usuário não consegue digitá-lo. Solução: prefixar comandos com `/` (ex: `/n`, `/p`, `/s`) e mudar o prompt para `">> Valor (/n prox, /p ant, /v ver, /s salvar): "`.
 
 ## Critérios de Aceite
-- [ ] Comandos de navegação prefixados com `/` (`/n`, `/p`, `/v`, `/s`, `/a`, `/c`)
-- [ ] Comandos sem `/` são tratados como valor literal do campo
-- [ ] Prompt alterado para algo como `">> Valor (ou /n prox, /p ant, /v ver, /s salvar): "`
-- [ ] Rodapé de comandos atualizado para mostrar `/n`, `/p`, etc.
-- [ ] Comandos antigos sem `/` continuam funcionando (backward compat) ou são removidos com aviso
-- [ ] Testes do form_view atualizados
+- [x] Comandos de navegação prefixados com `/` (`/n`, `/p`, `/v`, `/s`, `/a`, `/c`)
+- [x] Comandos sem `/` são tratados como valor literal do campo
+- [x] Prompt alterado para algo como `">> Valor (ou /n prox, /p ant, /v ver, /s salvar): "`
+- [x] Rodapé de comandos atualizado para mostrar `/n`, `/p`, etc.
+- [x] Comandos antigos sem `/` continuam funcionando (backward compat) ou são removidos com aviso
+- [x] Testes do form_view atualizados
 
 ## Arquivos
 - `foton_system/interfaces/cli/views/form_view.py` (run_loop, _draw)
