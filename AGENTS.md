@@ -157,16 +157,43 @@ indexar_conhecimento → consultar_conhecimento
 
 ```bash
 cd C:\Users\Lucas\OneDrive\LAMP_ARQUITETURA\fotonSystem
-python -m pytest           # 410 testes, zero regressão
+python -m pytest           # 452 testes, zero regressão
 python -m pytest -v -k "path_traversal"  # Testes de segurança
 python -m pytest -v -k "circuit_breaker" # Testes de resiliência
 ```
 
 ---
 
+## Framework de Desenvolvimento (SSOT + Rastreabilidade)
+
+O repositório segue uma metodologia de 3 camadas documentada em `DEVELOPMENT_GUIDE.md`:
+
+| Camada | Pasta | Propósito |
+|--------|-------|-----------|
+| **Diretiva** | `docs/` (PARA) | PRDs, ADRs, conceitos, manuais |
+| **Estratégica** | `specs/` | Regras técnicas com `RULE-IDs` rastreáveis |
+| **Tática** | `.opencode/` | Sprints, Stories, Handoffs, Comandos |
+
+### Comandos disponíveis
+
+| Comando | Função |
+|---------|--------|
+| `/epic "contexto"` | Cria/atualiza PRD Épico |
+| `/translate EPIC-XXX` | PRD → Spec Técnica com RULE-IDs |
+| `/slice SPEC-XXX` | Spec → User Stories |
+| `/feature STORY-XXX` | Executa Story com TDD |
+| `/bugfix "descrição"` | Corrige bug com teste |
+| `/review` | Valida código vs Spec e PRD |
+
+### Convenções do Framework
+- **Commits** devem referenciar `[STORY-XXX]` e `[RULE-X.Y.Z]`
+- **Handoff** ao final de cada sessão (template em `.opencode/templates/HANDOFF_TEMPLATE.md`)
+- **GLOSSARY.md** na raiz define a Linguagem Ubíqua (fonte: `docs/00_META/Dictionary.md`)
+
 ## Links úteis
 
 - Código: `C:\Users\Lucas\OneDrive\LAMP_ARQUITETURA\fotonSystem\`
+- Metodologia: `DEVELOPMENT_GUIDE.md`
 - Docs MCP: `docs/03_RESOURCES/DocsMcp.md`
 - Plano de auditoria: `docs/01_PROJECTS/Sprint_SystemAudit/SprintPlan.md`
 - Installer Inno Setup: `installer/foton_setup.iss`

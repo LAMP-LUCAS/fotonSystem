@@ -32,6 +32,7 @@ SystemAudit ──> DualInterface ──> Resiliência ──> InfoNaming ──
 | **Resiliência** | Segurança (`eval`→parser), bare excepts, bugs, vapor, arquitetura, testes | 8 fases | ~21h |
 | **InfoNaming** | Sistema de nomenclatura configurável de arquivos INFO com placeholders | 7 fases | ~20h |
 | **DomainCRUD** | Domain Model (entidades, VOs), CRUD completo (soft delete), Pipeline sync, UI/UX, Navegação | 5 fases | ~30-40h |
+| **2026-07-SPRINT-4** | Consolidação UX + rastreabilidade | 4 stories | ~11h |
 
 ## Próximas Candidatas (não planejadas)
 
@@ -43,6 +44,13 @@ SystemAudit ──> DualInterface ──> Resiliência ──> InfoNaming ──
 
 ## Convenção
 
+### Formato Legado (sprints em `docs/01_PROJECTS/`)
 Cada sprint vive em `docs/01_PROJECTS/Sprint_<Nome>/` com:
 - `SprintPlan.md` — planejamento detalhado (fases, TDD, riscos)
 - `Log.md` — registro diário de progresso
+
+### Novo Formato (a partir de 2026-07)
+Sprints e stories migram para `.opencode/backlog/`:
+- `.opencode/backlog/sprints/YYYY-MM-SPRINT-N.md`
+- `.opencode/backlog/stories/STORY-NNN-descricao.md`
+- Commits referenciam `[STORY-XXX] [RULE-X.Y.Z]`
