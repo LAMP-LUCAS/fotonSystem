@@ -1,5 +1,5 @@
 ---
-status: "ready"
+status: "done"
 sprint: "2026-07-SPRINT-4"
 estimativa: "1h"
 ---
@@ -18,11 +18,11 @@ O sistema possui dois padrões de confirmação conflitantes:
 Padronizar tudo para `.upper() != 'S'` — que é mais seguro (qualquer tecla diferente de S cancela).
 
 ## Critérios de Aceite
-- [ ] `form_view.py` linha 26: `input(...).lower() == 's'` → `input(...).upper() != 'S'`
-- [ ] `form_view.py` linha 30: `input(...).lower() == 's'` → `input(...).upper() != 'S'`
-- [ ] `handle_installation` linha 393: `== 'S'` mantido (semanticamente é "prosseguir APENAS se S")
-- [ ] Todos os demais confirmations já usam `!= 'S'` — verificar
-- [ ] Testes de confirmação passando
+- [x] `form_view.py` linha 26: `input(...).lower() == 's'` → `input(...).upper() != 'S'`
+- [x] `form_view.py` linha 30: `input(...).lower() == 's'` → `input(...).upper() != 'S'`
+- [x] `handle_installation` linha 398: `== 'S'` mantido (semanticamente é "prosseguir APENAS se S")
+- [x] Todos os demais confirmations já usam `!= 'S'` — verificado em menus.py
+- [x] Testes de confirmação passando (5/5)
 
 ## Arquivos
 - `foton_system/interfaces/cli/views/form_view.py`

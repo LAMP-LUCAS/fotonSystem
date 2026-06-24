@@ -23,11 +23,13 @@ class TUIFormView:
             elif cmd_lower == 'p': self.session.prev()
             elif cmd_lower == 'v': self._show_preview()
             elif cmd_lower == 's':
-                if input(f"\n{Fore.GREEN}Salvar? (S/N): {Style.RESET_ALL}").lower() == 's': return "save"
+                if input(f"\n{Fore.GREEN}Salvar? (S/N): {Style.RESET_ALL}").upper() != 'S': continue
+                return "save"
             elif cmd_lower == 'a':
                 return "save_as"
             elif cmd_lower == 'c':
-                if input(f"\n{Fore.RED}Sair sem salvar? (S/N): {Style.RESET_ALL}").lower() == 's': return "cancel"
+                if input(f"\n{Fore.RED}Sair sem salvar? (S/N): {Style.RESET_ALL}").upper() != 'S': continue
+                return "cancel"
             else:
                 f = self.session.get_current_field()
                 if f and not f.is_calculated:

@@ -58,5 +58,39 @@ class TestTUIFormFiller(unittest.TestCase):
         action = self.view.run_loop()
         self.assertEqual(action, "cancel")
 
+    @patch('builtins.input')
+    @patch('os.system')
+    def test_save_confirmed_with_uppercase_S(self, mock_os, mock_input):
+        """
+        Save command + uppercase 'S' confirmation -> "save".
+        Ensures .upper() != 'S' accepts uppercase S.
+        """
+        mock_input.side_effect = ["s", "S"]
+        action = self.view.run_loop()
+        self.assertEqual(action, "save")
+
+    @patch('builtins.input')
+    @patch('os.system')
+    def test_save_cancelled_with_N_then_confirmed(self, mock_os, mock_input):
+        """
+        Save command + 'N' cancels (stays in loop),
+        then save + 'S' confirms.
+        """
+        mock_input.side_effect = ["s", "N", "s", "S"]
+        action = self.view.run_loop()
+        self.assertEqual(action, "save")
+
+    @patch('builtins.input')
+    @patch('os.system')
+    def test_cancel_cancelled_with_any_key(self, mock_os, mock_input):
+        """
+        Cancel command + 'x' cancels the exit (stays in loop),
+        then save + 'S' confirms.
+        Ensures ANY key != 'S' cancels the confirmation.
+        """
+        mock_input.side_effect = ["c", "x", "s", "S"]
+        action = self.view.run_loop()
+        self.assertEqual(action, "save")
+
 if __name__ == '__main__':
     unittest.main()
