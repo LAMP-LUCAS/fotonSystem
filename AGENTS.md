@@ -1,8 +1,93 @@
 # Foton System v1.4.0 — Guia do Agente
 
-Sistema de gestão para escritório de arquitetura. Exposto via **MCP (38 ferramentas)**.
+Sistema de gestão para escritório de arquitetura.
 
-**Idioma obrigatório:** PT-BR. Todas as interações com o agente e o sistema em português brasileiro.
+**Idioma obrigatório:** PT-BR. Todas as interações em português brasileiro.
+
+---
+
+## Framework de Desenvolvimento (SSOT + Rastreabilidade)
+
+O repositório segue uma metodologia de 3 camadas documentada em `DEVELOPMENT_GUIDE.md`:
+
+| Camada | Pasta | Propósito |
+|--------|-------|-----------|
+| **Diretiva** | `docs/` (PARA) | PRDs, ADRs, conceitos, manuais |
+| **Estratégica** | `specs/` | Regras técnicas com `RULE-IDs` rastreáveis |
+| **Tática** | `.opencode/` | Sprints, Stories, Handoffs, Comandos |
+
+### Comandos disponíveis
+
+| Comando | Função | Tipo |
+|---------|--------|------|
+| `/epic EPIC-XXX "contexto"` | Cria/atualiza PRD Épico | **Estratégico** |
+| `/translate EPIC-XXX MOD-NOME` | PRD → Spec Técnica com RULE-IDs | **Estratégico** |
+| `/slice MOD-X/SPEC-Y-v1 2026-SPRINT-N` | Spec → User Stories para uma sprint | **Planejamento** |
+| `/start` | Lista todas sprints/stories pendentes e pergunta qual iniciar | **Tático** |
+| `/develop` | Carrega última sprint ativa, lista stories, pergunta qual iniciar | **Tático** |
+| `/feature STORY-XXX` | Executa Story com TDD | **Operacional** |
+| `/RL STORY-XXX` | Sessão RalphLoop interativa com harness | **Operacional** |
+| `/bugfix #123` | Corrige bug com teste e rastreabilidade | **Operacional** |
+| `/review 2026-SPRINT-N` | Valida código vs Spec e PRD | **Validação** |
+| `/handoff` | Gera relatório de passagem de contexto | **Handoff** |
+
+### Convenções do Framework
+- **Commits** devem referenciar `[STORY-XXX]` e `[RULE-X.Y.Z]`
+- **Handoff** obrigatório ao final de cada sessão via `/handoff` (template em `.opencode/templates/HANDOFF_TEMPLATE.md`)
+- **GLOSSARY.md** na raiz define a Linguagem Ubíqua (fonte: `docs/00_META/Dictionary.md`)
+
+---
+
+## Estratégia RalphLoop (Contexto Atômico)
+
+RalphLoop é o padrão de execução atômica do framework. Para qualquer tarefa que envolva mais de 2 arquivos ou mais de 50 linhas de código novo, o agente DEVE operar em loops atômicos:
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    RALPHLOOP                         │
+├─────────────────────────────────────────────────────┤
+│ 1. LOAD  → Carregar APENAS os arquivos necessários  │
+│ 2. PLAN  → Descrever em ≤3 frases o que será feito  │
+│ 3. CODE  → Gerar código via patch/diff              │
+│ 4. TEST  → Executar testes (RED → GREEN)            │
+│ 5. SAVE  → Confirmar conclusão, limpar contexto     │
+└─────────────────────────────────────────────────────┘
+```
+
+**Regras:**
+- **LOAD mínimo:** Nunca carregue um arquivo inteiro se apenas uma função será alterada. Use `grep` + `read` com `offset`/`limit`.
+- **PLAN obrigatório:** Antes de cada CODE, descreva o plano. O usuário pode aprovar ou ajustar.
+- **TEST primeiro:** Escreva o teste (RED), depois implemente (GREEN). Sem exceções.
+- **SAVE explícito:** Confirme a conclusão antes de avançar. Descarte arquivos carregados.
+- **Rastreabilidade:** Cada patch deve conter `// @story: STORY-XXX` e `// @rule: RULE-X.Y.Z`.
+- **Benefício:** Reduz consumo de tokens em 40-60% mantendo contexto focado.
+
+> O comando `/RL STORY-XXX` orquestra este fluxo interativamente. O harness automatizado (com limpeza total de memória) é executado via script externo.
+
+### Primeira Interação (fluxo recomendado)
+
+```
+/start                    # Ver backlog, escolher sprint/story
+/develop                  # ou: atalho direto para sprint ativa
+/feature STORY-XXX        # ou /RL STORY-XXX — implementar
+/handoff                  # gerar relatório ao finalizar sessão
+```
+
+---
+
+## Links úteis
+
+- Código: `.\fotonSystem\`
+- Metodologia: `DEVELOPMENT_GUIDE.md`
+- Docs MCP: `docs/03_RESOURCES/DocsMcp.md`
+- Plano de auditoria: `docs/01_PROJECTS/Sprint_SystemAudit/SprintPlan.md`
+- Installer Inno Setup: `installer/foton_setup.iss`
+- Skills:
+  - `skills/foton-architecture/SKILL.md` — Metaskill (visão geral)
+  - `skills/foton-clients/SKILL.md` — Clientes e serviços
+  - `skills/foton-documents/SKILL.md` — Documentos e templates
+  - `skills/foton-finance/SKILL.md` — Financeiro
+  - `skills/foton-rag/SKILL.md` — RAG e memória semântica
 
 ---
 
@@ -15,7 +100,7 @@ Sistema de gestão para escritório de arquitetura. Exposto via **MCP (38 ferram
 
 ### Via Python (modo dev)
 ```bash
-cd C:\Users\Lucas\OneDrive\LAMP_ARQUITETURA\fotonSystem
+cd fotonSystem
 python -m foton_system.entry --mcp
 ```
 
@@ -156,53 +241,11 @@ indexar_conhecimento → consultar_conhecimento
 ## Testes
 
 ```bash
-cd C:\Users\Lucas\OneDrive\LAMP_ARQUITETURA\fotonSystem
+cd fotonSystem
 python -m pytest           # 452 testes, zero regressão
 python -m pytest -v -k "path_traversal"  # Testes de segurança
 python -m pytest -v -k "circuit_breaker" # Testes de resiliência
 ```
-
----
-
-## Framework de Desenvolvimento (SSOT + Rastreabilidade)
-
-O repositório segue uma metodologia de 3 camadas documentada em `DEVELOPMENT_GUIDE.md`:
-
-| Camada | Pasta | Propósito |
-|--------|-------|-----------|
-| **Diretiva** | `docs/` (PARA) | PRDs, ADRs, conceitos, manuais |
-| **Estratégica** | `specs/` | Regras técnicas com `RULE-IDs` rastreáveis |
-| **Tática** | `.opencode/` | Sprints, Stories, Handoffs, Comandos |
-
-### Comandos disponíveis
-
-| Comando | Função |
-|---------|--------|
-| `/epic "contexto"` | Cria/atualiza PRD Épico |
-| `/translate EPIC-XXX` | PRD → Spec Técnica com RULE-IDs |
-| `/slice SPEC-XXX` | Spec → User Stories |
-| `/feature STORY-XXX` | Executa Story com TDD |
-| `/bugfix "descrição"` | Corrige bug com teste |
-| `/review` | Valida código vs Spec e PRD |
-
-### Convenções do Framework
-- **Commits** devem referenciar `[STORY-XXX]` e `[RULE-X.Y.Z]`
-- **Handoff** ao final de cada sessão (template em `.opencode/templates/HANDOFF_TEMPLATE.md`)
-- **GLOSSARY.md** na raiz define a Linguagem Ubíqua (fonte: `docs/00_META/Dictionary.md`)
-
-## Links úteis
-
-- Código: `C:\Users\Lucas\OneDrive\LAMP_ARQUITETURA\fotonSystem\`
-- Metodologia: `DEVELOPMENT_GUIDE.md`
-- Docs MCP: `docs/03_RESOURCES/DocsMcp.md`
-- Plano de auditoria: `docs/01_PROJECTS/Sprint_SystemAudit/SprintPlan.md`
-- Installer Inno Setup: `installer/foton_setup.iss`
-- Skills:
-  - `skills/foton-architecture/SKILL.md` — Metaskill (visão geral)
-  - `skills/foton-clients/SKILL.md` — Clientes e serviços
-  - `skills/foton-documents/SKILL.md` — Documentos e templates
-  - `skills/foton-finance/SKILL.md` — Financeiro
-  - `skills/foton-rag/SKILL.md` — RAG e memória semântica
 
 ---
 
