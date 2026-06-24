@@ -161,9 +161,11 @@ class MenuSystem:
             ("8", "Preencher Códigos Faltantes"),
             ("9", "Remover Cliente (Soft Delete)"),
             ("10", "Restaurar Cliente"),
+            ("---", "Listagem"),
+            ("11", "Listar Todos os Clientes"),
             ("---", "Serviços"),
-            ("11", "Serviços do Cliente"),
-            ("12", "Sincronizar Cadastro (DB <-> Arquivo)"),
+            ("12", "Serviços do Cliente"),
+            ("13", "Sincronizar Cadastro (DB <-> Arquivo)"),
             ("0", "Voltar")
         ]
         for key, label in options:
@@ -440,9 +442,11 @@ class MenuSystem:
                 self.restore_client_ui()
                 input("Pressione Enter para continuar...")
             elif choice == '11':
+                self.list_all_clients_ui()
+            elif choice == '12':
                 self.handle_client_servicos_menu()
                 input("Pressione Enter para continuar...")
-            elif choice == '12':
+            elif choice == '13':
                 self.handle_client_sync_menu()
             elif choice == '0':
                 break
@@ -1104,6 +1108,42 @@ class MenuSystem:
 
         except Exception as e:
             self.print_error(f"\n❌ Erro ao buscar clientes: {e}")
+
+    def list_all_clients_ui(self):
+        TUILayout.clear()
+        TUILayout.print_header("LISTAR TODOS OS CLIENTES")
+        try:
+            df = self.client_repo.get_all_clients_dataframe()
+            if df.empty:
+                self.print_warning("\n📭 Nenhum cliente cadastrado.")
+                input("\n  Pressione Enter para continuar...")
+                return
+
+            rows = df.to_dict('records')
+            page_size = 10
+            total = len(rows)
+            for start in range(0, total, page_size):
+                TUILayout.clear()
+                TUILayout.print_header(f"LISTAR TODOS OS CLIENTES ({total})")
+                page_rows = rows[start:start + page_size]
+                for i, row in enumerate(page_rows, start=start + 1):
+                    cod = row.get('CodCliente', '') or ''
+                    nome = row.get('NomeCliente', '') or ''
+                    alias = row.get('Alias', '') or ''
+                    status = row.get('Status', 'ATIVO') or 'ATIVO'
+                    status_tag = f" {Fore.RED}[DELETADO]{Style.RESET_ALL}" if status == 'DELETADO' else ""
+                    print(f"  {Fore.YELLOW}{i:3d}.{Style.RESET_ALL} "
+                          f"{Fore.CYAN}{cod:<8}{Style.RESET_ALL} "
+                          f"{Fore.WHITE}{nome:<30}{Style.RESET_ALL} "
+                          f"{Fore.LIGHTBLACK_EX}{alias:<20}{Style.RESET_ALL}"
+                          f"{status_tag}")
+                remaining = total - (start + page_size)
+                if remaining > 0:
+                    input(f"\n  {Fore.CYAN}Pressione Enter para ver mais {remaining} cliente(s)...{Style.RESET_ALL}")
+            input(f"\n  {Fore.GREEN}Fim da lista.{Style.RESET_ALL} Pressione Enter para continuar...")
+        except Exception as e:
+            self.print_error(f"\n❌ Erro ao listar clientes: {e}")
+            input("\n  Pressione Enter para continuar...")
 
     def generate_document_ui(self, doc_type):
         from foton_system.modules.shared.infrastructure.config.config import Config

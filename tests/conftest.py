@@ -42,6 +42,9 @@ def fake_client_repository():
         def get_clients_dataframe(self) -> pd.DataFrame:
             return self._clients.copy()
 
+        def get_all_clients_dataframe(self) -> pd.DataFrame:
+            return self._clients.copy()
+
         def get_services_dataframe(self) -> pd.DataFrame:
             return self._services.copy()
 

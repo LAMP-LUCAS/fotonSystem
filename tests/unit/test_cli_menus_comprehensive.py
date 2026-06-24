@@ -394,16 +394,23 @@ class TestMenuMapping(unittest.TestCase):
             menu.handle_clients()
             mock_fn.assert_called_once()
 
-    def test_option_11_servicos_submenu(self):
+    def test_option_11_list_all_clients(self):
         menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['11', '0', '', '0']), \
+        with patch('builtins.input', side_effect=['11', '', '', '0']), \
+             patch.object(menu, 'list_all_clients_ui') as mock_fn:
+            menu.handle_clients()
+            mock_fn.assert_called_once()
+
+    def test_option_12_servicos_submenu(self):
+        menu = create_mocked_menu()
+        with patch('builtins.input', side_effect=['12', '0', '', '0']), \
              patch.object(menu, 'handle_client_servicos_menu') as mock_fn:
             menu.handle_clients()
             mock_fn.assert_called_once()
 
-    def test_option_12_client_sync_menu(self):
+    def test_option_13_client_sync_menu(self):
         menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['12', '0', '', '0']), \
+        with patch('builtins.input', side_effect=['13', '0', '', '0']), \
              patch.object(menu, 'handle_client_sync_menu') as mock_fn:
             menu.handle_clients()
             mock_fn.assert_called_once()

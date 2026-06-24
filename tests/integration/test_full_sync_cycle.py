@@ -40,6 +40,9 @@ class TempFileClientRepository(ClientRepositoryPort):
     def get_clients_dataframe(self) -> pd.DataFrame:
         return pd.read_excel(self.db_path, sheet_name='baseClientes')
 
+    def get_all_clients_dataframe(self) -> pd.DataFrame:
+        return pd.read_excel(self.db_path, sheet_name='baseClientes')
+
     def get_services_dataframe(self) -> pd.DataFrame:
         return pd.read_excel(self.db_path, sheet_name='baseServicos')
 

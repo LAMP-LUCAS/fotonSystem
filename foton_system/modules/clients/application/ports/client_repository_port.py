@@ -44,5 +44,9 @@ class ClientRepositoryPort(ABC):
         pass
 
     @abstractmethod
+    def get_all_clients_dataframe(self) -> pd.DataFrame:
+        pass
+
+    @abstractmethod
     def get_deleted_clients(self) -> List[Dict[str, Any]]:
         pass

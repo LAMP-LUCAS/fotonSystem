@@ -286,6 +286,20 @@ class ExcelClientRepository(ClientRepositoryPort):
             logger.error(f"Erro ao ler base de clientes: {e}")
             raise
 
+    def get_all_clients_dataframe(self) -> pd.DataFrame:
+        if self._cache_valid and self._clients_cache is not None:
+            return self._clients_cache.copy()
+        try:
+            self._ensure_database_exists()
+            self._clients_cache = pd.read_excel(self.base_dados, sheet_name='baseClientes')
+            if 'Status' not in self._clients_cache.columns:
+                self._clients_cache['Status'] = 'ATIVO'
+            self._cache_valid = True
+            return self._clients_cache.copy()
+        except Exception as e:
+            logger.error(f"Erro ao ler base de clientes (all): {e}")
+            raise
+
     def get_services_dataframe(self) -> pd.DataFrame:
         """Get services DataFrame, using cache if valid. Filters out DELETADO records."""
         if self._cache_valid and self._services_cache is not None:

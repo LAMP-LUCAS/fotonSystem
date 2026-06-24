@@ -11,6 +11,12 @@
             "storage": "info_file",
             "description": "Teste de criação automática de chave",
             "default": null
+        },
+        "@TesteRenamed": {
+            "type": "string",
+            "storage": "info_file",
+            "description": "Teste",
+            "default": null
         }
     }
 }
