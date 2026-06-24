@@ -1,5 +1,5 @@
 ---
-status: "ready"
+status: "done"
 sprint: "2026-07-SPRINT-4"
 estimativa: "0.5h"
 ---
@@ -13,10 +13,10 @@ estimativa: "0.5h"
 O menu principal trata `choice == '00'` com `continue` (no-op). O usuário que digita `00` acidentalmente (talvez tentando `0` para sair) não recebe feedback visual algum. Remover o tratamento especial ou substituir por atalho útil (ex: recarregar menu).
 
 ## Critérios de Aceite
-- [ ] `00` não é mais tratado como caso especial
-- [ ] `00` cai no fluxo normal (opção inválida ou comportamento default)
-- [ ] Nenhuma funcionalidade existente é afetada
-- [ ] Testes de menu principal atualizados
+- [x] `00` não é mais tratado como caso especial
+- [x] `00` cai no fluxo normal (opção inválida)
+- [x] Nenhuma funcionalidade existente é afetada
+- [x] Testes de menu principal atualizados
 
 ## Arquivos
 - `foton_system/interfaces/cli/menus.py` ~ linha 284

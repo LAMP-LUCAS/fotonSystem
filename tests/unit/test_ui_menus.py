@@ -47,6 +47,16 @@ class TestMenuUI(unittest.TestCase):
             self.assertIn("Configurações", printed_content)
             self.assertIn("Sair", printed_content)
 
+    # ----- main menu no-op cleanup (STORY-009 / RULE-UX-1.4) -----
+    def test_main_menu_00_is_invalid(self):
+        """RULE-UX-1.4: '00' não tratado como no-op, cai em opção inválida."""
+        with patch('builtins.input', side_effect=['00', '0']), \
+             patch('builtins.print') as mock_print:
+            with self.assertRaises(SystemExit):
+                self.menu.run()
+            printed_content = "".join([call.args[0] for call in mock_print.call_args_list if call.args])
+            self.assertIn("Opção inválida", printed_content)
+
     # ----- breadcrumb tests (STORY-003 / RULE-UX-1.1) -----
     def test_clients_menu_shows_breadcrumb(self):
         """RULE-UX-1.1: display_clients_menu exibe breadcrumb 'Clientes'."""
@@ -83,6 +93,84 @@ class TestMenuUI(unittest.TestCase):
         with patch.object(self.menu, 'print_breadcrumb') as mock_bc:
             self._navigate_to('7', '0')
             mock_bc.assert_any_call(["Configurações"])
+
+    # ----- back shortcut 'b' tests (STORY-008 / RULE-UX-1.2) -----
+    def test_clients_back_with_b(self):
+        """RULE-UX-1.2: 'b' no menu clientes volta ao menu principal."""
+        with patch('builtins.input', side_effect=['1', 'b', '0']), \
+             patch('builtins.print'):
+            with self.assertRaises(SystemExit):
+                self.menu.run()
+
+    def test_clients_back_with_B_uppercase(self):
+        """RULE-UX-1.2: 'B' maiúsculo também volta."""
+        with patch('builtins.input', side_effect=['1', 'B', '0']), \
+             patch('builtins.print'):
+            with self.assertRaises(SystemExit):
+                self.menu.run()
+
+    def test_clients_back_with_zero_still_works(self):
+        """RULE-UX-1.2: '0' continua funcionando (backward compat)."""
+        with patch('builtins.input', side_effect=['1', '0', '0']), \
+             patch('builtins.print'):
+            with self.assertRaises(SystemExit):
+                self.menu.run()
+
+    def test_services_back_with_b(self):
+        """RULE-UX-1.2: 'b' no menu serviços volta ao menu principal."""
+        with patch('builtins.input', side_effect=['2', 'b', '0']), \
+             patch('builtins.print'):
+            with self.assertRaises(SystemExit):
+                self.menu.run()
+
+    def test_documents_back_with_b(self):
+        """RULE-UX-1.2: 'b' no menu documentos volta ao menu principal."""
+        with patch('builtins.input', side_effect=['4', 'b', '0']), \
+             patch('builtins.print'):
+            with self.assertRaises(SystemExit):
+                self.menu.run()
+
+    def test_finance_back_with_b(self):
+        """RULE-UX-1.2: 'b' no menu financeiro volta ao menu principal."""
+        with patch('builtins.input', side_effect=['5', 'b', '0']), \
+             patch('builtins.print'):
+            with self.assertRaises(SystemExit):
+                self.menu.run()
+
+    def test_productivity_back_with_b(self):
+        """RULE-UX-1.2: 'b' no menu produtividade volta ao menu principal."""
+        with patch('builtins.input', side_effect=['6', 'b', '0']), \
+             patch('builtins.print'):
+            with self.assertRaises(SystemExit):
+                self.menu.run()
+
+    def test_settings_back_with_b(self):
+        """RULE-UX-1.2: 'b' no menu configurações volta ao menu principal."""
+        with patch('builtins.input', side_effect=['7', 'b', '0']), \
+             patch('builtins.print'):
+            with self.assertRaises(SystemExit):
+                self.menu.run()
+
+    def test_client_servicos_back_with_b(self):
+        """RULE-UX-1.2: 'b' no submenu serviços do cliente volta ao menu clientes."""
+        with patch('builtins.input', side_effect=['1', '12', 'b', 'x', '0', '0']), \
+             patch('builtins.print'):
+            with self.assertRaises(SystemExit):
+                self.menu.run()
+
+    def test_client_sync_menu_back_with_b(self):
+        """RULE-UX-1.2: 'b' no submenu sincronizar cadastro volta."""
+        with patch('builtins.input', side_effect=['1', '13', 'b', '0', '0']), \
+             patch('builtins.print'):
+            with self.assertRaises(SystemExit):
+                self.menu.run()
+
+    def test_service_sync_menu_back_with_b(self):
+        """RULE-UX-1.2: 'b' no submenu sincronizar serviços volta."""
+        with patch('builtins.input', side_effect=['2', '4', 'b', '0', '0']), \
+             patch('builtins.print'):
+            with self.assertRaises(SystemExit):
+                self.menu.run()
 
     # ----- search drill-down tests (STORY-004 / RULE-UX-3.x) -----
     def test_search_client_ui_empty_term_lists_all(self):

@@ -288,9 +288,7 @@ class MenuSystem:
                 elif choice.lower() == 'g':
                     self.global_search_ui()
                     continue
-                elif choice == '00':
-                    continue  # Already at main menu
-                
+
                 if choice == '1':
                     self.handle_clients()
                 elif choice == '2':
@@ -453,7 +451,7 @@ class MenuSystem:
                 input("Pressione Enter para continuar...")
             elif choice == '13':
                 self.handle_client_sync_menu()
-            elif choice == '0':
+            elif choice in ('0', 'b', 'B'):
                 break
             else:
                 self.print_error("Opção inválida.")
@@ -657,7 +655,7 @@ class MenuSystem:
             elif sub == '4':
                 self.corrigir_codigos_servicos_ui()
                 input("Pressione Enter para continuar...")
-            elif sub == '0':
+            elif sub in ('0', 'b', 'B'):
                 break
             else:
                 self.print_error("Opção inválida.")
@@ -788,7 +786,7 @@ class MenuSystem:
             elif sub == '2':
                 self.client_service.import_client_data()
                 input("Pressione Enter para continuar...")
-            elif sub == '0':
+            elif sub in ('0', 'b', 'B'):
                 break
             else:
                 self.print_error("Opção inválida.")
@@ -809,7 +807,7 @@ class MenuSystem:
                 input("Pressione Enter para continuar...")
             elif choice == '4':
                 self.handle_service_sync_menu()
-            elif choice == '0':
+            elif choice in ('0', 'b', 'B'):
                 break
             else:
                 self.print_error("Opção inválida.")
@@ -830,7 +828,7 @@ class MenuSystem:
             elif sub == '2':
                 self.client_service.import_service_data()
                 input("Pressione Enter para continuar...")
-            elif sub == '0':
+            elif sub in ('0', 'b', 'B'):
                 break
             else:
                 self.print_error("Opção inválida.")
@@ -844,7 +842,7 @@ class MenuSystem:
                 self.generate_document_ui('docx')
             elif choice == '3':
                 self.validate_template_ui()
-            elif choice == '0':
+            elif choice in ('0', 'b', 'B'):
                 break
             else:
                 self.print_error("Opção inválida.")
@@ -877,7 +875,7 @@ class MenuSystem:
             elif choice == '3':
                 self.resumo_financeiro_ui()
                 input("Pressione Enter para continuar...")
-            elif choice == '0':
+            elif choice in ('0', 'b', 'B'):
                 break
             else:
                 self.print_error("Opção inválida.")
@@ -995,7 +993,7 @@ class MenuSystem:
             choice = self.display_productivity_menu()
             if choice == '1':
                 self.start_pomodoro_ui()
-            elif choice == '0':
+            elif choice in ('0', 'b', 'B'):
                 break
             else:
                 self.print_error("Opção inválida.")
@@ -1017,7 +1015,7 @@ class MenuSystem:
                 self.handle_admin_tools()
             elif choice == '5':
                 self._open_workspace_folder(config)
-            elif choice == '0':
+            elif choice in ('0', 'b', 'B'):
                 break
             else:
                 self.print_error("Opção inválida.")
@@ -1421,7 +1419,7 @@ class MenuSystem:
                 self._index_knowledge_ui()
             elif choice == '4':
                 self._query_knowledge_ui()
-            elif choice == '0':
+            elif choice in ('0', 'b', 'B'):
                 break
 
     def _index_knowledge_ui(self):
