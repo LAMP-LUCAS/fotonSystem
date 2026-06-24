@@ -159,7 +159,7 @@ class MenuSystem:
             ("7", "Atualizar Ficha do Cliente"),
             ("---", "Manutenção"),
             ("8", "Preencher Códigos Faltantes"),
-            ("9", "Remover Cliente (Soft Delete)"),
+            ("9", "Remover Cliente"),
             ("10", "Restaurar Cliente"),
             ("---", "Listagem"),
             ("11", "Listar Todos os Clientes"),
