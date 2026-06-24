@@ -11,6 +11,7 @@ Este diretório contém os PRDs (Épicos) do repositório, organizados por IDs s
 
 | ID | Título | Data | Status |
 |---|---|---|---|
+| EPIC-001 | Auditoria e Correção de Usabilidade da Interface TUI | 2026-06-24 | active |
 
 ## Regras
 
