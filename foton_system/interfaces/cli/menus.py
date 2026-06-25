@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 from pathlib import Path
 from typing import Optional
 from foton_system.modules.clients.application.use_cases.client_service import ClientService
@@ -597,6 +598,7 @@ class MenuSystem:
         if not query:
             self.print_warning("Termo vazio.")
             return
+        _start = time.perf_counter()
         try:
             df_clients = self.client_service.repository.get_clients_dataframe()
             df_services = self.client_service.repository.get_services_dataframe()
@@ -628,6 +630,7 @@ class MenuSystem:
                             self.read_client_info_ui(selected.get('Alias', '') or '')
             else:
                 print(f"\n  Nenhum resultado para '{query}'.")
+            logger.info(f"perf: global_search_ui('{query}') completed in {time.perf_counter() - _start:.3f}s")
         except Exception as e:
             self.print_error(f"\n❌ Erro: {e}")
 
@@ -1119,6 +1122,7 @@ class MenuSystem:
             self.list_all_clients_ui()
             return
 
+        _start = time.perf_counter()
         try:
             df = self.client_repo.get_clients_dataframe()
             mask = (
@@ -1141,13 +1145,14 @@ class MenuSystem:
                     if 0 <= idx < len(results):
                         selected = results.iloc[idx]
                         self.read_client_info_ui(selected.get('Alias', '') or '')
-
+            logger.info(f"perf: search_client_ui('{term}') completed in {time.perf_counter() - _start:.3f}s")
         except Exception as e:
             self.print_error(f"\n❌ Erro ao buscar clientes: {e}")
 
     def list_all_clients_ui(self):
         TUILayout.clear()
         TUILayout.print_header("LISTAR TODOS OS CLIENTES")
+        _start = time.perf_counter()
         try:
             df = self.client_repo.get_all_clients_dataframe()
             if df.empty:
@@ -1176,6 +1181,7 @@ class MenuSystem:
                 remaining = total - (start + page_size)
                 if remaining > 0:
                     input(f"\n  {Fore.CYAN}Pressione Enter para ver mais {remaining} cliente(s)...{Style.RESET_ALL}")
+            logger.info(f"perf: list_all_clients_ui ({total} clients) completed in {time.perf_counter() - _start:.3f}s")
             input(f"\n  {Fore.GREEN}Fim da lista.{Style.RESET_ALL} Pressione Enter para continuar...")
         except Exception as e:
             self.print_error(f"\n❌ Erro ao listar clientes: {e}")

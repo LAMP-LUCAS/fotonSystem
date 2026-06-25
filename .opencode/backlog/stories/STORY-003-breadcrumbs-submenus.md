@@ -6,7 +6,7 @@ estimativa: "2h"
 
 # STORY-003: Adicionar Breadcrumbs em Todos os Submenus
 
-**Spec:** [RULE-UX-1.1](specs/MOD-UX/SPEC-UX-v1.0.md)
+**Spec:** [RULE-UX-1.1, RULE-UX-1.3](specs/MOD-UX/SPEC-UX-v1.0.md)
 **Tipo:** Melhoria (UX)
 
 ## Descrição

@@ -6,7 +6,7 @@ estimativa: "1h"
 
 # STORY-002: Corrigir "Soft Delete" para "Remover Cliente" (PT-BR)
 
-**Spec:** [RULE-UX-4.2](specs/MOD-UX/SPEC-UX-v1.0.md)
+**Spec:** [RULE-UX-4.1, RULE-UX-4.2, RULE-UX-4.3](specs/MOD-UX/SPEC-UX-v1.0.md)
 **Tipo:** Correção (i18n)
 
 ## Descrição

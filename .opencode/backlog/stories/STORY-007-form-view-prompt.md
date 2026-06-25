@@ -6,7 +6,7 @@ estimativa: "1h"
 
 # STORY-007: Prompt Não-Ambíguo no Formulário Interativo
 
-**Spec:** [RULE-UX-6.1](specs/MOD-UX/SPEC-UX-v1.0.md), [RULE-UX-6.2](specs/MOD-UX/SPEC-UX-v1.0.md), [RULE-UX-6.3](specs/MOD-UX/SPEC-UX-v1.0.md)
+**Spec:** [RULE-UX-6.1, RULE-UX-6.2, RULE-UX-6.3, RULE-UX-6.4](specs/MOD-UX/SPEC-UX-v1.0.md)
 **Tipo:** Melhoria (UX)
 
 ## Descrição

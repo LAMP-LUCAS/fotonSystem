@@ -94,6 +94,17 @@ class TestMenuUI(unittest.TestCase):
             self._navigate_to('7', '0')
             mock_bc.assert_any_call(["Configurações"])
 
+    # ----- menu label tests (STORY-002 / RULE-UX-4.2) -----
+    def test_clients_menu_shows_remover_cliente(self):
+        """RULE-UX-4.2: Opção 9 exibe 'Remover Cliente' sem '(Soft Delete)'."""
+        with patch('builtins.input', side_effect=['1', '0', '0']), \
+             patch('builtins.print') as mock_print:
+            with self.assertRaises(SystemExit):
+                self.menu.run()
+            content = "".join([c.args[0] for c in mock_print.call_args_list if c.args])
+            self.assertIn("Remover Cliente", content)
+            self.assertNotIn("Soft Delete", content)
+
     # ----- back shortcut 'b' tests (STORY-008 / RULE-UX-1.2) -----
     def test_clients_back_with_b(self):
         """RULE-UX-1.2: 'b' no menu clientes volta ao menu principal."""
@@ -285,6 +296,26 @@ class TestMenuUI(unittest.TestCase):
                 self.menu.global_search_ui()
         mock_read.assert_called_once()
 
+    # ----- list all clients marker tests (STORY-001 / RULE-UX-2.4) -----
+    def test_list_all_clients_shows_deleted_marker(self):
+        """RULE-UX-2.4: Cliente DELETADO aparece com [DELETADO] na listagem."""
+        import pandas as pd
+        from unittest.mock import MagicMock
+        repo_mock = MagicMock()
+        df = pd.DataFrame({
+            'CodCliente': ['C001'],
+            'NomeCliente': ['Cliente Removido'],
+            'Alias': ['removido'],
+            'Status': ['DELETADO'],
+        })
+        repo_mock.get_all_clients_dataframe.return_value = df
+        self.menu.client_repo = repo_mock
+        with patch('builtins.input', side_effect=['', '']), \
+             patch('builtins.print') as mock_print:
+            self.menu.list_all_clients_ui()
+        printed = "".join([c.args[0] for c in mock_print.call_args_list if c.args])
+        self.assertIn("[DELETADO]", printed)
+
 
 # ----- pagination tests (STORY-005 / RULE-UX-2.2, RULE-UX-2.3) -----
 
@@ -351,6 +382,65 @@ class TestPagination(unittest.TestCase):
         with patch('builtins.input', side_effect=['']):
             TUILayout.paginate_items(items, render_item=lambda x, i: indices.append(i))
         self.assertEqual(indices, list(range(1, 16)))
+
+
+# ----- performance baseline tests (PRD EPIC-001 metrics) -----
+
+class TestMenuPerformance(unittest.TestCase):
+    """Testes de baseline de performance para operações de navegação."""
+
+    def setUp(self):
+        import pandas as pd
+        from unittest.mock import MagicMock
+        from foton_system.interfaces.cli.menus import MenuSystem
+        self.menu = MenuSystem()
+        repo_mock = MagicMock()
+        big_df = pd.DataFrame({
+            'CodCliente': [f'C{i:03d}' for i in range(100)],
+            'NomeCliente': [f'Cliente {i}' for i in range(100)],
+            'Alias': [f'cli{i}' for i in range(100)],
+            'Status': ['ATIVO'] * 100,
+        })
+        empty_services = pd.DataFrame({
+            'AliasCliente': pd.Series(dtype='object'),
+            'Alias': pd.Series(dtype='object'),
+        })
+        repo_mock.get_all_clients_dataframe.return_value = big_df
+        repo_mock.get_clients_dataframe.return_value = big_df
+        repo_mock.get_services_dataframe.return_value = empty_services
+        self.menu.client_repo = repo_mock
+        self.menu.client_service.repository = repo_mock
+
+    def test_list_all_clients_performance_baseline(self):
+        """list_all_clients_ui com 100 clientes deve completar em < 1s."""
+        import time
+        _dummy = [''] * 20
+        with patch('builtins.input', side_effect=_dummy), \
+             patch('builtins.print'):
+            _start = time.perf_counter()
+            self.menu.list_all_clients_ui()
+            elapsed = time.perf_counter() - _start
+        self.assertLess(elapsed, 1.0, f"list_all_clients_ui levou {elapsed:.3f}s")
+
+    def test_search_client_performance_baseline(self):
+        """search_client_ui com 100 clientes deve completar em < 1s."""
+        import time
+        with patch('builtins.input', side_effect=['cliente', '']), \
+             patch('builtins.print'):
+            _start = time.perf_counter()
+            self.menu.search_client_ui()
+            elapsed = time.perf_counter() - _start
+        self.assertLess(elapsed, 1.0, f"search_client_ui levou {elapsed:.3f}s")
+
+    def test_global_search_performance_baseline(self):
+        """global_search_ui com 100 clientes deve completar em < 1s."""
+        import time
+        with patch('builtins.input', side_effect=['cliente', '']), \
+             patch('builtins.print'):
+            _start = time.perf_counter()
+            self.menu.global_search_ui()
+            elapsed = time.perf_counter() - _start
+        self.assertLess(elapsed, 1.0, f"global_search_ui levou {elapsed:.3f}s")
 
 
 if __name__ == '__main__':
