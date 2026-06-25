@@ -364,20 +364,40 @@ def ler_ficha_cliente(cliente: str) -> str:
 
 @mcp.tool()
 @_log_tool_call
-def atualizar_ficha_cliente(cliente: str, secao: str, conteudo: str) -> str:
+def atualizar_ficha_cliente(cliente: str, secao: str, conteudo: str,
+                            operacao: str = "append", campo: str = "") -> str:
     """
-    Appends information to a specific section of the client's Center of Truth.
-    PROTOCOL: Use this to record meeting notes or technical decisions.
+    Updates a client's INFO file (Center of Truth) with various operations.
     SAFETY: Automatically creates a .bak backup before modifying.
-    Sections: Use Markdown headers (e.g., 'Notas de Reunião').
+
+    Operations:
+      - "append" (default): appends content to a Markdown section
+      - "replace": replaces entire section content
+      - "remove": removes section entirely (conteudo ignored)
+      - "field": updates @campo value via regex pattern
+
+    PARAMETERS:
+      cliente: Client name (supports fuzzy match)
+      secao: Markdown section header (e.g., 'Notas de Reunião') — used as @campo name for 'field' operation
+      conteudo: Content to write
+      operacao: Operation type (append/replace/remove/field)
+      campo: Field name for 'field' operation (e.g., 'areaTotal')
     """
     try:
-        backup_name = _get_factory().get_client_service().update_client_info(cliente, secao, conteudo)
-        return (
-            f"✅ Ficha atualizada: {cliente}\n"
-            f"   Seção: {secao}\n"
-            f"   Backup: {backup_name}"
+        backup_name = _get_factory().get_client_service().update_client_info(
+            cliente, secao, conteudo, operacao=operacao, campo=campo
         )
+        op_labels = {
+            "append": "Ficha atualizada",
+            "replace": "Seção substituída",
+            "remove": "Seção removida",
+            "field": "Campo atualizado",
+        }
+        label = op_labels.get(operacao, "Ficha atualizada")
+        result = f"✅ {label}: {cliente}\n   Backup: {backup_name}"
+        if operacao == "field" and campo:
+            result += f"\n   Campo: @{campo}"
+        return result
     except ValueError as e:
         return f"❌ {e}"
     except Exception as e:

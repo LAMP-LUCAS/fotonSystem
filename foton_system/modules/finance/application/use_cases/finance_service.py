@@ -12,23 +12,38 @@ class FinanceService:
     def add_entry(self, client_path: Path, description: str, value: Any, entry_type: str = 'ENTRADA') -> Dict[str, float]:
         """
         Adiciona uma movimentação financeira e retorna o resumo.
+
+        Se uma entrada com mesma descrição, valor e data já existir,
+        inclui 'duplicate_warning: True' no retorno (warning não bloqueante).
         """
-        # Garantir que o valor seja float (converte se necessário usando o formatador do sistema)
         if isinstance(value, str):
             clean_value = FotonFormatter.parse_br_number(value)
         else:
             clean_value = float(value)
 
+        today = datetime.now().strftime('%Y-%m-%d')
         entry = [
-            datetime.now().strftime('%Y-%m-%d'),
+            today,
             description,
             entry_type,
             f"{clean_value:.2f}"
         ]
 
+        existing_entries = self.repository.get_entries(client_path)
+        is_duplicate = any(
+            e.get('Descricao') == description
+            and abs(float(e.get('Valor', 0) or 0) - clean_value) < 0.01
+            and e.get('Data') == today
+            for e in existing_entries
+        )
+
         self.repository.save_entry(client_path, entry, self.headers)
-        
-        return self.get_summary(client_path)
+        summary = self.get_summary(client_path)
+
+        if is_duplicate:
+            summary['duplicate_warning'] = True
+
+        return summary
 
     def get_summary(self, client_path: Path) -> Dict[str, float]:
         """

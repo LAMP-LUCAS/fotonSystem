@@ -64,9 +64,12 @@ class ClientService:
         client_path = self.resolve_client_path(client_name)
         return client_crud.read_client_info_file(client_path)
 
-    def update_client_info(self, client_name: str, section: str, content: str) -> str:
+    def update_client_info(self, client_name: str, section: str, content: str,
+                           operacao: str = "append", campo: str = "") -> str:
         client_path = self.resolve_client_path(client_name)
-        return client_crud.update_client_info_file(client_path, section, content)
+        return client_crud.update_client_info_file(
+            client_path, section, content, operacao=operacao, campo=campo
+        )
 
     def sync_clients_db_from_folders(self):
         client_crud.sync_clients_db_from_folders(self.repository)

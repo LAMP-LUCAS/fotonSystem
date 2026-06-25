@@ -79,7 +79,7 @@ class OpFinanceEntry(BaseOp):
         )
 
         # 4. Return BI Metrics
-        return {
+        result = {
             "status": "REGISTERED",
             "client": client_path.name,
             "new_balance": summary["saldo"],
@@ -87,6 +87,10 @@ class OpFinanceEntry(BaseOp):
             "total_out": summary["total_saidas"],
             "message": f"Entry registered. New Balance: R$ {summary['saldo']:.2f}"
         }
+        if summary.get("duplicate_warning"):
+            result["warning"] = "Possível duplicata: mesma descrição, valor e data"
+            result["message"] += " ⚠️ Possível duplicata"
+        return result
 
 if __name__ == "__main__":
     import argparse

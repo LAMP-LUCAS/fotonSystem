@@ -132,8 +132,9 @@ class FakeClientService:
         content = info_file.read_text(encoding="utf-8")
         return {'filename': info_file.name, 'content': content}
 
-    def update_client_info(self, client_name, section, content):
-        import shutil
+    def update_client_info(self, client_name, section, content,
+                           operacao="append", campo=""):
+        import re, shutil
         client_path = self.resolve_client_path(client_name)
         info_files = list(client_path.glob("*INFO*.md"))
         if not info_files:
@@ -145,17 +146,50 @@ class FakeClientService:
 
         existing = info_file.read_text(encoding="utf-8")
         section_header = f"## {section}"
-        if section_header in existing:
-            parts = existing.split(section_header, 1)
-            after_header = parts[1]
-            next_section_idx = after_header.find("\n## ")
+
+        if operacao == "remove":
+            if section_header not in existing:
+                raise ValueError(f"Section '{section}' not found in INFO file.")
+            before, after = existing.split(section_header, 1)
+            after_stripped = after.lstrip('\n')
+            next_section_idx = after_stripped.find("\n## ")
             if next_section_idx == -1:
-                new_content = existing + f"\n{content}\n"
+                new_content = before.rstrip() + "\n"
             else:
-                insert_point = len(parts[0]) + len(section_header) + next_section_idx
-                new_content = existing[:insert_point] + f"\n{content}\n" + existing[insert_point:]
+                new_content = before + after_stripped[next_section_idx:]
+
+        elif operacao == "replace":
+            if section_header not in existing:
+                raise ValueError(f"Section '{section}' not found in INFO file.")
+            before, after = existing.split(section_header, 1)
+            after_stripped = after.lstrip('\n')
+            next_section_idx = after_stripped.find("\n## ")
+            if next_section_idx == -1:
+                new_content = before + section_header + "\n" + content + "\n"
+            else:
+                new_content = (before + section_header + "\n" + content + "\n"
+                               + after_stripped[next_section_idx:])
+
+        elif operacao == "field":
+            if not campo:
+                raise ValueError("Field name (campo) is required for 'field' operation.")
+            pattern = rf'(@{re.escape(campo)})\s*[:;]\s*[^\n]*'
+            if not re.search(pattern, existing):
+                raise ValueError(f"Field '@{campo}' not found in INFO file.")
+            new_content = re.sub(pattern, rf'\1: {content}', existing)
+
         else:
-            new_content = existing.rstrip() + f"\n\n{section_header}\n{content}\n"
+            if section_header in existing:
+                parts = existing.split(section_header, 1)
+                after_header = parts[1]
+                next_section_idx = after_header.find("\n## ")
+                if next_section_idx == -1:
+                    new_content = existing + f"\n{content}\n"
+                else:
+                    insert_point = len(parts[0]) + len(section_header) + next_section_idx
+                    new_content = existing[:insert_point] + f"\n{content}\n" + existing[insert_point:]
+            else:
+                new_content = existing.rstrip() + f"\n\n{section_header}\n{content}\n"
 
         info_file.write_text(new_content, encoding="utf-8")
         return backup.name
