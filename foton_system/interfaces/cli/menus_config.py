@@ -1,0 +1,251 @@
+import os
+import sys
+from colorama import Fore, Style
+from foton_system.interfaces.cli.views.tui_layout import TUILayout
+
+
+class MenuConfigHandler:
+    def __init__(self, menu):
+        self.menu = menu
+
+    def display_productivity_menu(self):
+        TUILayout.clear()
+        TUILayout.print_header("PRODUTIVIDADE")
+        self.menu.print_breadcrumb(["Produtividade"])
+        options = [
+            ("1", "Iniciar Pomodoro"),
+            ("0", "Voltar")
+        ]
+        for key, label in options:
+            TUILayout.print_menu_option(key, label)
+        try:
+            tip = self.menu.tip_service.get_random_tip("GERAL")
+            TUILayout.print_tip(tip, "FOCO")
+        except Exception:
+            pass
+        TUILayout.print_footer()
+        return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opcao: {Style.RESET_ALL}").strip()
+
+    def display_settings_menu(self, config):
+        TUILayout.clear()
+        TUILayout.print_header("CONFIGURAÇÕES")
+        self.menu.print_breadcrumb(["Configurações"])
+        TUILayout.print_menu_option("1", f"Pasta Clientes: {os.path.basename(config.get('caminho_pastaClientes'))}")
+        TUILayout.print_menu_option("2", f"Pasta Templates: {os.path.basename(config.get('caminho_templates'))}")
+        TUILayout.print_menu_option("3", f"Base de Dados: {os.path.basename(config.get('caminho_baseDados'))}")
+        TUILayout.print_menu_option("---", "Ferramentas")
+        TUILayout.print_menu_option("4", "Ferramentas Administrativas")
+        TUILayout.print_menu_option("5", "Abrir Pasta do Sistema (Workspace)")
+        TUILayout.print_menu_option("0", "Voltar")
+        try:
+            tip = self.menu.tip_service.get_random_tip("SANDBOX")
+            TUILayout.print_tip(tip, "CONFIG")
+        except Exception:
+            pass
+        TUILayout.print_footer()
+        return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha uma opcao: {Style.RESET_ALL}").strip()
+
+    def handle_productivity(self):
+        while True:
+            choice = self.menu.display_productivity_menu()
+            if choice == '1':
+                self.menu.start_pomodoro_ui()
+            elif choice in ('0', 'b', 'B'):
+                break
+            else:
+                self.menu.print_error("Opção inválida.")
+
+    def handle_settings(self):
+        from foton_system.modules.shared.infrastructure.config.config import Config
+        config = Config()
+        while True:
+            choice = self.menu.display_settings_menu(config)
+            if choice == '1':
+                self.menu.update_setting_ui(config, 'caminho_pastaClientes', "Pasta de Clientes")
+            elif choice == '2':
+                self.menu.update_setting_ui(config, 'caminho_templates', "Pasta de Templates")
+            elif choice == '3':
+                self.menu.update_setting_ui(config, 'caminho_baseDados', "Arquivo de Base de Dados", is_file=True)
+            elif choice == '4':
+                self.menu.handle_admin_tools()
+            elif choice == '5':
+                self.menu._open_workspace_folder(config)
+            elif choice in ('0', 'b', 'B'):
+                break
+            else:
+                self.menu.print_error("Opção inválida.")
+
+    def update_setting_ui(self, config, key, title, is_file=False):
+        print(f"\nSelecione o novo local para: {title}")
+        if is_file:
+            path = self.menu.ui.select_file(f"Selecione: {title}")
+        else:
+            path = self.menu.ui.select_directory(f"Selecione: {title}")
+        if path:
+            path = os.path.normpath(str(path))
+            config.set(key, path)
+            config.save()
+            self.menu.print_success(f"Configuracao atualizada com sucesso!\nNovo valor: {path}")
+            input("Pressione Enter para continuar...")
+        else:
+            self.menu.print_warning("Operacao cancelada.")
+            input("Pressione Enter para continuar...")
+
+    def _open_workspace_folder(self, config):
+        import subprocess
+        path = str(config.workspace_path)
+        try:
+            if sys.platform == 'win32':
+                os.startfile(path)
+            elif sys.platform == 'darwin':
+                subprocess.run(['open', path], check=True)
+            else:
+                subprocess.run(['xdg-open', path], check=True)
+            self.menu.print_success(f"Abrindo pasta: {path}")
+        except Exception as e:
+            self.menu.print_error(f"Erro ao abrir pasta: {e}")
+        input("Pressione Enter para continuar...")
+
+    def handle_installation(self):
+        from foton_system.modules.shared.infrastructure.services.install_service import InstallService
+        TUILayout.clear()
+        TUILayout.print_header("INSTALAÇÃO E ATALHOS")
+        print(f"\n  {Fore.WHITE}Isso criara atalhos na Area de Trabalho e Menu Iniciar.")
+        print(f"  Garante tambem a pasta de configuracao local.")
+        try:
+            tip = self.menu.tip_service.get_random_tip("GERAL")
+            TUILayout.print_tip(tip, "SETUP")
+        except Exception:
+            pass
+        TUILayout.print_footer()
+        if input(f"\n{Fore.YELLOW}Deseja prosseguir? (S/N): {Style.RESET_ALL}").upper() == 'S':
+            try:
+                result = InstallService().install()
+                if result == "KILL_SWITCH":
+                    print(f"\n  {Fore.CYAN}O programa sera fechado para concluir a instalacao.{Style.RESET_ALL}")
+                    print(f"  {Fore.CYAN}  Ele sera reaberto automaticamente em instantes.{Style.RESET_ALL}")
+                    print()
+                    input("Pressione Enter para sair...")
+                    os._exit(0)
+                else:
+                    self.menu.print_success("Instalação realizada com sucesso!")
+            except Exception as e:
+                logger = self.menu._get_logger()
+                logger.error(f"Erro critico no menu de instalacao: {e}", exc_info=True)
+                self.menu.print_error(f"Erro na instalacao: {e}")
+            input("Pressione Enter para voltar...")
+
+    def handle_admin_tools(self):
+        try:
+            from foton_system.scripts.admin_launcher import main_menu
+            main_menu()
+        except Exception as e:
+            self.menu.print_error(f"Erro: {e}")
+
+    def start_pomodoro_ui(self):
+        from foton_system.modules.shared.infrastructure.config.config import Config
+        config = Config()
+        TUILayout.clear()
+        TUILayout.print_header("TIMER POMODORO")
+        try:
+            work = config.pomodoro_work_time
+            short = config.pomodoro_short_break
+            long = config.pomodoro_long_break
+            cycles = config.pomodoro_cycles
+            print(f"\n  Foco: {work}m | Pausa: {short}m | Ciclos: {cycles}")
+            client_alias = None
+            link = input("\n  Vincular a um cliente? (S/N): ").upper()
+            if link == 'S':
+                term = input("  Nome/Alias: ").strip()
+                if term:
+                    df = self.menu.client_repo.get_clients_dataframe()
+                    mask = df['Alias'].str.lower().str.contains(term.lower(), na=False)
+                    res = df[mask]
+                    if not res.empty:
+                        client_alias = res.iloc[0]['Alias']
+                        self.menu.print_success(f"  Vinculo: {client_alias}")
+            from foton_system.modules.productivity.pomodoro import PomodoroTimer
+            timer = PomodoroTimer(work, short, long, cycles, client_alias)
+            timer.run()
+        except Exception as e:
+            self.menu.print_error(f"Erro no timer: {e}")
+
+    def handle_watcher(self):
+        while True:
+            TUILayout.clear()
+            TUILayout.print_header("MODO SENTINELA (WATCHER)")
+            options = [
+                ("1", "Ativar Watcher"),
+                ("2", "Desativar Watcher"),
+                ("3", "Indexar Base de Conhecimento (RAG)"),
+                ("4", "Consultar Conhecimento"),
+                ("0", "Voltar")
+            ]
+            for key, label in options:
+                TUILayout.print_menu_option(key, label)
+            try:
+                tip = self.menu.tip_service.get_random_tip("IA")
+                TUILayout.print_tip(tip, "SENTINELA")
+            except Exception:
+                pass
+            TUILayout.print_footer()
+            choice = input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha: {Style.RESET_ALL}").strip()
+            if choice == '1':
+                self.menu.print_warning("  Iniciando Watcher...")
+                try:
+                    from foton_system.core.watcher.service import WatcherService
+                    self.menu._watcher = WatcherService()
+                    self.menu._watcher.start()
+                    self.menu.print_success("  Watcher ativado!")
+                    input("Enter...")
+                except Exception as e:
+                    self.menu.print_error(f"Erro: {e}")
+                    input("Enter...")
+            elif choice == '2':
+                if hasattr(self.menu, '_watcher') and self.menu._watcher:
+                    self.menu._watcher.stop()
+                    self.menu.print_success("  Watcher desativado.")
+                else:
+                    self.menu.print_warning("  Nenhum watcher ativo.")
+                input("Enter...")
+            elif choice == '3':
+                self.menu._index_knowledge_ui()
+            elif choice == '4':
+                self.menu._query_knowledge_ui()
+            elif choice in ('0', 'b', 'B'):
+                break
+
+    def _index_knowledge_ui(self):
+        TUILayout.clear()
+        TUILayout.print_header("INDEXAR CONHECIMENTO")
+        print("\n  Escaneando documentos para RAG...")
+        if input("\n  Prosseguir? (S/N): ").upper() != 'S':
+            return
+        try:
+            from foton_system.core.ops.op_index_knowledge import OpIndexKnowledge
+            op = OpIndexKnowledge(actor="User")
+            res = op.execute()
+            self.menu.print_success(f"\n  Indexado: {res.get('files_scanned')} arquivos.")
+        except Exception as e:
+            self.menu.print_error(f"Erro: {e}")
+        input("\nEnter...")
+
+    def _query_knowledge_ui(self):
+        TUILayout.clear()
+        TUILayout.print_header("CONSULTAR CONHECIMENTO")
+        query = input("\n  Pergunta: ").strip()
+        if not query:
+            return
+        try:
+            from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
+            op = OpQueryKnowledge(actor="User")
+            res = op.execute(query=query)
+            if res['status'] == 'EMPTY':
+                self.menu.print_warning("  Nada encontrado.")
+            else:
+                for i, r in enumerate(res['results'], 1):
+                    print(f"\n  [{i}] {r['source']} ({r['score']:.0%})")
+                    print(f"  {r['document'][:200]}...")
+        except Exception as e:
+            self.menu.print_error(f"Erro: {e}")
+        input("\nEnter...")

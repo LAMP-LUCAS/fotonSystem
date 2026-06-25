@@ -20,19 +20,19 @@ Dividir o `menus.py` monolítico (54KB) em submódulos. Criar helpers de TUI: `P
 
 ## Critérios de Aceite
 
-- [ ] `menus.py` mantém apenas dispatch principal (entry point)
-- [ ] `menus_clients.py`: menu de clientes e serviços
-- [ ] `menus_finance.py`: menu financeiro
-- [ ] `menus_docs.py`: menu de documentos
-- [ ] `menus_config.py`: menu de configuração
-- [ ] `ProgressTracker` exibe `"[3/10] Processando CLIENTE..."`
-- [ ] `ProgressTracker.advance(item)` incrementa contador
-- [ ] `ProgressTracker.finish()` finaliza com resumo
-- [ ] Erros exibem sugestão: `FileNotFoundError` → "Verifique settings.json"
-- [ ] Erros exibem sugestão: `PermissionError` → "Feche o Excel e tente novamente"
-- [ ] Erros exibem sugestão: bloqueio de DB → "Base aberta em outro programa"
-- [ ] Testes para ProgressTracker, breadcrumbs, error suggestions
-- [ ] Zero regressão
+- [x] `menus.py` mantém apenas dispatch principal (entry point)
+- [x] `menus_clients.py`: menu de clientes e serviços
+- [x] `menus_finance.py`: menu financeiro
+- [x] `menus_docs.py`: menu de documentos
+- [x] `menus_config.py`: menu de configuração
+- [x] `ProgressTracker` exibe `"[3/10] Processando CLIENTE..."`
+- [x] `ProgressTracker.advance(item)` incrementa contador
+- [x] `ProgressTracker.finish()` finaliza com resumo
+- [x] Erros exibem sugestão: `FileNotFoundError` → "Verifique settings.json"
+- [x] Erros exibem sugestão: `PermissionError` → "Feche o Excel e tente novamente"
+- [x] Erros exibem sugestão: bloqueio de DB → "Base aberta em outro programa"
+- [x] Testes para ProgressTracker, breadcrumbs, error suggestions
+- [x] Zero regressão
 
 ## Estimativa
 
