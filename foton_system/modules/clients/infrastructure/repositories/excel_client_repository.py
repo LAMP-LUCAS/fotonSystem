@@ -97,7 +97,7 @@ class ExcelClientRepository(ClientRepositoryPort):
             with pd.ExcelWriter(self.base_dados, engine='openpyxl') as writer:
                 # Aba de Clientes
                 df_clientes = pd.DataFrame(columns=[
-                    'ID', 'NomeCliente', 'Alias', 'TelefoneCliente', 'Email',
+                    'ID', 'NomeCliente', 'Alias', 'CodCliente', 'TelefoneCliente', 'Email',
                     'CPF_CNPJ', 'Endereco', 'CidadeProposta', 'EstadoCivil', 'Profissao',
                     'Status'
                 ])

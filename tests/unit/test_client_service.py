@@ -25,20 +25,33 @@ class FakeClientRepository(ClientRepositoryPort):
     Respects the port interface without hitting real Excel or Filesystem.
     """
     def __init__(self, clients_df=None, services_df=None, folders=None, service_folders=None):
-        self._clients = clients_df if clients_df is not None else pd.DataFrame(columns=['Alias', 'NomeCliente', 'CodCliente'])
-        self._services = services_df if services_df is not None else pd.DataFrame(columns=['AliasCliente', 'Alias', 'CodServico'])
+        self._clients = clients_df if clients_df is not None else pd.DataFrame(
+            columns=['Alias', 'NomeCliente', 'CodCliente', 'Status']
+        )
+        self._services = services_df if services_df is not None else pd.DataFrame(
+            columns=['AliasCliente', 'Alias', 'CodServico', 'Status']
+        )
         self._folders = folders if folders is not None else set()
         self._service_folders = service_folders if service_folders is not None else {}
         self._created_folders = []
 
     def get_clients_dataframe(self) -> pd.DataFrame:
-        return self._clients.copy()
+        df = self._clients.copy()
+        if 'Status' not in df.columns:
+            df['Status'] = 'ATIVO'
+        return df[df['Status'] != 'DELETADO'].copy()
 
     def get_all_clients_dataframe(self) -> pd.DataFrame:
-        return self._clients.copy()
+        df = self._clients.copy()
+        if 'Status' not in df.columns:
+            df['Status'] = 'ATIVO'
+        return df.copy()
 
     def get_services_dataframe(self) -> pd.DataFrame:
-        return self._services.copy()
+        df = self._services.copy()
+        if 'Status' not in df.columns:
+            df['Status'] = 'ATIVO'
+        return df.copy()
 
     def save_clients(self, df: pd.DataFrame):
         self._clients = df.copy()
