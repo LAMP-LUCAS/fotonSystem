@@ -17,7 +17,7 @@ Implementar camada de domínio com entidades ricas, CRUD completo (soft delete/r
 
 | ID | Descrição | Estimativa | RULE-IDs | Status |
 |----|-----------|------------|----------|--------|
-| [STORY-010](stories/STORY-010-domain-model-status-migration.md) | Domain Model — Migração da Coluna Status | 3h | DOMAIN-1.4, 1.5, 1.6 | ready |
+| [STORY-010](stories/STORY-010-domain-model-status-migration.md) | Domain Model — Migração da Coluna Status | 3h | DOMAIN-1.4, 1.5, 1.6 | done |
 | [STORY-011](stories/STORY-011-domain-model-entities.md) | Domain Model — Entidades de Domínio | 5h | DOMAIN-1.1, 1.2, 1.3 | ready |
 | [STORY-012](stories/STORY-012-crud-delete-restore-mcp.md) | CRUD — Ferramentas de Delete/Restore (MCP) | 8h | DOMAIN-2.1, 2.2, 2.3, 2.4, 2.7 | ready |
 | [STORY-013](stories/STORY-013-crud-financeiro-info-files.md) | CRUD — Validação Financeiro + INFO Files | 4h | DOMAIN-2.5, 2.6 | ready |
