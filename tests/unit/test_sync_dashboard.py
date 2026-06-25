@@ -145,12 +145,16 @@ class TestSincronizarBaseMCPLayer:
                 f"DataFrame truth-value ambiguity (Bug #3 root cause)."
             )
 
-    def test_uses_explicit_none_check(self):
-        """foton_mcp.py:709 must distinguish 0 (empty) from None (error)."""
+    def test_uses_pipeline_instead_of_bare_check(self):
+        """sincronizar_base now delegates to pipeline_sincronizacao (no bare `if result:`)."""
         source = self._get_sincronizar_base_source()
-        assert "if result is None" in source or "if result is not None" in source, (
-            "sincronizar_base must use explicit `is None` check (not `if result:`) "
-            "to handle the DataFrame truth-value ambiguity."
+        assert "pipeline_sincronizacao" in source, (
+            "sincronizar_base must delegate to pipeline_sincronizacao. "
+            "The old `if result:` pattern is eliminated by delegation."
+        )
+        assert "if result" not in source, (
+            "sincronizar_base must not contain bare `if result:` pattern. "
+            "Use delegation to pipeline_sincronizacao instead."
         )
 
     def test_handles_legitimate_zero_count(self, tmp_path):

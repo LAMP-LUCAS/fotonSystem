@@ -700,21 +700,24 @@ def resumo_financeiro_geral() -> str:
 
 @mcp.tool()
 @_log_tool_call
-def pipeline_sincronizacao(direcao: str = "bidir") -> str:
+def pipeline_sincronizacao(direcao: str = "bidir", dry_run: bool = True) -> str:
     """
     Unified sync pipeline for Clients and Services.
-    
+
     DIRECTIONS:
     - "pastas_to_db": Discover new folders -> add to database
     - "db_to_pastas": Ensure database entries have folders
     - "bidir": Both directions (default)
-    
-    Returns a consolidated JSON report with counts and errors.
+
+    PARAMETERS:
+      dry_run: If True, only detect differences without applying (default True)
+
+    Returns a consolidated report with counts and errors.
     """
     try:
-        from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao, format_sync_report
-        report = pipeline_sincronizacao(direcao)
-        return format_sync_report(report)
+        from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao as _pipeline
+        report = _pipeline(direcao=direcao, dry_run=dry_run)
+        return report.resumo()
     except Exception as e:
         _logger.error(f"pipeline_sincronizacao failed: {e}", exc_info=True)
         return f"❌ Error running sync pipeline: {e}"
@@ -1064,12 +1067,12 @@ def indexar_conhecimento(pasta_alvo: str = "") -> str:
 def sincronizar_base() -> str:
     """
     Syncs the Excel Master Dashboard with the filesystem.
+    Delegates to pipeline_sincronizacao (bidir) for unified sync.
     """
     try:
-        result = _get_factory().get_sync_service().sync_dashboard()
-        if result is None or result == 0:
-            return "⚠️ No clients found."
-        return f"✅ Dashboard synchronized! Records: {result}"
+        from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao as _pipeline
+        report = _pipeline(direcao="bidir", dry_run=False)
+        return f"✅ Dashboard synchronized! {report.resumo()}"
     except OSError as e:
         return f"❌ File access error: {e}"
     except Exception as e:
@@ -1081,12 +1084,12 @@ def sincronizar_base() -> str:
 def sincronizar_clientes() -> str:
     """
     Discovers new client/service folders and adds them to the Excel database.
+    Delegates to pipeline_sincronizacao (pastas_to_db) for unified sync.
     """
     try:
-        svc = _get_factory().get_client_service()
-        svc.sync_clients_db_from_folders()
-        svc.sync_services_db_from_folders()
-        return "✅ Client & service databases synchronized!"
+        from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao as _pipeline
+        report = _pipeline(direcao="pastas_to_db", dry_run=False)
+        return f"✅ Client & service databases synchronized! {report.resumo()}"
     except OSError as e:
         return f"❌ File access error: {e}"
     except Exception as e:
@@ -1098,11 +1101,12 @@ def sincronizar_clientes() -> str:
 def sincronizar_pastas_clientes() -> str:
     """
     Creates client folders for entries in the database that are missing folders.
-    Reverse direction of 'sincronizar_clientes'.
+    Delegates to pipeline_sincronizacao (db_to_pastas) for unified sync.
     """
     try:
-        result = _get_factory().get_client_service().sync_client_folders_from_db()
-        return f"✅ {result}"
+        from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao as _pipeline
+        report = _pipeline(direcao="db_to_pastas", dry_run=False)
+        return f"✅ Client folders synchronized. {report.resumo()}"
     except OSError as e:
         return f"❌ File access error: {e}"
     except Exception as e:
@@ -1114,13 +1118,14 @@ def sincronizar_pastas_clientes() -> str:
 def sincronizar_pastas_servicos(cliente: str = "") -> str:
     """
     Creates service folders for entries in the database that are missing folders.
+    Delegates to pipeline_sincronizacao (db_to_pastas) for unified sync.
     PARAMETERS:
       cliente: Optional client alias to filter (default: all clients)
     """
     try:
-        alias = cliente if cliente.strip() else None
-        result = _get_factory().get_client_service().sync_service_folders_from_db(client_alias=alias)
-        return f"✅ {result}"
+        from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao as _pipeline
+        report = _pipeline(direcao="db_to_pastas", dry_run=False)
+        return f"✅ Service folders synchronized. {report.resumo()}"
     except ValueError as e:
         return f"❌ Invalid client name: {e}"
     except OSError as e:
