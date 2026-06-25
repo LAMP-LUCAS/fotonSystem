@@ -13,42 +13,42 @@ class MenuClientsHandler:
         while True:
             choice = self.menu.display_clients_menu()
             if choice == '1':
-                self.menu.client_service.sync_clients_db_from_folders()
-                input("Pressione Enter para continuar...")
-            elif choice == '2':
-                self.menu.client_service.sync_client_folders_from_db()
-                input("Pressione Enter para continuar...")
-            elif choice == '3':
-                self.menu.pipeline_sync_ui()
-                input("Pressione Enter para continuar...")
-            elif choice == '4':
-                self.menu.search_client_ui()
-                input("Pressione Enter para continuar...")
-            elif choice == '5':
                 self.menu.create_client_ui()
                 input("Pressione Enter para continuar...")
-            elif choice == '6':
+            elif choice == '2':
                 self.menu.read_client_info_ui()
                 input("Pressione Enter para continuar...")
-            elif choice == '7':
+            elif choice == '3':
                 self.menu.update_client_info_ui()
                 input("Pressione Enter para continuar...")
-            elif choice == '8':
+            elif choice == '4':
                 self.menu.fill_missing_codes_ui()
                 input("Pressione Enter para continuar...")
+            elif choice == '5':
+                self.menu.client_service.sync_clients_db_from_folders()
+                input("Pressione Enter para continuar...")
+            elif choice == '6':
+                self.menu.client_service.sync_client_folders_from_db()
+                input("Pressione Enter para continuar...")
+            elif choice == '7':
+                self.menu.pipeline_sync_ui()
+                input("Pressione Enter para continuar...")
+            elif choice == '8':
+                self.menu.list_all_clients_ui()
             elif choice == '9':
-                self.menu.remove_client_ui()
+                self.menu.search_client_ui()
                 input("Pressione Enter para continuar...")
             elif choice == '10':
-                self.menu.restore_client_ui()
-                input("Pressione Enter para continuar...")
-            elif choice == '11':
-                self.menu.list_all_clients_ui()
-            elif choice == '12':
                 self.menu.handle_client_servicos_menu()
                 input("Pressione Enter para continuar...")
-            elif choice == '13':
+            elif choice == '11':
                 self.menu.handle_client_sync_menu()
+            elif choice == '12':
+                self.menu.remove_client_ui()
+                input("Pressione Enter para continuar...")
+            elif choice == '13':
+                self.menu.restore_client_ui()
+                input("Pressione Enter para continuar...")
             elif choice in ('0', 'b', 'B'):
                 break
             else:
@@ -59,25 +59,23 @@ class MenuClientsHandler:
         TUILayout.print_header("GERENCIAR CLIENTES")
         self.menu.print_breadcrumb(["Clientes"])
         options = [
-            ("1", "Sincronizar Base (Pastas -> DB)"),
-            ("2", "Sincronizar Pastas (DB -> Pastas)"),
-            ("---", "Pipeline"),
-            ("3", "Pipeline Sincronização (Unificado)"),
-            ("---", "Busca"),
-            ("4", "Buscar Cliente"),
             ("---", "Cadastro"),
-            ("5", "Cadastrar Cliente (com verificacao)"),
-            ("6", "Ler Ficha (INFO) do Cliente"),
-            ("7", "Atualizar Ficha do Cliente"),
+            ("1", "Cadastrar Cliente (com verificacao)"),
+            ("2", "Ler Ficha (INFO) do Cliente"),
+            ("3", "Atualizar Ficha do Cliente"),
+            ("4", "Preencher Codigos Faltantes"),
             ("---", "Manutenção"),
-            ("8", "Preencher Codigos Faltantes"),
-            ("9", "Remover Cliente"),
-            ("10", "Restaurar Cliente"),
-            ("---", "Listagem"),
-            ("11", "Listar Todos os Clientes"),
+            ("5", "Sincronizar Base (Pastas -> DB)"),
+            ("6", "Sincronizar Pastas (DB -> Pastas)"),
+            ("7", "Pipeline Sincronização (Unificado)"),
+            ("8", "Listar Todos os Clientes"),
+            ("9", "Buscar Cliente"),
             ("---", "Serviços"),
-            ("12", "Serviços do Cliente"),
-            ("13", "Sincronizar Cadastro (DB <-> Arquivo)"),
+            ("10", "Serviços do Cliente"),
+            ("11", "Sincronizar Cadastro (DB <-> Arquivo)"),
+            ("---", "Perigo"),
+            ("12", "Remover Cliente"),
+            ("13", "Restaurar Cliente"),
             ("0", "Voltar")
         ]
         for key, label in options:
@@ -186,7 +184,7 @@ class MenuClientsHandler:
         print(f"\n  {Fore.YELLOW}Isso vai varrer o banco de dados e gerar codigos{Style.RESET_ALL}")
         print(f"  {Fore.YELLOW}para todos os registros que ainda nao possuem{Style.RESET_ALL}")
         print(f"  {Fore.YELLOW}CodCliente ou CodServico.{Style.RESET_ALL}\n")
-        if input("  Prosseguir? (S/N): ").upper() != 'S':
+        if not self.menu.confirm_action("Prosseguir?"):
             self.menu.print_warning("Operacao cancelada.")
             return
         try:
@@ -211,7 +209,7 @@ class MenuClientsHandler:
         if not client_name:
             self.menu.print_warning("Operacao cancelada.")
             return
-        if input(f"  Confirmar remocao de '{client_name}'? (S/N): ").upper() != 'S':
+        if not self.menu.confirm_action(f"Confirmar remocao de '{client_name}'?", dangerous=True):
             self.menu.print_warning("Operacao cancelada.")
             return
         try:
@@ -239,6 +237,9 @@ class MenuClientsHandler:
             )
             client_name = input("\n  Alias do cliente a restaurar: ").strip()
             if not client_name:
+                self.menu.print_warning("Operacao cancelada.")
+                return
+            if not self.menu.confirm_action(f"Restaurar '{client_name}'?"):
                 self.menu.print_warning("Operacao cancelada.")
                 return
             result = self.menu.client_service.restore_client(client_name)

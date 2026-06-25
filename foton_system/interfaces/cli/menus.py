@@ -20,6 +20,7 @@ from foton_system.interfaces.cli.menus_clients import MenuClientsHandler
 from foton_system.interfaces.cli.menus_finance import MenuFinanceHandler
 from foton_system.interfaces.cli.menus_docs import MenuDocsHandler
 from foton_system.interfaces.cli.menus_config import MenuConfigHandler
+from foton_system.interfaces.cli.command_parser import parse_command
 
 init(autoreset=True)
 
@@ -78,6 +79,14 @@ class MenuSystem:
 
     def print_header(self, message):
         print(f"\n{Fore.CYAN}{Style.BRIGHT}{message}{Style.RESET_ALL}")
+
+    def confirm_action(self, message: str, dangerous: bool = False) -> bool:
+        if dangerous:
+            self.print_warning(f"  ⚠ {message} (S/N): ")
+        else:
+            self.print_info(f"  {message} (S/N): ")
+        result = input().strip().upper()
+        return result == 'S'
 
     def _ensure_database_exists(self):
         from foton_system.modules.shared.infrastructure.config.config import Config
@@ -153,39 +162,49 @@ class MenuSystem:
         try:
             while True:
                 choice = self.display_main_menu()
+                cmd = parse_command(choice)
 
-                if choice.lower() == 'q':
+                if cmd['action'] == 'exit':
                     print("Saindo...")
                     sys.exit()
-                elif choice.lower() == 'h':
+                elif cmd['action'] == 'help':
                     self.print_info("  Ajuda: Digite o numero da opcao ou 'q' para sair, 'h' para ajuda")
                     input("  Pressione Enter para continuar...")
                     continue
-                elif choice.lower() == 'g':
+                elif cmd['action'] == 'home':
+                    continue
+                elif cmd['action'] == 'global_search':
                     self.global_search_ui()
                     continue
-
-                if choice == '1':
-                    self.handle_clients()
-                elif choice == '2':
-                    self.handle_services()
-                elif choice == '3':
-                    self.handle_webview_interface()
-                elif choice == '4':
-                    self.handle_documents()
-                elif choice == '5':
-                    self.handle_finance()
-                elif choice == '6':
-                    self.handle_productivity()
-                elif choice == '7':
-                    self.handle_settings()
-                elif choice == '8':
-                    self.handle_installation()
-                elif choice == '9':
-                    self.handle_watcher()
-                elif choice == '0':
-                    print("Saindo...")
-                    sys.exit()
+                elif cmd['action'] == 'search':
+                    self.print_info(f"  Buscando por '{cmd['term']}'...")
+                    self.global_search_ui()
+                    continue
+                elif cmd['action'] == 'numeric':
+                    val = cmd['value']
+                    if val == 1:
+                        self.handle_clients()
+                    elif val == 2:
+                        self.handle_services()
+                    elif val == 3:
+                        self.handle_webview_interface()
+                    elif val == 4:
+                        self.handle_documents()
+                    elif val == 5:
+                        self.handle_finance()
+                    elif val == 6:
+                        self.handle_productivity()
+                    elif val == 7:
+                        self.handle_settings()
+                    elif val == 8:
+                        self.handle_installation()
+                    elif val == 9:
+                        self.handle_watcher()
+                    elif val == 0:
+                        print("Saindo...")
+                        sys.exit()
+                    else:
+                        self.print_error("Opção inválida.")
                 else:
                     self.print_error("Opção inválida.")
         except KeyboardInterrupt:
@@ -208,7 +227,9 @@ class MenuSystem:
             client_results = []
             for _, row in df_clients.iterrows():
                 if query.lower() in str(row.get('NomeCliente', '')).lower() or \
-                   query.lower() in str(row.get('Alias', '')).lower():
+                   query.lower() in str(row.get('Alias', '')).lower() or \
+                   query.lower() in str(row.get('CodCliente', '')).lower() or \
+                   query.lower() in str(row.get('CPF_CNPJ', '')).lower():
                     client_results.append(row)
 
             service_results = []

@@ -48,14 +48,14 @@ class TestMenuUI(unittest.TestCase):
             self.assertIn("Sair", printed_content)
 
     # ----- main menu no-op cleanup (STORY-009 / RULE-UX-1.4) -----
-    def test_main_menu_00_is_invalid(self):
-        """RULE-UX-1.4: '00' não tratado como no-op, cai em opção inválida."""
+    def test_main_menu_00_goes_home(self):
+        """STORY-016: '00' retorna ao menu principal (home) sem erro."""
         with patch('builtins.input', side_effect=['00', '0']), \
              patch('builtins.print') as mock_print:
             with self.assertRaises(SystemExit):
                 self.menu.run()
             printed_content = "".join([call.args[0] for call in mock_print.call_args_list if call.args])
-            self.assertIn("Opção inválida", printed_content)
+            self.assertNotIn("Opção inválida", printed_content)
 
     # ----- breadcrumb tests (STORY-003 / RULE-UX-1.1) -----
     def test_clients_menu_shows_breadcrumb(self):
@@ -164,14 +164,14 @@ class TestMenuUI(unittest.TestCase):
 
     def test_client_servicos_back_with_b(self):
         """RULE-UX-1.2: 'b' no submenu serviços do cliente volta ao menu clientes."""
-        with patch('builtins.input', side_effect=['1', '12', 'b', 'x', '0', '0']), \
+        with patch('builtins.input', side_effect=['1', '10', 'b', 'x', '0', '0']), \
              patch('builtins.print'):
             with self.assertRaises(SystemExit):
                 self.menu.run()
 
     def test_client_sync_menu_back_with_b(self):
         """RULE-UX-1.2: 'b' no submenu sincronizar cadastro volta."""
-        with patch('builtins.input', side_effect=['1', '13', 'b', '0', '0']), \
+        with patch('builtins.input', side_effect=['1', '11', 'b', '0', '0']), \
              patch('builtins.print'):
             with self.assertRaises(SystemExit):
                 self.menu.run()

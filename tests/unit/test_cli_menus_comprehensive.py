@@ -58,9 +58,9 @@ class TestMenuNavigation(unittest.TestCase):
             menu.handle_clients()
 
     def test_clients_menu_sync_db_from_folders(self):
-        """Option 1 calls sync_clients_db_from_folders."""
+        """Option 5 calls sync_clients_db_from_folders."""
         menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['1', '', '0']), \
+        with patch('builtins.input', side_effect=['5', '', '0']), \
              patch.object(menu.client_service, 'sync_clients_db_from_folders') as mock_sync:
             menu.handle_clients()
             mock_sync.assert_called_once()
@@ -301,12 +301,12 @@ class TestFullNavigationFlows(unittest.TestCase):
 
     def test_client_menu_has_new_options(self):
         menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['5', '', '', '0', '0']):
+        with patch('builtins.input', side_effect=['1', '', '', '0', '0']):
             menu.handle_clients()
 
     def test_client_menu_has_fill_codes_option(self):
         menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['7', 'N', '', '0', '0']):
+        with patch('builtins.input', side_effect=['4', 'N', '', '0', '0']):
             menu.handle_clients()
 
     def test_client_menu_servicos_option(self):
@@ -316,7 +316,7 @@ class TestFullNavigationFlows(unittest.TestCase):
 
     def test_client_sync_import_option(self):
         menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['7', 'S', '', '0', '0']), \
+        with patch('builtins.input', side_effect=['4', 'S', '', '0', '0']), \
              patch.object(menu.client_service, 'fill_missing_codes', return_value={'clientes_alterados': 0, 'servicos_alterados': 0}):
             menu.handle_clients()
 
@@ -324,94 +324,94 @@ class TestFullNavigationFlows(unittest.TestCase):
 class TestMenuMapping(unittest.TestCase):
     """Testa que cada opção de menu chama o handler correto, sem executar a lógica real."""
 
-    def test_option_1_sync_db_from_folders(self):
+    def test_option_1_create_client(self):
         menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['1', '', '0']), \
-             patch.object(menu.client_service, 'sync_clients_db_from_folders') as mock_fn:
-            menu.handle_clients()
-            mock_fn.assert_called_once()
-
-    def test_option_2_sync_folders_from_db(self):
-        menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['2', '', '0']), \
-             patch.object(menu.client_service, 'sync_client_folders_from_db') as mock_fn:
-            menu.handle_clients()
-            mock_fn.assert_called_once()
-
-    def test_option_3_pipeline_sync(self):
-        menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['3', '3', '', '0']), \
-             patch.object(menu, 'pipeline_sync_ui') as mock_fn:
-            menu.handle_clients()
-            mock_fn.assert_called_once()
-
-    def test_option_4_search(self):
-        menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['4', '', '', '0']), \
-             patch.object(menu, 'search_client_ui') as mock_fn:
-            menu.handle_clients()
-            mock_fn.assert_called_once()
-
-    def test_option_5_create_client(self):
-        menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['5', '', '', '0']), \
+        with patch('builtins.input', side_effect=['1', '', '', '0']), \
              patch.object(menu, 'create_client_ui') as mock_fn:
             menu.handle_clients()
             mock_fn.assert_called_once()
 
-    def test_option_6_read_info(self):
+    def test_option_2_read_info(self):
         menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['6', '', '', '0']), \
+        with patch('builtins.input', side_effect=['2', '', '', '0']), \
              patch.object(menu, 'read_client_info_ui') as mock_fn:
             menu.handle_clients()
             mock_fn.assert_called_once()
 
-    def test_option_7_update_info(self):
+    def test_option_3_update_info(self):
         menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['7', '', '', '', '0']), \
+        with patch('builtins.input', side_effect=['3', '', '', '', '0']), \
              patch.object(menu, 'update_client_info_ui') as mock_fn:
             menu.handle_clients()
             mock_fn.assert_called_once()
 
-    def test_option_8_fill_codes(self):
+    def test_option_4_fill_codes(self):
         menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['8', 'N', '', '0']), \
+        with patch('builtins.input', side_effect=['4', 'N', '', '0']), \
              patch.object(menu, 'fill_missing_codes_ui') as mock_fn:
             menu.handle_clients()
             mock_fn.assert_called_once()
 
-    def test_option_9_remove(self):
+    def test_option_5_sync_db_from_folders(self):
         menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['9', '', '', '0']), \
-             patch.object(menu, 'remove_client_ui') as mock_fn:
+        with patch('builtins.input', side_effect=['5', '', '0']), \
+             patch.object(menu.client_service, 'sync_clients_db_from_folders') as mock_fn:
             menu.handle_clients()
             mock_fn.assert_called_once()
 
-    def test_option_10_restore(self):
+    def test_option_6_sync_folders_from_db(self):
         menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['10', '', '', '0']), \
-             patch.object(menu, 'restore_client_ui') as mock_fn:
+        with patch('builtins.input', side_effect=['6', '', '0']), \
+             patch.object(menu.client_service, 'sync_client_folders_from_db') as mock_fn:
             menu.handle_clients()
             mock_fn.assert_called_once()
 
-    def test_option_11_list_all_clients(self):
+    def test_option_7_pipeline_sync(self):
         menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['11', '', '', '0']), \
+        with patch('builtins.input', side_effect=['7', '3', '', '0']), \
+             patch.object(menu, 'pipeline_sync_ui') as mock_fn:
+            menu.handle_clients()
+            mock_fn.assert_called_once()
+
+    def test_option_8_list_all_clients(self):
+        menu = create_mocked_menu()
+        with patch('builtins.input', side_effect=['8', '', '', '0']), \
              patch.object(menu, 'list_all_clients_ui') as mock_fn:
             menu.handle_clients()
             mock_fn.assert_called_once()
 
-    def test_option_12_servicos_submenu(self):
+    def test_option_9_search(self):
         menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['12', '0', '', '0']), \
+        with patch('builtins.input', side_effect=['9', '', '', '0']), \
+             patch.object(menu, 'search_client_ui') as mock_fn:
+            menu.handle_clients()
+            mock_fn.assert_called_once()
+
+    def test_option_10_servicos_submenu(self):
+        menu = create_mocked_menu()
+        with patch('builtins.input', side_effect=['10', '0', '', '0']), \
              patch.object(menu, 'handle_client_servicos_menu') as mock_fn:
             menu.handle_clients()
             mock_fn.assert_called_once()
 
-    def test_option_13_client_sync_menu(self):
+    def test_option_11_client_sync_menu(self):
         menu = create_mocked_menu()
-        with patch('builtins.input', side_effect=['13', '0', '', '0']), \
+        with patch('builtins.input', side_effect=['11', '0', '', '0']), \
              patch.object(menu, 'handle_client_sync_menu') as mock_fn:
+            menu.handle_clients()
+            mock_fn.assert_called_once()
+
+    def test_option_12_remove(self):
+        menu = create_mocked_menu()
+        with patch('builtins.input', side_effect=['12', '', '', '0']), \
+             patch.object(menu, 'remove_client_ui') as mock_fn:
+            menu.handle_clients()
+            mock_fn.assert_called_once()
+
+    def test_option_13_restore(self):
+        menu = create_mocked_menu()
+        with patch('builtins.input', side_effect=['13', '', '', '0']), \
+             patch.object(menu, 'restore_client_ui') as mock_fn:
             menu.handle_clients()
             mock_fn.assert_called_once()
 

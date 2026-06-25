@@ -273,12 +273,12 @@ def info_sistema() -> str:
 
 @mcp.tool()
 @_log_tool_call
-def listar_clientes(limite: int = 0) -> str:
+def listar_clientes(limite: int = 0, pagina: int = 1, itens_por_pagina: int = 20) -> str:
     """
     Lists all registered clients in the architecture firm.
     PROTOCOL: Always call this before performing any operation on a client you're not 100% sure exists.
     OUTPUT: Indicates if the client has a "Center of Truth" (📁 = has INFO file) and the count of sub-services.
-    PARAMS: limite: Maximum number of clients to show (0 = no limit).
+    PARAMS: limite: Maximum number of clients to show (0 = no limit). pagina: Page number (default 1). itens_por_pagina: Items per page (default 20).
     """
     try:
         clients = _get_factory().get_client_service().list_clients()
@@ -286,10 +286,28 @@ def listar_clientes(limite: int = 0) -> str:
         if not clients:
             return "📭 No clients registered yet."
 
-        display = clients[:limite] if limite > 0 else clients
         total = len(clients)
-        showing = f" (showing {len(display)} of {total})" if limite > 0 and total > limite else ""
-        output = f"📋 {total} client(s) found{showing}:\n"
+
+        if limite > 0:
+            start = 0
+            end = limite
+            total_paginas = 1
+        else:
+            start = (pagina - 1) * itens_por_pagina
+            end = start + itens_por_pagina
+            total_paginas = max(1, (total + itens_por_pagina - 1) // itens_por_pagina)
+
+        display = clients[start:end]
+
+        if not display:
+            return f"📋 Nenhum cliente na pagina {pagina}. Total: {total} cliente(s)."
+
+        if limite > 0:
+            header = f"📋 {total} client(s) found (showing {len(display)}):\n"
+        else:
+            header = f"📋 {total} client(s) found — Página {pagina} de {total_paginas}:\n"
+
+        output = header
         for c in display:
             marker = "📁" if c['has_info'] else "📂"
             svc_txt = f", {c['service_count']} serviço(s)" if c['service_count'] else ""
