@@ -56,5 +56,18 @@ class TestService(unittest.TestCase):
         self.assertEqual(str(service.codigo), "JOSRES01")
         self.assertTrue(service.is_active())
 
+    def test_from_row_no_code(self):
+        row = {
+            "ID": 2,
+            "AliasCliente": "MARSOUZA",
+            "Alias": "REFORMA",
+            "Status": "ATIVO",
+        }
+        service = Service.from_row(row)
+        self.assertEqual(service.client_alias, "MARSOUZA")
+        self.assertEqual(service.alias, "REFORMA")
+        self.assertIsNone(service.codigo)
+        self.assertTrue(service.is_active())
+
 if __name__ == "__main__":
     unittest.main()

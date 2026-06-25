@@ -57,5 +57,18 @@ class TestClient(unittest.TestCase):
         self.assertEqual(str(client.codigo), "JOS01")
         self.assertTrue(client.is_active())
 
+    def test_from_row_no_code(self):
+        row = {
+            "ID": 2,
+            "NomeCliente": "Maria Souza",
+            "Alias": "MARSOUZA",
+            "Status": "ATIVO",
+        }
+        client = Client.from_row(row)
+        self.assertEqual(client.nome, "Maria Souza")
+        self.assertEqual(client.alias, "MARSOUZA")
+        self.assertIsNone(client.codigo)
+        self.assertTrue(client.is_active())
+
 if __name__ == "__main__":
     unittest.main()

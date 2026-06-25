@@ -50,6 +50,7 @@ Exemplo: `RULE-CLIENTES-4.2.1`
 | Spec | Cobre |
 |------|-------|
 | `MOD-CLIENTES/SPEC-CLIENTES-v1.0.md` | CRUD de clientes, soft delete, info files, services, conformance |
+| `MOD-DOMAIN-CRUD/SPEC-DOMAIN-CRUD-v1.0.md` | Domain Model, CRUD completo, pipeline sync unificado, UX/Navegação |
 | `MOD-FINANCEIRO/SPEC-FINANCEIRO-v1.0.md` | Entradas financeiras, saldos, tipos |
 | `MOD-DOCUMENTOS/SPEC-DOCUMENTOS-v1.0.md` | Templates, validação, geração de documentos |
 | `MOD-SYNC/SPEC-SYNC-v1.0.md` | Sincronização DB ↔ filesystem, direções, pipeline |
