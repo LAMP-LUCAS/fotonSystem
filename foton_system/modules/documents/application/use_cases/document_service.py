@@ -361,35 +361,56 @@ class DocumentService:
 
     def _resolve_operations(self, replacements):
         """
-        Resolves mathematical operations.
-        Improvement: Handles Brazilian number formats during calculation.
+        Resolves mathematical operations recursively (drill-down).
+        Each variable's dependencies are resolved recursively before evaluation,
+        supporting arbitrary cascade depth. Handles Brazilian number formats,
+        case-insensitive variable matching, and circular dependency detection.
         """
-        for _ in range(3):
-            # Normalize keys for lookup
-            current_keys = list(replacements.keys())
-            for key in current_keys:
-                value = replacements[key]
-                if isinstance(value, str) and '[calculo:' in value:
-                    match = re.search(r'\[calculo:\s*(.+?)\]', value)
-                    if match:
-                        expression = match.group(1)
-                        # Sort keys by length to avoid partial matches during calculation replacement
-                        for k in sorted(current_keys, key=len, reverse=True):
-                            v = replacements[k]
-                            if k.lower() in expression.lower() and k != key:
-                                try:
-                                    # Normalize to float for calculation
-                                    float_val = FotonFormatter.parse_br_number(v)
-                                    # Case-insensitive replacement of variable in expression
-                                    expression = re.sub(re.escape(k), str(float_val), expression, flags=re.IGNORECASE)
-                                except (ValueError, TypeError):
-                                    pass
-                        try:
-                            if not re.match(r'^[\d\.\-\+\*\/\(\)\s]+$', expression):
-                                raise ValueError("Expressão contém caracteres inválidos")
+        def _resolve_var(key, visited=None):
+            if visited is None:
+                visited = set()
+            if key in visited:
+                logger.warning(f"Dependência circular detectada em {key}")
+                return 0.0
 
-                            result = safe_eval(expression)
-                            # Store with .2f precision for financial consistency
-                            replacements[key] = f"{result:.2f}"
-                        except Exception as e:
-                            logger.warning(f"Falha ao calcular {key}: {e}")
+            value = replacements.get(key, '')
+            if not isinstance(value, str) or '[calculo:' not in value:
+                try:
+                    return float(FotonFormatter.parse_br_number(value)) if value else 0.0
+                except (ValueError, TypeError):
+                    return 0.0
+
+            match = re.search(r'\[calculo:\s*(.+?)\]', value)
+            if not match:
+                return 0.0
+
+            visited = visited | {key}
+            expression = match.group(1)
+
+            for k in sorted(replacements.keys(), key=len, reverse=True):
+                if k.lower() in expression.lower() and k != key:
+                    try:
+                        v = replacements[k]
+                        if isinstance(v, str) and '[calculo:' in v:
+                            ref_val = _resolve_var(k, visited.copy())
+                        else:
+                            ref_val = float(FotonFormatter.parse_br_number(v)) if v else 0.0
+                        expression = re.sub(re.escape(k), str(ref_val), expression, flags=re.IGNORECASE)
+                    except (ValueError, TypeError):
+                        pass
+
+            if not re.match(r'^[\d\.\-\+\*\/\(\)\s]+$', expression):
+                logger.warning(f"Falha ao calcular {key}: expressão contém caracteres inválidos após resolução")
+                return 0.0
+
+            try:
+                result = safe_eval(expression)
+                replacements[key] = f"{result:.2f}"
+                return result
+            except Exception as e:
+                logger.warning(f"Falha ao calcular {key}: {e}")
+                return 0.0
+
+        for key in list(replacements.keys()):
+            if isinstance(replacements.get(key), str) and '[calculo:' in replacements[key]:
+                _resolve_var(key)

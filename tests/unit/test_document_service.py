@@ -115,6 +115,86 @@ class TestDocumentServiceMathResolution(unittest.TestCase):
         # Original value may remain unchanged or partially resolved
         self.assertIn('[calculo:', data['@invalid'])
 
+    def test_resolve_with_description_after_calculo(self):
+        """[calculo: ...] with trailing description text should resolve correctly."""
+        service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
+        data = {
+            '@procLegais': '1000',
+            '@totalGeral': '5000',
+            '@legais': '[calculo: @procLegais/@totalGeral] Percentual do custo de processos legais'
+        }
+        service._resolve_operations(data)
+        self.assertEqual(data['@legais'], '0.20')
+
+    def test_resolve_cascade_with_descriptions(self):
+        """Multi-level cascading dependencies with descriptions should all resolve."""
+        service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
+        data = {
+            '@areaCoberta': '440',
+            '@projArqEng': '41600.52',
+            '@procLegais': '105069.46',
+            '@CUBref': '[calculo: 2768.47] Referencia CUB do mes',
+            '@ACEqv': '[calculo: @areaCoberta] Area construida equivalente',
+            '@execcub': '[calculo: @ACEqv * 6.13] Custo execucao baseado no CUB',
+            '@execInfra': '[calculo: @execcub * 0.20] Custo de infraestrutura',
+            '@execPais': '[calculo: @execcub * 0.05] Custo de paisagismo',
+            '@execMob': '[calculo: @execcub * 0.05] Custo de mobiliario',
+            '@totalParcial': '[calculo: @projArqEng + @procLegais] Soma dos custos parciais',
+            '@totalExec': '[calculo: @execcub + @execInfra + @execPais + @execMob] Soma execucao',
+            '@totalinss': '[calculo: @execcub * 0.20] Total INSS',
+            '@totalGeral': '[calculo: @totalParcial + @totalExec + @totalinss] Total geral',
+            '@Legais': '[calculo: @procLegais / @totalGeral] Percentual legais',
+        }
+        service._resolve_operations(data)
+        self.assertEqual(data['@ACEqv'], '440.00')
+        self.assertEqual(data['@execcub'], '2697.20')
+        self.assertEqual(data['@execInfra'], '539.44')
+        self.assertEqual(data['@execPais'], '134.86')
+        self.assertEqual(data['@execMob'], '134.86')
+        self.assertEqual(data['@totalParcial'], '146669.98')
+        self.assertEqual(data['@totalExec'], '3506.36')
+        self.assertEqual(data['@totalinss'], '539.44')
+        self.assertEqual(data['@totalGeral'], '150715.78')
+        self.assertEqual(data['@Legais'], '0.70')
+
+    def test_resolve_circular_dependency_does_not_loop(self):
+        """Circular dependencies should not cause infinite loop."""
+        service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
+        data = {
+            '@a': '[calculo: @b + 10] Desc A',
+            '@b': '[calculo: @a + 20] Desc B'
+        }
+        service._resolve_operations(data)
+        self.assertNotEqual(data['@a'], data['@b'])
+
+    def test_resolve_preserves_brazilian_format_in_descriptions(self):
+        """Brazilian formatted numbers with descriptions should resolve."""
+        service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
+        data = {
+            '@receita': 'R$ 10.000,00',
+            '@custo': 'R$ 2.500,00',
+            '@lucro': '[calculo: (@receita - @custo) / @receita] Margem de lucro percentual'
+        }
+        service._resolve_operations(data)
+        self.assertEqual(data['@lucro'], '0.75')
+
+    def test_resolve_deep_cascade_reversed_order(self):
+        """Deep cascade with reversed dict order (dependents before deps) must resolve."""
+        service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
+        data = {
+            '@e': '[calculo: @d + 10] E',
+            '@d': '[calculo: @c + 10] D',
+            '@c': '[calculo: @b + 20] C',
+            '@b': '[calculo: @a + 30] B',
+            '@a': '100',
+        }
+        service._resolve_operations(data)
+        self.assertEqual(data['@a'], '100')
+        self.assertEqual(data['@b'], '130.00')
+        self.assertEqual(data['@c'], '150.00')
+        self.assertEqual(data['@d'], '160.00')
+        self.assertEqual(data['@e'], '170.00')
+
 
 class TestDocumentServiceDataParsing(unittest.TestCase):
     """Tests for data file parsing (MD, TXT, JSON)."""
@@ -129,45 +209,38 @@ class TestDocumentServiceDataParsing(unittest.TestCase):
     def test_parse_md_data_extracts_key_values(self):
         """Parses key: value pairs from MD files."""
         md_file = self.test_dir / 'data.md'
-        md_file.write_text('@nome: João Silva\n@cpf: 123.456.789-00\n', encoding='utf-8')
-        
+        md_file.write_text('@nome: Joao Silva\n@cpf: 123.456.789-00\n', encoding='utf-8')
+
         result = self.service._parse_md_data(md_file)
-        
-        self.assertEqual(result['@nome'], 'João Silva')
+
+        self.assertEqual(result['@nome'], 'Joao Silva')
         self.assertEqual(result['@cpf'], '123.456.789-00')
 
     def test_parse_txt_data_extracts_semicolon_separated(self):
         """Parses key;value pairs from TXT files."""
         txt_file = self.test_dir / 'data.txt'
-        txt_file.write_text('@nome;João Silva\n@cpf;12345678900\n', encoding='utf-8')
-        
+        txt_file.write_text('@nome;Joao Silva\n@cpf;12345678900\n', encoding='utf-8')
+
         result = self.service._parse_txt_data(txt_file)
-        
-        self.assertEqual(result['@nome'], 'João Silva')
+
+        self.assertEqual(result['@nome'], 'Joao Silva')
         self.assertEqual(result['@cpf'], '12345678900')
 
     def test_load_data_returns_normalized_keys(self):
         """Loads data from JSON files and normalizes keys to lowercase."""
         json_file = self.test_dir / 'data.json'
-        # Key with mixed case
         json_file.write_text(json.dumps({'@Nome': 'Test', '@VALOR': 100}), encoding='utf-8')
 
         result = self.service._load_data(json_file)
 
-        # Implementation normalizes to lowercase
         self.assertEqual(result['@nome'], 'Test')
         self.assertEqual(result['@valor'], 100)
-
-
-
-
 
     def test_load_data_returns_empty_for_missing_file(self):
         """Returns empty dict for non-existent files."""
         result = self.service._load_data(Path('/nonexistent/path.md'))
 
         self.assertEqual(result, {})
-
 
 class TestDocumentServiceResilience(unittest.TestCase):
     """Tests for Case-Insensitivity and Structural Agnostic Context Loading."""
