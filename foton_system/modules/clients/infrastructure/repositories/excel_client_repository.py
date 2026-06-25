@@ -463,7 +463,7 @@ class ExcelClientRepository(ClientRepositoryPort):
     @retry_with_backoff(max_retries=3, base_delay=0.5)
     def restore_client(self, alias: str) -> bool:
         try:
-            df = self.get_clients_dataframe()
+            df = self.get_all_clients_dataframe()
             if 'Alias' not in df.columns or 'Status' not in df.columns:
                 logger.error("Colunas necessárias não encontradas")
                 return False
@@ -478,13 +478,56 @@ class ExcelClientRepository(ClientRepositoryPort):
             logger.error(f"Erro ao restaurar cliente '{alias}': {e}")
             return False
 
+    @retry_with_backoff(max_retries=3, base_delay=0.5)
+    def restore_service(self, client_alias: str, service_alias: str) -> bool:
+        try:
+            df = self.get_all_services_dataframe()
+            if 'AliasCliente' not in df.columns or 'Alias' not in df.columns or 'Status' not in df.columns:
+                logger.error("Colunas necessárias não encontradas")
+                return False
+            mask = (df['AliasCliente'] == client_alias) & (df['Alias'] == service_alias) & (df['Status'] == 'DELETADO')
+            if not mask.any():
+                return False
+            df.loc[mask, 'Status'] = 'ATIVO'
+            self._smart_write_dataframe(df, 'baseServicos')
+            logger.info(f"Serviço '{client_alias}/{service_alias}' restaurado")
+            return True
+        except Exception as e:
+            logger.error(f"Erro ao restaurar serviço '{client_alias}/{service_alias}': {e}")
+            return False
+
+    def get_all_services_dataframe(self) -> pd.DataFrame:
+        if self._cache_valid and self._services_cache is not None:
+            return self._services_cache.copy()
+        try:
+            self._ensure_database_exists()
+            self._services_cache = pd.read_excel(self.base_dados, sheet_name='baseServicos')
+            if 'Status' not in self._services_cache.columns:
+                self._services_cache['Status'] = 'ATIVO'
+            self._cache_valid = True
+            return self._services_cache.copy()
+        except Exception as e:
+            logger.error(f"Erro ao ler base de serviços (all): {e}")
+            raise
+
     def get_deleted_clients(self) -> list:
         try:
-            df = self.get_clients_dataframe()
+            df = self.get_all_clients_dataframe()
             if 'Status' not in df.columns:
                 return []
             deleted_df = df[df['Status'] == 'DELETADO']
             return deleted_df.to_dict('records')
         except Exception as e:
             logger.error(f"Erro ao listar clientes deletados: {e}")
+            return []
+
+    def get_deleted_services(self) -> list:
+        try:
+            df = self.get_all_services_dataframe()
+            if 'Status' not in df.columns:
+                return []
+            deleted_df = df[df['Status'] == 'DELETADO']
+            return deleted_df.to_dict('records')
+        except Exception as e:
+            logger.error(f"Erro ao listar serviços deletados: {e}")
             return []

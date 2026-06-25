@@ -417,11 +417,15 @@ def listar_servicos_cliente(cliente: str) -> str:
 def remover_cliente(cliente: str, confirmar: bool = False) -> str:
     """
     Removes a client by marking as DELETADO (soft delete).
-    Use with caution - this is irreversible without restore.
+    Use with caution — this is irreversible without restore.
+    PARAMETERS:
+      confirmar: Must be True to execute. Default False (safety).
     """
+    if not confirmar:
+        return "⚠️ Operação cancelada. Use confirmar=True para confirmar a remoção."
     try:
         svc = _get_factory().get_client_service()
-        result = svc.soft_delete_client(cliente)
+        result = svc.soft_delete_client(cliente, confirmar=True)
         if result["success"]:
             return f"✅ {result['message']}"
         return f"❌ {result['error']}"
@@ -435,6 +439,7 @@ def remover_cliente(cliente: str, confirmar: bool = False) -> str:
 def restaurar_cliente(cliente: str) -> str:
     """
     Restores a previously deleted client.
+    Lists deleted clients if no name provided or if client is not found.
     """
     try:
         svc = _get_factory().get_client_service()
@@ -442,6 +447,12 @@ def restaurar_cliente(cliente: str) -> str:
         if result["success"]:
             return f"✅ {result['message']}"
         return f"❌ {result['error']}"
+    except ValueError as e:
+        deleted = svc.get_deleted_clients()
+        if deleted:
+            nomes = "\n".join(f"  - {c['nome'] or c['alias']} ({c['alias']})" for c in deleted)
+            return f"❌ {e}\n\nClientes deletados disponíveis:\n{nomes}"
+        return f"❌ {e}"
     except Exception as e:
         _logger.error(f"restaurar_cliente failed: {e}", exc_info=True)
         return f"❌ Error restoring client: {e}"
@@ -452,16 +463,46 @@ def restaurar_cliente(cliente: str) -> str:
 def remover_servico(cliente: str, servico: str, confirmar: bool = False) -> str:
     """
     Removes a service by marking as DELETADO (soft delete).
+    PARAMETERS:
+      confirmar: Must be True to execute. Default False (safety).
     """
+    if not confirmar:
+        return "⚠️ Operação cancelada. Use confirmar=True para confirmar a remoção."
     try:
         svc = _get_factory().get_client_service()
-        result = svc.soft_delete_service(cliente, servico)
-        if result:
-            return f"✅ Serviço '{cliente}/{servico}' removido com sucesso"
-        return f"❌ Serviço '{cliente}/{servico}' não encontrado"
+        result = svc.soft_delete_service(cliente, servico, confirmar=True)
+        if result["success"]:
+            return f"✅ {result['message']}"
+        return f"❌ {result['error']}"
     except Exception as e:
         _logger.error(f"remover_servico failed: {e}", exc_info=True)
         return f"❌ Error removing service: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def restaurar_servico(cliente: str, servico: str) -> str:
+    """
+    Restores a previously deleted service.
+    """
+    try:
+        svc = _get_factory().get_client_service()
+        result = svc.restore_service(cliente, servico)
+        if result["success"]:
+            return f"✅ {result['message']}"
+        return f"❌ {result['error']}"
+    except ValueError as e:
+        deleted = svc.get_deleted_services()
+        if deleted:
+            nomes = "\n".join(
+                f"  - {s['client_alias']}/{s['alias']} ({s['codigo'] or 'sem código'})"
+                for s in deleted
+            )
+            return f"❌ {e}\n\nServiços deletados disponíveis:\n{nomes}"
+        return f"❌ {e}"
+    except Exception as e:
+        _logger.error(f"restaurar_servico failed: {e}", exc_info=True)
+        return f"❌ Error restoring service: {e}"
 
 
 @mcp.tool()

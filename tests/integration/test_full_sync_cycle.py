@@ -79,7 +79,15 @@ class TempFileClientRepository(ClientRepositoryPort):
         return True
 
     def get_deleted_clients(self) -> list:
-        # Return an empty list as there are no soft‑deleted records in test environment.
+        return []
+
+    def restore_service(self, client_alias: str, service_alias: str) -> bool:
+        return True
+
+    def get_all_services_dataframe(self) -> pd.DataFrame:
+        return pd.read_excel(self.db_path, sheet_name='baseServicos')
+
+    def get_deleted_services(self) -> list:
         return []
 
 

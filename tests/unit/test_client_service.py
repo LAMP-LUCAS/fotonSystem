@@ -100,6 +100,26 @@ class FakeClientRepository(ClientRepositoryPort):
             return []
         return self._clients[self._clients['Status'] == 'DELETADO'].to_dict('records')
 
+    def restore_service(self, client_alias: str, service_alias: str) -> bool:
+        if 'Status' not in self._services.columns:
+            return False
+        mask = (self._services['AliasCliente'] == client_alias) & (self._services['Alias'] == service_alias) & (self._services['Status'] == 'DELETADO')
+        if not mask.any():
+            return False
+        self._services.loc[mask, 'Status'] = 'ATIVO'
+        return True
+
+    def get_all_services_dataframe(self) -> pd.DataFrame:
+        df = self._services.copy()
+        if 'Status' not in df.columns:
+            df['Status'] = 'ATIVO'
+        return df.copy()
+
+    def get_deleted_services(self):
+        if 'Status' not in self._services.columns:
+            return []
+        return self._services[self._services['Status'] == 'DELETADO'].to_dict('records')
+
 
 class TestClientServiceSyncLogic(unittest.TestCase):
     """Tests for bidirectional synchronization logic."""

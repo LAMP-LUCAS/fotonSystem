@@ -48,5 +48,17 @@ class ClientRepositoryPort(ABC):
         pass
 
     @abstractmethod
+    def restore_service(self, client_alias: str, service_alias: str) -> bool:
+        pass
+
+    @abstractmethod
+    def get_all_services_dataframe(self) -> pd.DataFrame:
+        pass
+
+    @abstractmethod
     def get_deleted_clients(self) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    def get_deleted_services(self) -> List[Dict[str, Any]]:
         pass

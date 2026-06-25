@@ -74,6 +74,13 @@ class ClientServiceProtocol(Protocol):
     def list_clients(self) -> list: ...
     def read_client_info(self, client_name: str) -> dict: ...
     def update_client_info(self, client_name: str, section: str, content: str) -> str: ...
+    def soft_delete_client(self, alias: str, confirmar: bool = False) -> dict: ...
+    def restore_client(self, alias: str) -> dict: ...
+    def soft_delete_service(self, client_alias: str, service_alias: str, confirmar: bool = False) -> dict: ...
+    def restore_service(self, client_alias: str, service_alias: str) -> dict: ...
+    def update_service_info(self, client_alias: str, service_alias: str, field: str, value) -> dict: ...
+    def get_deleted_clients(self) -> list: ...
+    def get_deleted_services(self) -> list: ...
 
 
 class SyncServiceProtocol(Protocol):
@@ -261,6 +268,77 @@ class MCPClientService:
                 'parent': n['parent'],
             })
         return result
+
+    def soft_delete_client(self, alias: str, confirmar: bool = False) -> dict:
+        from foton_system.core.ops.op_soft_delete_client import OpSoftDeleteClient
+        repo = self._client.repository if hasattr(self._client, 'repository') else None
+        if repo is None:
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            repo = ExcelClientRepository()
+        op = OpSoftDeleteClient(repo, actor="Agent_MCP")
+        return op.execute(alias=alias)
+
+    def restore_client(self, alias: str) -> dict:
+        from foton_system.core.ops.op_restore_client import OpRestoreClient
+        repo = self._client.repository if hasattr(self._client, 'repository') else None
+        if repo is None:
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            repo = ExcelClientRepository()
+        op = OpRestoreClient(repo, actor="Agent_MCP")
+        return op.execute(alias=alias)
+
+    def soft_delete_service(self, client_alias: str, service_alias: str, confirmar: bool = False) -> dict:
+        from foton_system.core.ops.op_soft_delete_service import OpSoftDeleteService
+        repo = self._client.repository if hasattr(self._client, 'repository') else None
+        if repo is None:
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            repo = ExcelClientRepository()
+        op = OpSoftDeleteService(repo, actor="Agent_MCP")
+        return op.execute(client_alias=client_alias, service_alias=service_alias)
+
+    def restore_service(self, client_alias: str, service_alias: str) -> dict:
+        from foton_system.core.ops.op_restore_service import OpRestoreService
+        repo = self._client.repository if hasattr(self._client, 'repository') else None
+        if repo is None:
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            repo = ExcelClientRepository()
+        op = OpRestoreService(repo, actor="Agent_MCP")
+        return op.execute(client_alias=client_alias, service_alias=service_alias)
+
+    def update_service_info(self, client_alias: str, service_alias: str, field: str, value) -> dict:
+        from foton_system.core.ops.op_update_service import OpUpdateService
+        repo = self._client.repository if hasattr(self._client, 'repository') else None
+        if repo is None:
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            repo = ExcelClientRepository()
+        op = OpUpdateService(repo, actor="Agent_MCP")
+        return op.execute(client_alias=client_alias, service_alias=service_alias, field=field, value=value)
+
+    def get_deleted_clients(self) -> list:
+        repo = self._client.repository if hasattr(self._client, 'repository') else None
+        if repo is None:
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            repo = ExcelClientRepository()
+        deleted = repo.get_deleted_clients()
+        return [
+            {"alias": c.get("Alias", ""), "nome": c.get("NomeCliente", ""), "codigo": c.get("CodCliente", "")}
+            for c in deleted
+        ]
+
+    def get_deleted_services(self) -> list:
+        repo = self._client.repository if hasattr(self._client, 'repository') else None
+        if repo is None:
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            repo = ExcelClientRepository()
+        deleted = repo.get_deleted_services()
+        return [
+            {
+                "client_alias": s.get("AliasCliente", ""),
+                "alias": s.get("Alias", ""),
+                "codigo": s.get("CodServico", ""),
+            }
+            for s in deleted
+        ]
 
 
 class MCPFinanceService:
