@@ -3,6 +3,7 @@
 **Data:** 2026-06-24
 **Versão:** 1.0
 **Responsável:** Time Core
+**Status:** OBSOLETA — Substituída por SPEC-FINANCEIRO-v2.0 (2026-06-25)
 
 ## 1. Problema
 O escritório precisa registrar entradas e saídas financeiras por cliente, consultar saldos individuais e ter um dashboard geral do escritório.

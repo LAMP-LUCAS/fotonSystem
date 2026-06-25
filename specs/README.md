@@ -18,6 +18,8 @@ Exemplo: `RULE-CLIENTES-4.2.1`
 ### Versionamento
 - `SPEC-<NOME>-v1.0.md` → versão inicial
 - `SPEC-<NOME>-v1.1.md` → regras adicionadas/modificadas
+- `SPEC-<NOME>-v2.0.md` → revisão majoritária (seções reescritas)
+- Versões obsoletas são mantidas no mesmo diretório para rastreabilidade histórica, mas não são mais referenciadas como vigentes
 - Mantenha `CHANGELOG.md` atualizado com as mudanças de Spec
 
 ### Conteúdo mínimo de uma Spec
@@ -47,11 +49,11 @@ Exemplo: `RULE-CLIENTES-4.2.1`
 
 ## Módulos atuais
 
-| Spec | Cobre |
-|------|-------|
-| `MOD-CLIENTES/SPEC-CLIENTES-v1.0.md` | CRUD de clientes, soft delete, info files, services, conformance |
-| `MOD-DOMAIN-CRUD/SPEC-DOMAIN-CRUD-v1.0.md` | Domain Model, CRUD completo, pipeline sync unificado, UX/Navegação |
-| `MOD-FINANCEIRO/SPEC-FINANCEIRO-v1.0.md` | Entradas financeiras, saldos, tipos |
-| `MOD-DOCUMENTOS/SPEC-DOCUMENTOS-v1.0.md` | Templates, validação, geração de documentos |
-| `MOD-SYNC/SPEC-SYNC-v1.0.md` | Sincronização DB ↔ filesystem, direções, pipeline |
-| `MOD-UX/SPEC-UX-v1.0.md` | Interface TUI: navegabilidade, terminologia, confirmações, formulários |
+| Spec | Cobre | Versões |
+|------|-------|---------|
+| `MOD-CLIENTES/SPEC-CLIENTES-v1.0.md` | CRUD de clientes, soft delete, info files, services, conformance | v1.0 |
+| `MOD-DOMAIN-CRUD/SPEC-DOMAIN-CRUD-v1.0.md` | Domain Model, CRUD completo, pipeline sync unificado, UX/Navegação | v1.0 |
+| `MOD-FINANCEIRO/SPEC-FINANCEIRO-v2.0.md` | Entradas/saídas, lucro por obra, fluxo de caixa, alertas, categorias, conciliação | **v2.0** (v1.0 obsoleta) |
+| `MOD-DOCUMENTOS/SPEC-DOCUMENTOS-v1.1.md` | Templates, validação, pré-visualização, placeholders zero, lote, histórico, fórmulas | **v1.1** (v1.0 obsoleta) |
+| `MOD-SYNC/SPEC-SYNC-v1.0.md` | Sincronização DB ↔ filesystem, direções, pipeline | v1.0 |
+| `MOD-UX/SPEC-UX-v1.0.md` | Interface TUI: navegabilidade, terminologia, confirmações, formulários | v1.0 |

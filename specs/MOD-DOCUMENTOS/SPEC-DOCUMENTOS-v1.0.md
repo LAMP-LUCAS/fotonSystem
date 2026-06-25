@@ -3,6 +3,7 @@
 **Data:** 2026-06-24
 **Versão:** 1.0
 **Responsável:** Time Core
+**Status:** OBSOLETA — Substituída por SPEC-DOCUMENTOS-v1.1 (2026-06-25)
 
 ## 1. Problema
 O escritório precisa gerar documentos profissionalizantes (contratos, propostas) a partir de templates DOCX/PPTX, com merge de dados dos clientes e variáveis dinâmicas.

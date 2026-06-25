@@ -201,6 +201,25 @@ foton_system/
 
 ---
 
+## Épicos do Sistema (v2 — reestruturado)
+
+| ID | Título | Status | Spec |
+|---|---|---|---|
+| EPIC-000 | Jornada do Cliente AECD (transversal) | draft | — |
+| EPIC-001 | Usabilidade TUI e Navegação | **completed** | SPEC-UX-v1.0 |
+| EPIC-002 | Domínio, CRUD e Sincronização | active | SPEC-DOMAIN-CRUD-v1.0 + SPEC-SYNC-v1.0 |
+| EPIC-003 | Automação Comercial e Documentos | draft | SPEC-DOCUMENTOS-v1.1 |
+| EPIC-004 | Recuperação Inteligente (RAG) | draft | — |
+| ~~EPIC-005~~ | ~~Arquitetura de Acesso~~ | **deprecated → ADR004** | — |
+| EPIC-006 | Inteligência Financeira | draft | SPEC-FINANCEIRO-v2.0 |
+| EPIC-007 | Cronograma e Marcos de Obra | draft | — |
+| EPIC-008 | Suprimentos e Compras | draft | — |
+| EPIC-009 | Conformidade e Perenidade | draft | — |
+| EPIC-010 | Diário de Obra e Atas de Reunião | draft | — |
+| EPIC-011 | Controle de Qualidade e Inspeção | draft | — |
+
+---
+
 ## Workflows
 
 ### 1. Cliente (ciclo completo)
