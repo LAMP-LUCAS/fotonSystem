@@ -6,7 +6,7 @@ sprint: "2026-SPRINT-5"
 # STORY-013: CRUD — Validação Financeiro + INFO Files
 
 **Épico:** EPIC-002
-**Spec:** `MOD-DOMAIN-CRUD/SPEC-DOMAIN-CRUD-v1.0.md`
+**Spec:** `MOD-DOMAIN-CRUD/SPEC-DOMAIN-CRUD-v1.1.md`
 
 ## Descrição
 

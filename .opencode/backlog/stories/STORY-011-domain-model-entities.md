@@ -1,12 +1,12 @@
 ---
-status: "ready"
+status: "partial"
 sprint: "2026-SPRINT-5"
 ---
 
 # STORY-011: Domain Model — Entidades de Domínio
 
 **Épico:** EPIC-002
-**Spec:** `MOD-DOMAIN-CRUD/SPEC-DOMAIN-CRUD-v1.0.md`
+**Spec:** `MOD-DOMAIN-CRUD/SPEC-DOMAIN-CRUD-v1.1.md`
 
 ## Descrição
 
@@ -34,3 +34,7 @@ Criar as entidades de domínio `Client`, `Service` e `FinanceEntry` com métodos
 ## Estimativa
 
 5h
+
+## Débito Técnico
+
+**Status:** `partial` — entidades modeladas, dataclasses criadas, testes unitários passando. **Integração pendente:** Nenhum use case, service ou repository consome `Client`, `Service` ou `FinanceEntry`. O sistema opera com `pd.DataFrame` e `dict` crus. A refatoração para integrar o domínio tipado no fluxo de produção é uma story separada (ver STORY-017).

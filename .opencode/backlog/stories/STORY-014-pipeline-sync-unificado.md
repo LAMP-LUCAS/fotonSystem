@@ -1,12 +1,12 @@
 ---
-status: "ready"
+status: "done"
 sprint: "2026-SPRINT-5"
 ---
 
 # STORY-014: Pipeline de Sincronização Unificado
 
 **Épico:** EPIC-002
-**Spec:** `MOD-DOMAIN-CRUD/SPEC-DOMAIN-CRUD-v1.0.md`
+**Spec:** `MOD-DOMAIN-CRUD/SPEC-DOMAIN-CRUD-v1.1.md`
 
 ## Descrição
 
