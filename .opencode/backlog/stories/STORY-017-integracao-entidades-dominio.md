@@ -1,6 +1,7 @@
 ---
-status: "draft"
-sprint: "TBD"
+status: "done"
+sprint: "2026-SPRINT-5"
+completed: "2026-06-26"
 ---
 
 # STORY-017: Integração das Entidades de Domínio no Fluxo de Produção
