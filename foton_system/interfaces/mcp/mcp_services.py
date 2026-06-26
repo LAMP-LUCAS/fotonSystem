@@ -197,9 +197,21 @@ class MCPClientService:
 
     def update_client_info(self, client_name: str, section: str, content: str,
                            operacao: str = "append", campo: str = "") -> str:
-        """Delegate to the underlying ClientService."""
-        return self._client.update_client_info(client_name, section, content,
-                                               operacao=operacao, campo=campo)
+        """Update client INFO file via POP to ensure audit trail."""
+        from foton_system.core.ops.op_update_client_info import OpUpdateClientInfo
+        config = self._config
+        if config is None:
+            from foton_system.modules.shared.infrastructure.config.config import Config
+            config = Config()
+        op = OpUpdateClientInfo(config=config, actor="Agent_MCP")
+        result = op.execute(
+            client_name=client_name,
+            section=section,
+            content=content,
+            operacao=operacao,
+            campo=campo,
+        )
+        return result["backup"]
 
     def sync_clients_db_from_folders(self) -> str:
         self._client.sync_clients_db_from_folders()
