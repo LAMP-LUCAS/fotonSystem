@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import re
 
-_CLIENT_CODE_PATTERN = re.compile(r'^[A-Z]{3}[0-9]{2}$')
+_CLIENT_CODE_PATTERN = re.compile(r'^[A-Z]{3,5}[0-9]{2}$')
 
 @dataclass(frozen=True)
 class ClientCode:

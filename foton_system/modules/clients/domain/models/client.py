@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
 from foton_system.modules.clients.domain.value_objects import ClientCode, TaxId
@@ -37,17 +38,48 @@ class Client:
         }
     
     @classmethod
+    def _is_empty(cls, val) -> bool:
+        if val is None:
+            return True
+        if isinstance(val, float) and math.isnan(val):
+            return True
+        return False
+
+    @classmethod
+    def _parse_code(cls, raw) -> Optional['ClientCode']:
+        if cls._is_empty(raw):
+            return None
+        try:
+            return ClientCode(raw)
+        except ValueError:
+            return None
+
+    @classmethod
+    def _parse_tax_id(cls, raw) -> Optional['TaxId']:
+        if cls._is_empty(raw):
+            return None
+        try:
+            return TaxId(raw)
+        except ValueError:
+            return None
+
+    @classmethod
+    def _safe_str(cls, row, key, default=""):
+        val = row.get(key, default)
+        if isinstance(val, float) and math.isnan(val):
+            return default
+        return val if val is not None else default
+
+    @classmethod
     def from_row(cls, row: Dict[str, Any]) -> Optional['Client']:
-        codigo = ClientCode(row["CodCliente"]) if row.get("CodCliente") else None
-        nif = TaxId(row["NIF"]) if row.get("NIF") else None
         return cls(
-            nome=row.get("NomeCliente", ""),
-            alias=row.get("Alias", ""),
-            codigo=codigo,
-            nif=nif,
-            email=row.get("Email", ""),
-            telefone=row.get("Telefone", ""),
-            endereco=row.get("Endereco", ""),
-            status=row.get("Status", "ATIVO"),
+            nome=cls._safe_str(row, "NomeCliente", ""),
+            alias=cls._safe_str(row, "Alias", ""),
+            codigo=cls._parse_code(row.get("CodCliente")),
+            nif=cls._parse_tax_id(row.get("NIF")),
+            email=cls._safe_str(row, "Email", ""),
+            telefone=cls._safe_str(row, "Telefone", ""),
+            endereco=cls._safe_str(row, "Endereco", ""),
+            status=cls._safe_str(row, "Status", "ATIVO"),
             _id=row.get("ID"),
         )

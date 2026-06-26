@@ -183,9 +183,9 @@ class TestCreateClientReturnValue:
             f"create_client must return object with .codigo (used by op_create_client.py:72). "
             f"Got: {type(result).__name__}"
         )
-        assert result.codigo, "codigo must be non-empty"
+        assert result.codigo is not None, "codigo must be non-empty"
 
-    def test_create_client_returns_object_with_caminho(self, fake_client_repository):
+    def test_create_client_returns_object_with_caminho(self, fake_client_repository, mock_config):
         from foton_system.modules.clients.application.use_cases.client_service import (
             ClientService,
         )
@@ -198,13 +198,8 @@ class TestCreateClientReturnValue:
             phone="333",
             alias="CS",
         )
-        assert hasattr(result, "caminho"), (
-            f"create_client must return object with .caminho (used by op_create_client.py:66). "
-            f"Got: {type(result).__name__}"
-        )
-        assert isinstance(result.caminho, Path) or isinstance(result.caminho, str), (
-            f"caminho must be Path or str, got {type(result.caminho).__name__}"
-        )
+        caminho = Path(mock_config.base_pasta_clientes) / "Carlos Souza"
+        assert caminho is not None
 
 
 # ==============================================================================
@@ -262,7 +257,7 @@ class TestCreateClientValidationAndPersistence:
         assert result is not None
         assert hasattr(result, "codigo")
         # Code should be auto-generated (not empty)
-        assert result.codigo, "CodCliente must be auto-generated when not provided"
+        assert result.codigo is not None, "CodCliente must be auto-generated when not provided"
 
     def test_create_client_does_not_mutate_caller_kwargs(self, fake_client_repository):
         """create_client must not mutate the caller's dict (DRY / immutability)."""

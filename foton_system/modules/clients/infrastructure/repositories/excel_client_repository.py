@@ -6,6 +6,7 @@ from typing import Optional
 from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
 from foton_system.modules.clients.application.ports.client_repository_port import ClientRepositoryPort
+from foton_system.modules.clients.domain.models import Client, Service
 from foton_system.modules.shared.domain.exceptions import (
     DatabaseLockError,
     DatabaseConnectionError
@@ -315,6 +316,26 @@ class ExcelClientRepository(ClientRepositoryPort):
         except Exception as e:
             logger.error(f"Erro ao ler base de serviços: {e}")
             raise
+
+    def get_clients(self) -> list:
+        """Retorna List[Client] via from_row(), filtrando DELETADO."""
+        df = self.get_clients_dataframe()
+        return [Client.from_row(row.to_dict()) for _, row in df.iterrows()]
+
+    def get_services(self) -> list:
+        """Retorna List[Service] via from_row(), filtrando DELETADO."""
+        df = self.get_services_dataframe()
+        return [Service.from_row(row.to_dict()) for _, row in df.iterrows()]
+
+    def get_all_clients(self) -> list:
+        """Retorna List[Client] incluindo DELETADO."""
+        df = self.get_all_clients_dataframe()
+        return [Client.from_row(row.to_dict()) for _, row in df.iterrows()]
+
+    def get_all_services(self) -> list:
+        """Retorna List[Service] incluindo DELETADO."""
+        df = self.get_all_services_dataframe()
+        return [Service.from_row(row.to_dict()) for _, row in df.iterrows()]
 
     def list_client_folders(self) -> set:
         return {pasta.name for pasta in self.base_pasta.iterdir() if pasta.is_dir() and not pasta.name.startswith('.')}

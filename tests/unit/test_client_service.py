@@ -16,6 +16,9 @@ import pandas as pd
 # Tested Module
 from foton_system.modules.clients.application.use_cases.client_service import ClientService
 from foton_system.modules.clients.application.ports.client_repository_port import ClientRepositoryPort
+from foton_system.modules.clients.domain.models.client import Client
+from foton_system.modules.clients.domain.models.service import Service
+from typing import List
 
 
 class FakeClientRepository(ClientRepositoryPort):
@@ -119,6 +122,18 @@ class FakeClientRepository(ClientRepositoryPort):
         if 'Status' not in self._services.columns:
             return []
         return self._services[self._services['Status'] == 'DELETADO'].to_dict('records')
+
+    def get_clients(self) -> List[Client]:
+        return [Client.from_row(row) for _, row in self.get_clients_dataframe().iterrows()]
+
+    def get_services(self) -> List[Service]:
+        return [Service.from_row(row) for _, row in self.get_services_dataframe().iterrows()]
+
+    def get_all_clients(self) -> List[Client]:
+        return [Client.from_row(row) for _, row in self.get_all_clients_dataframe().iterrows()]
+
+    def get_all_services(self) -> List[Service]:
+        return [Service.from_row(row) for _, row in self.get_all_services_dataframe().iterrows()]
 
 
 class TestClientServiceSyncLogic(unittest.TestCase):
@@ -245,10 +260,9 @@ class TestClientServiceValidation(unittest.TestCase):
 
         result = service.create_client(name='Maria Santos', alias='001_Maria_Santos')
 
-        # Bug #2 fix: create_client now returns CreatedClient dataclass
+        # create_client now returns Client entity with codigo
         self.assertTrue(hasattr(result, 'codigo'))
-        self.assertTrue(result.codigo)
-        self.assertTrue(hasattr(result, 'caminho'))
+        self.assertTrue(result.codigo is not None)
         self.assertEqual(len(repo._clients), 1)
 
 

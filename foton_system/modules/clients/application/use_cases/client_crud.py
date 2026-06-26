@@ -9,6 +9,8 @@ from foton_system.modules.shared.infrastructure.validators import validate_filen
 from foton_system.modules.shared.domain.exceptions import InvalidAliasError, DatabaseLockError, ValidationError
 from foton_system.modules.clients.application.use_cases.client_validation import normalize_client_name, format_columns
 from foton_system.modules.clients.application.use_cases.client_query import resolve_client_path, generate_client_code, list_service_nodes
+from foton_system.modules.clients.domain.models import Client
+from foton_system.modules.clients.domain.value_objects import ClientCode, TaxId
 
 logger = setup_logger()
 
@@ -398,17 +400,53 @@ def create_client(name: str, repository, config: Config, tax_id: str = "",
 
     db_clients = repository.get_clients_dataframe()
 
-    existing_codes = set(db_clients['CodCliente'].dropna().values) if 'CodCliente' in db_clients else set()
-    codigo = generate_client_code(name, existing_codes)
+    import re
+    import unicodedata
 
-    dados = {
-        "CodCliente": codigo,
-        "NomeCliente": name,
-        "NIF": tax_id,
-        "Email": email,
-        "Telefone": phone,
-        "Alias": alias or name,
-    }
+    existing_codes = set(db_clients['CodCliente'].dropna().values) if 'CodCliente' in db_clients else set()
+
+    codigo_raw = generate_client_code(name, existing_codes)
+
+    # Normalize: strip accents and keep only A-Z/0-9, then ensure client code format
+    codigo = None
+    if codigo_raw:
+        normalized = ''.join(
+            c for c in unicodedata.normalize('NFKD', codigo_raw)
+            if not unicodedata.combining(c)
+        )
+        normalized = re.sub(r'[^A-Z0-9]', '', normalized.upper())
+        if re.match(r'^[A-Z]{3,5}[0-9]{2}$', normalized):
+            codigo = normalized
+        else:
+            # Strip digits from end, use letters-only as base, then append "01"
+            base = re.sub(r'[0-9]+$', '', normalized) or normalized
+            if len(base) > 5:
+                base = base[:5]
+            if not re.match(r'^[A-Z]{3,5}$', base):
+                base = (base + 'XX')[:5]
+            codigo = base + '01'
+            existing_codes.add(codigo_raw)
+            while codigo in existing_codes:
+                num = int(codigo[-2:]) + 1
+                codigo = f"{base}{num:02d}"
+
+    client_codigo = ClientCode(codigo) if codigo else None
+    try:
+        client_nif = TaxId(tax_id) if tax_id else None
+    except ValueError:
+        client_nif = None
+
+    client = Client(
+        nome=name,
+        alias=alias or name,
+        codigo=client_codigo,
+        nif=client_nif,
+        email=email,
+        telefone=phone,
+        status="ATIVO",
+    )
+
+    dados = client.to_row()
 
     new_row = pd.DataFrame([dados])
     updated_df = pd.concat([db_clients, new_row], ignore_index=True)
@@ -420,9 +458,7 @@ def create_client(name: str, repository, config: Config, tax_id: str = "",
 
     logger.info(f"Cliente {name} ({codigo}) criado com sucesso em {caminho}.")
 
-    # Keep the CreatedClient dataclass importable from outside
-    from foton_system.modules.clients.application.use_cases.client_service import CreatedClient
-    return CreatedClient(codigo=codigo, caminho=caminho, dados=dados)
+    return client
 
 
 def export_client_data(repository, config: Config, target_alias: str = None):

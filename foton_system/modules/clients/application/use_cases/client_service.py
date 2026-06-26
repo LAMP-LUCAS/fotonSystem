@@ -50,7 +50,7 @@ class ClientService:
         return client_query.generate_client_code(name, existing_codes)
 
     def create_client(self, name: str, tax_id: str = "",
-                      email: str = "", phone: str = "", alias: str = "") -> CreatedClient:
+                      email: str = "", phone: str = "", alias: str = ""):
         return client_crud.create_client(
             name, self.repository, self._config,
             tax_id=tax_id, email=email, phone=phone, alias=alias

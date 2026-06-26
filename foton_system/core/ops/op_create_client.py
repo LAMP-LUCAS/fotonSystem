@@ -31,7 +31,8 @@ class OpCreateClient(BaseOp):
         """
         # 1. Setup Service (Ideally dependency injection, but for POP we keep it contained)
         repo = ExcelClientRepository()
-        service = ClientService(repo)
+        config = Config()
+        service = ClientService(repo, config=config)
         
         name = validated_data["name"]
         alias = validated_data.get("alias")
@@ -40,21 +41,7 @@ class OpCreateClient(BaseOp):
         phone = validated_data.get("phone", "N/A")
 
         # 2. Execute via Domain Service
-        # The service handles folder creation and Excel registration
-        # We wrap it here to ensure it's audited as an "Operation"
-        client_data = {
-            "nome": name,
-            "apelido": alias,
-            "nif": nif,
-            "email": email,
-            "telefone": phone
-        }
-        
-        # Note: ClientService.create_client might need to be call-compatible
-        # We will assume for now we use the service. 
-        # Checking existing service signature: create_client(self, name: str, tax_id: str, email: str, phone: str, alias: str = None)
-        
-        created_client = service.create_client(
+        client = service.create_client(
             name=name,
             tax_id=nif,
             email=email,
@@ -63,14 +50,14 @@ class OpCreateClient(BaseOp):
         )
         
         # 3. Verify Result (Self-Correction/Verification)
-        client_path = Path(created_client.caminho)
+        client_path = config.base_pasta_clientes / name
         if not client_path.exists():
              raise RuntimeError(f"Service reported success but folder {client_path} does not exist.")
              
         # 4. Return robust result (for API/CLI/Agent)
         return {
-            "client_id": created_client.codigo,
-            "client_path": str(created_client.caminho),
+            "client_id": str(client.codigo) if client.codigo else "",
+            "client_path": str(client_path),
             "status": "CREATED",
             "message": f"Client '{name}' created successfully at {client_path.name}"
         }

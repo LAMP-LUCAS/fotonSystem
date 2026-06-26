@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 import pandas as pd
 from typing import List, Dict, Any
 
+from foton_system.modules.clients.domain.models import Client, Service
+
 class ClientRepositoryPort(ABC):
     @abstractmethod
     def get_clients_dataframe(self) -> pd.DataFrame:
@@ -61,4 +63,20 @@ class ClientRepositoryPort(ABC):
 
     @abstractmethod
     def get_deleted_services(self) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    def get_clients(self) -> List[Client]:
+        pass
+
+    @abstractmethod
+    def get_services(self) -> List[Service]:
+        pass
+
+    @abstractmethod
+    def get_all_clients(self) -> List[Client]:
+        pass
+
+    @abstractmethod
+    def get_all_services(self) -> List[Service]:
         pass

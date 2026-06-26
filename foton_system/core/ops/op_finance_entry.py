@@ -1,9 +1,11 @@
 from typing import Dict, Any
 from pathlib import Path
+from datetime import datetime
 from foton_system.core.ops.base_op import BaseOp
 from foton_system.modules.finance.application.use_cases.finance_service import FinanceService
 from foton_system.modules.finance.infrastructure.repositories.csv_finance_repository import CSVFinanceRepository
 from foton_system.modules.shared.infrastructure.config.config import Config
+from foton_system.modules.clients.domain.models import FinanceEntry
 
 class OpFinanceEntry(BaseOp):
     """
@@ -70,13 +72,15 @@ class OpFinanceEntry(BaseOp):
         repo = CSVFinanceRepository()
         service = FinanceService(repo)
 
-        # 3. Execute
-        summary = service.add_entry(
-            client_path=client_path,
-            description=validated_data["description"],
-            value=validated_data["value"],
-            entry_type=validated_data["type"]
+        # 3. Build FinanceEntry entity and execute
+        entry = FinanceEntry(
+            tipo=validated_data["type"],
+            valor=validated_data["value"],
+            descricao=validated_data["description"],
+            data=datetime.now().strftime('%Y-%m-%d'),
+            cliente_alias=client_path.name,
         )
+        summary = service.add_entry(client_path, entry=entry)
 
         # 4. Return BI Metrics
         result = {

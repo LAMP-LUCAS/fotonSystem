@@ -124,6 +124,26 @@ def fake_client_repository():
                 return []
             return self._services[self._services['Status'] == 'DELETADO'].to_dict('records')
 
+        def get_clients(self):
+            from foton_system.modules.clients.domain.models import Client
+            df = self.get_clients_dataframe()
+            return [Client.from_row(row.to_dict()) for _, row in df.iterrows()]
+
+        def get_services(self):
+            from foton_system.modules.clients.domain.models import Service
+            df = self.get_services_dataframe()
+            return [Service.from_row(row.to_dict()) for _, row in df.iterrows()]
+
+        def get_all_clients(self):
+            from foton_system.modules.clients.domain.models import Client
+            df = self.get_all_clients_dataframe()
+            return [Client.from_row(row.to_dict()) for _, row in df.iterrows()]
+
+        def get_all_services(self):
+            from foton_system.modules.clients.domain.models import Service
+            df = self.get_all_services_dataframe()
+            return [Service.from_row(row.to_dict()) for _, row in df.iterrows()]
+
     return FakeClientRepository
 
 

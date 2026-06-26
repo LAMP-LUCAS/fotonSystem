@@ -23,7 +23,21 @@ class FakeFinanceRepository(FinanceRepositoryPort):
         self._entries.append(dict(zip(headers, entry)))
 
     def get_entries(self, client_path):
-        return self._entries
+        from foton_system.modules.clients.domain.models import FinanceEntry
+        result = []
+        for d in self._entries:
+            row = {
+                "ID": 0,
+                "Tipo": d.get("Tipo", ""),
+                "Valor": float(d.get("Valor", 0) or 0),
+                "Descricao": d.get("Descricao", ""),
+                "Data": d.get("Data", ""),
+                "Cliente": d.get("Cliente", ""),
+            }
+            entry = FinanceEntry.from_row(row)
+            if entry is not None:
+                result.append(entry)
+        return result
 
 
 # ==============================================================================
