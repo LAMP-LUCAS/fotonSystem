@@ -117,8 +117,8 @@ Pós-obra ──► EPIC-004 (RAG: indexar aprendizado)
 | ID | PRD | Spec técnica | Stories | Código | Maturidade |
 |---|---|---|---|---|---|
 | EPIC-000 | ✅ draft | ❌ | ❌ | ❌ | 0% |
-| EPIC-001 | ✅ completed | ✅ SPEC-UX-v1.0 (22 RULEs) | ✅ 9/9 | ✅ | 100% |
-| EPIC-002 | ✅ active | ✅ SPEC-DOMAIN-CRUD-v1.0 (25 RULEs) + SPEC-SYNC-v1.0 (10 RULEs) | 🔄 4/7 | 🔄 | 57% |
+| EPIC-001 | ✅ completed | ✅ SPEC-UX-v1.0 (30 RULEs) | ✅ 11/11 | ✅ | 100% |
+| EPIC-002 | ✅ active | ✅ SPEC-DOMAIN-CRUD-v1.1 (17 RULEs) + SPEC-SYNC-v1.0 (10 RULEs) | 🔄 5/5 | 🔄 | 57% |
 | EPIC-003 | ✅ draft | ✅ SPEC-DOCUMENTOS-v1.1 (atualizada, 18 RULEs) | ❌ | ⚠️ | 25% |
 | EPIC-004 | ✅ draft | ❌ | ❌ | ⚠️ (ChromaDB existe) | 10% |
 | ~~EPIC-005~~ | ❌ deprecated | ❌ → ADR004 | ❌ | ❌ | – |

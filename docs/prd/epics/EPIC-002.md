@@ -41,7 +41,7 @@ Os itens de UX/navegação que originalmente estavam neste EPIC-002 foram transf
 
 ## Especificações Técnicas
 
-- SPEC-DOMAIN-CRUD-v1.0 (25 RULE-IDs)
+- SPEC-DOMAIN-CRUD-v1.1 (25 RULE-IDs)
 - SPEC-SYNC-v1.0 (10 RULE-IDs)
 
 ## Stories Vinculadas
@@ -49,7 +49,7 @@ Os itens de UX/navegação que originalmente estavam neste EPIC-002 foram transf
 | Story | Status |
 |---|---|
 | STORY-010: Domain model status migration | ✅ done |
-| STORY-011: Domain model entities | ✅ ready |
+| STORY-011: Domain model entities | ✅ done |
 | STORY-012: CRUD delete/restore MCP | ✅ done |
 | STORY-013: CRUD financeiro INFO files | ✅ done |
-| STORY-014: Pipeline sync unificado | ✅ ready |
+| STORY-014: Pipeline sync unificado | ✅ done |

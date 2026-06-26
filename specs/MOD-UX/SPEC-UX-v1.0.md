@@ -1,7 +1,7 @@
 # Spec: Interface de Usuário (TUI) — Experiência e Navegação
 
-**Data:** 2026-06-24
-**Versão:** 1.0
+**Data:** 2026-06-25
+**Versão:** 1.1
 **Responsável:** Time Core
 
 ## 1. Problema
@@ -57,6 +57,19 @@ Padronizar a experiência TUI em 6 eixos:
 - **RULE-UX-7.1:** O sistema não possui undo/redo formal. A proteção contra perda de dados é via backup `.bak` antes de cada alteração.
 - **RULE-UX-7.2:** Futuramente, operações de edição devem suportar undo (Ctrl+Z) com no mínimo 1 nível de profundidade.
 - **RULE-UX-7.3:** (Reservado para implementação futura)
+
+### 3.8 Arquitetura de Interface e Navegação Avançada (migrado do EPIC-002)
+
+> Itens migrados do EPIC-002 (SPEC-DOMAIN-CRUD-v1.1, §3.4) para centralização neste épico.
+
+- **RULE-UX-8.1:** `menus.py` (54KB) deve ser dividido em submódulos: `menus_clients.py`, `menus_finance.py`, `menus_docs.py`, `menus_config.py`. `menus.py` mantém apenas o dispatch principal.
+- **RULE-UX-8.2:** `ProgressTracker` deve exibir feedback visual para operações batch no formato `"[3/10] Processando CLIENTE..."` com `advance(item)` e `finish()`.
+- **RULE-UX-8.3:** Erros capturados na TUI devem exibir sugestões de ação contextualizadas por tipo (ex: `FileNotFoundError` → "Verifique settings.json", `PermissionError` → "Feche o Excel e tente novamente").
+- **RULE-UX-8.4:** Menu de clientes deve ser reestruturado em subgrupos visuais: "--- Cadastro ---", "--- Manutenção ---", "--- Serviços ---", "--- Perigo ---". Ações destrutivas agrupadas sob "Perigo".
+- **RULE-UX-8.5:** Atalho `g` no menu principal deve disparar busca global (`global_search`) por alias, nome, código ou NIF. Resultados numerados com drill-down para ficha do cliente.
+- **RULE-UX-8.6:** `parse_command()` deve interpretar atalhos no input principal: `h` (ajuda), `00` (home/início), `q` (sair), texto livre (busca).
+- **RULE-UX-8.7:** MCP `listar_clientes` deve aceitar parâmetros opcionais `pagina` (int, default 1) e `itens_por_pagina` (int, default 20) — backward compatibility mantida.
+- **RULE-UX-8.8:** Confirmação padronizada (S/N) em todas as ações destrutivas via `confirm_action()`, com variação visual `dangerous=True` para operações irreversíveis.
 
 ## 4. Relações
 - Código: `menus.py`, `tui_layout.py`, `form_view.py`
