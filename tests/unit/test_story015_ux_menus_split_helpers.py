@@ -1,7 +1,7 @@
 """
 Tests for STORY-015: UX Split menus.py + Helpers TUI.
 
-Covers RULE-DOMAIN-4.1, RULE-DOMAIN-4.2, RULE-DOMAIN-4.3.
+Covers RULE-UX-8.1, RULE-UX-8.2, RULE-UX-8.3.
 """
 
 import pytest
@@ -11,10 +11,10 @@ import sys
 from unittest.mock import MagicMock, patch
 
 # @story: STORY-015
-# @rule: RULE-DOMAIN-4.1, RULE-DOMAIN-4.2, RULE-DOMAIN-4.3
+# @rule: RULE-UX-8.1, RULE-UX-8.2, RULE-UX-8.3
 
 # ==============================================================================
-# ProgressTracker Tests (RULE-DOMAIN-4.2)
+# ProgressTracker Tests (RULE-UX-8.2)
 # ==============================================================================
 
 class TestProgressTracker:
@@ -62,7 +62,7 @@ class TestProgressTracker:
         assert "concluido" in captured.out
 
 # ==============================================================================
-# Error Suggestions Tests (RULE-DOMAIN-4.3)
+# Error Suggestions Tests (RULE-UX-8.3)
 # ==============================================================================
 
 class TestErrorSuggestions:
@@ -103,7 +103,7 @@ class TestErrorSuggestions:
         assert "settings.json" in formatted.lower()
 
 # ==============================================================================
-# Menu Split Tests (RULE-DOMAIN-4.1)
+# Menu Split Tests (RULE-UX-8.1)
 # ==============================================================================
 
 class TestMenuSplit:
@@ -192,7 +192,7 @@ class TestMenuSplit:
         assert callable(format_error_with_suggestion)
 
 # ==============================================================================
-# Backward Compatibility Tests (RULE-DOMAIN-4.1)
+# Backward Compatibility Tests (RULE-UX-8.1)
 # ==============================================================================
 
 class TestBackwardCompatibility:

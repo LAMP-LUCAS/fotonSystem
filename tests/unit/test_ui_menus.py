@@ -443,5 +443,58 @@ class TestMenuPerformance(unittest.TestCase):
         self.assertLess(elapsed, 1.0, f"global_search_ui levou {elapsed:.3f}s")
 
 
+# ----- NPS (RULE-UX-9.1) -----
+class TestNps(unittest.TestCase):
+    def setUp(self):
+        patcher_repo = patch('foton_system.modules.clients.infrastructure.repositories.excel_client_repository.ExcelClientRepository')
+        patcher_docx = patch('foton_system.modules.documents.infrastructure.adapters.python_docx_adapter.PythonDocxAdapter')
+        patcher_pptx = patch('foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter.PythonPPTXAdapter')
+        patcher_repo.start()
+        patcher_docx.start()
+        patcher_pptx.start()
+        from foton_system.interfaces.cli.menus import MenuSystem
+        self.menu = MenuSystem()
+
+    def tearDown(self):
+        import unittest.mock as mock
+        mock.patch.stopall()
+
+    def test_nps_option_displayed(self):
+        """Settings menu must show NPS option."""
+        with patch('builtins.input', side_effect=['7', '0', '0']), \
+             patch('builtins.print') as mock_print, \
+             patch('foton_system.interfaces.cli.views.tui_layout.TUILayout.clear'):
+            with self.assertRaises(SystemExit):
+                self.menu.run()
+            printed = "".join([call.args[0] for call in mock_print.call_args_list if call.args])
+        self.assertIn("Pesquisa de Satisfação", printed)
+
+    def test_nps_validates_range(self):
+        """NPS must reject values outside 0-10."""
+        from foton_system.interfaces.cli.menus_config import MenuConfigHandler
+        handler = MenuConfigHandler(self.menu)
+        with patch('builtins.input', side_effect=['999', '']), \
+             patch('builtins.print') as mp:
+            handler._pesquisa_nps_ui()
+            printed = "".join(c.args[0] for c in mp.call_args_list if c.args)
+        self.assertIn("inválida", printed.lower())
+
+    def test_nps_stores_response(self):
+        """Valid NPS score must be saved to JSONL."""
+        from foton_system.interfaces.cli.menus_config import MenuConfigHandler
+        import tempfile, pathlib
+        tmp = pathlib.Path(tempfile.mkdtemp())
+        with patch('builtins.input', side_effect=['9', '']), \
+             patch('builtins.print'), \
+             patch('foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service.BootstrapService.get_user_config_dir', return_value=tmp):
+            handler = MenuConfigHandler(self.menu)
+            handler._pesquisa_nps_ui()
+        nps_file = tmp / "nps_responses.jsonl"
+        self.assertTrue(nps_file.exists())
+        content = nps_file.read_text(encoding='utf-8')
+        self.assertIn('"score": 9', content)
+        self.assertIn('"classification": "Promotor"', content)
+
+
 if __name__ == '__main__':
     unittest.main()

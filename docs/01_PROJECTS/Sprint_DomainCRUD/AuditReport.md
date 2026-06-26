@@ -20,9 +20,9 @@ tags: [auditoria, domain-model, crud, sync, ui, roadmap]
 | Versão alvo | 1.5.0 |
 | Testes existentes | 410 (verificado via `pytest --co -q`) |
 | Testes projetados | ~61 novos → ~471 total |
-| Novos arquivos | ~15 |
-| Novas MCP tools | 6 |
-| Fases | 5 (Domain Model → CRUD → Pipeline → UI/UX → Navegação) |
+| Novos arquivos | ~11 |
+| Novas MCP tools | 5 |
+| Fases | 3 (Domain Model → CRUD → Pipeline Sync) |
 
 ## 2. Análise de Aderência ao Repositório
 
@@ -115,7 +115,7 @@ O plano propõe validações em `registrar_financeiro`:
 
 **Arquivo:** `menus.py` (54 KB) — menu monolítico.
 
-O plano propõe reestruturação do menu com subgrupos, breadcrumbs e helpers. Isso é factível, mas o tamanho do arquivo já é um problema. A Fase 4 (UI/UX) deveria incluir **split do `menus.py`** em componentes menores como pré-requisito.
+O plano original propunha reestruturação do menu e split do `menus.py`. Conforme decisão de alinhamento EPIC-001/EPIC-002, estes itens foram migrados para EPIC-001 (SPEC-UX-v1.0, RULE-UX-8.1 a 8.8). O escopo do EPIC-002 foca exclusivamente em domínio, CRUD e sincronização.
 
 ### 2.8 Validação de Value Objects ✅
 
@@ -133,7 +133,7 @@ Os patterns de validação propostos são coerentes:
 |---|-------|------------|-----------|
 | R1 | Quebra do FakeClientRepository ao alterar port | 🔴 Alto | Não alterar port; usar operações compostas |
 | R2 | Migração da coluna `Status` em bases existentes | 🟡 Médio | Fallback transparente no `get_clients_dataframe()` |
-| R3 | `menus.py` já tem 54KB — adicionar mais funcionalidades degrada manutenibilidade | 🟡 Médio | Dividir em submódulos na Fase 4 |
+| R3 | `menus.py` já tem 54KB — adicionar mais funcionalidades degrada manutenibilidade | 🟡 Médio | Migrado para EPIC-001 (SPEC-UX-v1.0, RULE-UX-8.x) — escopo fora deste épico |
 | R4 | `foton_mcp.py` com 59KB + 6 novas tools | 🟡 Médio | Registrar tools mas delegar lógica para services |
 | R5 | Inconsistência `CPF_CNPJ` (Excel) vs `nif` (entidade) | 🟡 Médio | Mapeamento explícito em `to_row()`/`from_row()` |
 | R6 | Pipeline sync bidirecional — conflitos não resolvidos podem corromper dados | 🔴 Alto | Modo dry-run obrigatório antes de apply; conflict resolution explícita |
@@ -160,7 +160,7 @@ Os patterns de validação propostos são coerentes:
 1. **Fase 1 — Não alterar `ClientRepositoryPort`** inicialmente. Soft delete via operações compostas.
 2. **Fase 2 — Adicionar migração transparente** da coluna `Status` no `get_clients_dataframe()`.
 3. **Fase 3 — Pipeline sync** deve ter modo `dry_run=True` como default.
-4. **Fase 4 — Splittar `menus.py`** antes de adicionar breadcrumbs e novos menus.
+4. **Fase 4 (UI/UX) — Migrada para EPIC-001.** O split do `menus.py` e as melhorias de TUI passam a ser responsabilidade do EPIC-001 (SPEC-UX-v1.0, RULE-UX-8.1 a 8.8).
 5. **Todas as fases — POP Auditado** para operações destrutivas (delete, restore, sync apply).
 6. **Testes — Atualizar `conftest.py`** com suporte a coluna `Status` no `FakeClientRepository`.
 
@@ -171,7 +171,7 @@ Os patterns de validação propostos são coerentes:
 | Viabilidade técnica | ✅ **Viável** — arquitetura atual suporta as extensões |
 | Coerência arquitetural | ✅ **Coerente** — segue DDD, Hexagonal, Port & Adapters existente |
 | Riscos | ⚠️ **Gerenciáveis** — mitigações identificadas para cada risco |
-| Esforço | ⚠️ **Subestimado** — refatorações de menus.py e foton_mcp.py não estão contabilizadas |
+| Esforço | ⚠️ **Adequado** — 20-26h sem UI/UX (migrado para EPIC-001) |
 | Recomendação | ✅ **Aprovado com ressalvas** — seguir com ajustes nas Fases 1 e 4 |
 
 ---

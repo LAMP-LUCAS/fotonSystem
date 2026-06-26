@@ -9,10 +9,10 @@ tags: [prd, roadmap, domain-model, crud, sync, ui, tdd, ddd]
 ---
 
 # PRD & Roadmap — Foton System v1.5.0
-## Sprint: Domain Model, CRUD & UX Evolution
+## Sprint: Domain Model, CRUD & Pipeline Sync
 
 > Product Requirements Document (PRD) com roadmap detalhado de desenvolvimento.
-> Metodologia: TDD, DDD, DRY. Prioridades: Manutenibilidade, Coesão, Segurança, Legibilidade.
+> UI/UX items migrated to EPIC-001 (SPEC-UX-v1.0).
 
 ---
 
@@ -20,7 +20,7 @@ tags: [prd, roadmap, domain-model, crud, sync, ui, tdd, ddd]
 
 ### 1.1 Objetivo
 
-Elevar o Foton System de uma aplicação baseada em DataFrames cruos para uma arquitetura com **entidades de domínio ricas**, **CRUD completo** (Create/Read/Update/**Delete**), **sincronização unificada** e **UX moderna** na TUI e MCP.
+Elevar o Foton System de uma aplicação baseada em DataFrames cruos para uma arquitetura com **entidades de domínio ricas**, **CRUD completo** (Create/Read/Update/**Delete**) e **sincronização unificada**. UI/UX foi realocado para EPIC-001 (SPEC-UX-v1.0).
 
 ### 1.2 Escopo
 
@@ -29,10 +29,8 @@ Elevar o Foton System de uma aplicação baseada em DataFrames cruos para uma ar
 | Domínio | DataFrames cruos | Entidades Client, Service, FinanceEntry |
 | CRUD | CR (Create/Read) | CRUD completo + soft delete |
 | Sync | 7 tools fragmentadas | Pipeline unificado bidirecional |
-| UX/TUI | Menu flat, sem breadcrumbs | Subgrupos, breadcrumbs, progresso |
-| Navegação | Linear | Atalhos, busca global, paginação |
-| MCP Tools | 38 | 44 (+6) |
-| Testes | 410 | ~471 (+61) |
+| MCP Tools | 38 | 43 (+5) |
+| Testes | 410 | ~453 (+43) |
 
 ### 1.3 Pré-requisitos
 
@@ -87,14 +85,6 @@ modules/sync/
 └── application/
     └── pipeline_sync.py             🆕  Pipeline unificado
 
-interfaces/cli/
-├── menus.py                              (refatoração: split em módulos)
-├── helpers/                         🆕
-│   ├── breadcrumbs.py               🆕
-│   ├── confirm.py                   🆕
-│   └── progress.py                  🆕
-└── views/                                (existente)
-
 tests/unit/
 ├── domain/                          🆕
 │   ├── test_client_code.py          🆕
@@ -127,7 +117,6 @@ graph TD
 
     subgraph "Interface Layer (existente)"
         MCP["foton_mcp.py"]
-        TUI["menus.py"]
     end
 
     E --> VO
@@ -415,189 +404,9 @@ class SyncReport:
 
 ---
 
-### Fase 4 — UI/UX
+### Fase 4 — (Reservado)
 
-> **Objetivo:** Melhorar usabilidade da TUI.
-> **Dependências:** Fases 1-2
-> **Esforço estimado:** 6-8h
-> **Testes novos:** ~10
-
-#### 4.1 Pré-requisito: Split do `menus.py`
-
-> [!WARNING]
-> `menus.py` tem 54KB. Antes de adicionar funcionalidades, dividir em módulos.
-
-Proposta de split:
-
-```
-interfaces/cli/
-├── menus.py              → Menu principal (entry point, dispatch)
-├── menus_clients.py      → Menu de clientes
-├── menus_finance.py      → Menu financeiro
-├── menus_docs.py         → Menu documentos
-├── menus_config.py       → Menu configuração
-└── helpers/
-    ├── breadcrumbs.py    → Navegação breadcrumb
-    ├── confirm.py        → Confirmação padronizada
-    └── progress.py       → Feedback de progresso
-```
-
-#### 4.2 Breadcrumbs
-
-```python
-# helpers/breadcrumbs.py
-class Breadcrumb:
-    """Gerencia caminho de navegação na TUI."""
-    def __init__(self):
-        self._path: list[str] = ["Início"]
-
-    def push(self, label: str): ...
-    def pop(self): ...
-    def render(self) -> str:
-        """Retorna string formatada: 'Início > Clientes > JOSE'"""
-```
-
-#### 4.3 Confirmação Padronizada
-
-```python
-# helpers/confirm.py
-def confirm_action(action: str, details: str = "", dangerous: bool = False) -> bool:
-    """Confirmação padronizada com visual de perigo para ações destrutivas."""
-```
-
-#### 4.4 Progresso
-
-```python
-# helpers/progress.py
-class ProgressTracker:
-    """Feedback visual de progresso para operações batch."""
-    def __init__(self, total: int, label: str): ...
-    def advance(self, item: str): ...  # "[3/10] Processando JOSE..."
-    def finish(self): ...
-```
-
-#### 4.5 Menu Reestruturado
-
-```
-╔═══════════════════════════════════╗
-║         GERENCIAR CLIENTES        ║
-╠═══════════════════════════════════╣
-║  --- Cadastro ---                 ║
-║  1. Cadastrar Cliente             ║
-║  2. Buscar Cliente                ║
-║  3. Ler Ficha                     ║
-║  4. Atualizar Ficha               ║
-║  --- Manutenção ---               ║
-║  5. Preencher Códigos             ║
-║  6. Sincronizar (Pastas ↔ DB)     ║
-║  7. Sincronizar (DB ↔ Arquivo)    ║
-║  --- Serviços ---                 ║
-║  8. Gerenciar Serviços            ║
-║  --- Perigo ---                   ║
-║  9. Remover Cliente               ║
-║  0. Voltar                        ║
-╚═══════════════════════════════════╝
-```
-
-#### 4.6 Erros com Contexto
-
-```python
-SUGGESTIONS = {
-    FileNotFoundError: "Verifique se o caminho da pasta de clientes está correto em settings.json",
-    PermissionError: "Feche o arquivo Excel e tente novamente",
-    DatabaseLockError: "A base de dados está aberta em outro programa. Feche-o e tente novamente",
-}
-```
-
-#### 4.7 Testes
-
-| Arquivo de Teste | Cenários |
-|-----------------|----------|
-| `test_tui_breadcrumbs.py` | push, pop, render |
-| `test_tui_confirm_action.py` | confirma, rejeita, dangerous |
-| `test_tui_progress_tracker.py` | advance, finish |
-| `test_tui_menu_structure.py` | opções e agrupamento |
-| `test_tui_error_context.py` | sugestões por tipo de erro |
-
-#### 4.8 DoD
-
-- [ ] `menus.py` dividido em submódulos
-- [ ] Breadcrumbs implementados
-- [ ] Confirmação padronizada em todas as ações destrutivas
-- [ ] Progresso visual em operações batch
-- [ ] ~10 novos testes passando
-- [ ] Zero regressão
-
----
-
-### Fase 5 — Navegação
-
-> **Objetivo:** Navegação fluida e flexível.
-> **Dependências:** Fases 1-2
-> **Esforço estimado:** 4-6h
-> **Testes novos:** ~8
-> **Paralelizável com:** Fase 4
-
-#### 5.1 Atalhos de Teclado
-
-```python
-def parse_command(raw: str) -> tuple[str, dict]:
-    """
-    Parse de atalhos no input principal.
-    'h'     → ('history', {})
-    '00'    → ('home', {})
-    'q'     → ('quit', {})
-    'jose'  → ('search', {'query': 'jose'})
-    """
-```
-
-#### 5.2 Busca Global
-
-```python
-def global_search(query: str, client_service: ClientService) -> list[dict]:
-    """Busca por alias, nome, código ou NIF."""
-```
-
-#### 5.3 Paginação
-
-```python
-def list_clients_paginated(
-    client_service: ClientService,
-    page: int = 1,
-    per_page: int = 20,
-) -> dict:
-    """Retorna {items: [...], total: int, page: int, pages: int}"""
-```
-
-**MCP:** `listar_clientes(pagina: int = 1, itens_por_pagina: int = 20)` — parâmetros **opcionais** para backward compatibility.
-
-#### 5.4 Drill-Down em Listagens
-
-Após listar clientes, permitir seleção por número para ver ficha:
-```
-  1. JOSE SILVA (JOS01)
-  2. MARIA SANTOS (MAS02)
-
-  Digite o número para ver ficha, ou 0 para voltar:
-```
-
-#### 5.5 Testes
-
-| Arquivo de Teste | Cenários |
-|-----------------|----------|
-| `test_global_search.py` | busca por alias, nome, código, NIF, sem resultado |
-| `test_pagination.py` | primeira página, última, fora de range |
-| `test_parse_command.py` | atalhos h, 00, q, texto livre |
-| `test_drill_down.py` | seleção válida, fora de range, voltar |
-
-#### 5.6 DoD
-
-- [ ] Atalhos de teclado funcionando
-- [ ] Busca global implementada
-- [ ] Paginação na TUI e MCP
-- [ ] Drill-down em listagens
-- [ ] ~8 novos testes passando
-- [ ] Zero regressão
+> UI/UX items transferred to EPIC-001 (SPEC-UX-v1.0, RULE-UX-8.1 to 8.8).
 
 ---
 
@@ -608,11 +417,11 @@ Após listar clientes, permitir seleção por número para ver ficha:
 | 1. Domain Model | 8 | ~20 | 0 | 6-8h |
 | 2. CRUD Complete | 2 | ~15 | 4 | 8-10h |
 | 3. Pipeline Sync | 1 | ~8 | 1 | 6-8h |
-| 4. UI/UX | 5+ (split menus) | ~10 | 0 | 6-8h |
-| 5. Navegação | 1 | ~8 | 1 | 4-6h |
-| **Total** | **~17** | **~61** | **6** | **30-40h** |
+| **Total** | **~11** | **~43** | **5** | **20-26h** |
 
-**Total estimado: ~471 testes** (410 existentes + 61 novos)
+> UI/UX items (Fases 4-5 originais) migrados para EPIC-001 (SPEC-UX-v1.0).
+
+**Total estimado: ~453 testes** (410 existentes + 43 novos)
 
 ## 5. Fluxo de Desenvolvimento (TDD)
 
@@ -636,10 +445,7 @@ graph LR
 ## 6. Ordem de Execução
 
 ```
-Fase 1 ──→ Fase 2 ──→ Fase 3 ──→ Fase 4 ──→ Fase 5
-  │           │           │         │           │
-  │           │           │         └───────────┤
-  │           │           │         (paralelizáveis)
+Fase 1 ──→ Fase 2 ──→ Fase 3
   │           │           │
   │           │           └── Pipeline sync unificado
   │           └── Delete, update, financeiro validation
@@ -649,13 +455,12 @@ Fase 1 ──→ Fase 2 ──→ Fase 3 ──→ Fase 4 ──→ Fase 5
 **Dependências:**
 - Fase 2 **depende** de Fase 1 (usa domain entities)
 - Fase 3 **depende** de Fase 2 (usa delete para relatório)
-- Fase 4 e 5 são **independentes** de 3, mas dependem de 1-2
-- Fase 5 pode **paralelizar** com Fase 4
+- UI/UX items (Fases 4-5 originais) migrados para EPIC-001 — ver SPEC-UX-v1.0
 
 ## 7. Critérios de Aceitação Globais
 
 - [ ] Todos os 410 testes existentes continuam passando (zero regressão)
-- [ ] ~61 novos testes passando
+- [ ] ~43 novos testes passando
 - [ ] Nenhum warning novo no `pytest`
 - [ ] POP Auditado para todas operações destrutivas
 - [ ] Backup `.bak` antes de modificações críticas

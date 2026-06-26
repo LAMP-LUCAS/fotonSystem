@@ -5,8 +5,8 @@ sprint: "2026-SPRINT-5"
 
 # STORY-015: UX — Split do menus.py + Helpers de TUI
 
-**Épico:** EPIC-002
-**Spec:** `MOD-DOMAIN-CRUD/SPEC-DOMAIN-CRUD-v1.0.md`
+**Épico:** EPIC-001
+**Spec:** `MOD-UX/SPEC-UX-v1.0.md`
 
 ## Descrição
 
@@ -14,9 +14,9 @@ Dividir o `menus.py` monolítico (54KB) em submódulos. Criar helpers de TUI: `P
 
 ## Regras Implementadas
 
-- **RULE-DOMAIN-4.1:** `menus.py` dividido em `menus_clients.py`, `menus_finance.py`, `menus_docs.py`, `menus_config.py`
-- **RULE-DOMAIN-4.2:** `ProgressTracker` com `advance(item)` e `finish()`
-- **RULE-DOMAIN-4.3:** Erros TUI com sugestões contextualizadas por tipo
+- **RULE-UX-8.1:** `menus.py` dividido em `menus_clients.py`, `menus_finance.py`, `menus_docs.py`, `menus_config.py`
+- **RULE-UX-8.2:** `ProgressTracker` com `advance(item)` e `finish()`
+- **RULE-UX-8.3:** Erros TUI com sugestões contextualizadas por tipo
 
 ## Critérios de Aceite
 

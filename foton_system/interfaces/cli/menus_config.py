@@ -36,6 +36,7 @@ class MenuConfigHandler:
         TUILayout.print_menu_option("---", "Ferramentas")
         TUILayout.print_menu_option("4", "Ferramentas Administrativas")
         TUILayout.print_menu_option("5", "Abrir Pasta do Sistema (Workspace)")
+        TUILayout.print_menu_option("6", "Pesquisa de Satisfação (NPS)")
         TUILayout.print_menu_option("0", "Voltar")
         try:
             tip = self.menu.tip_service.get_random_tip("SANDBOX")
@@ -70,6 +71,8 @@ class MenuConfigHandler:
                 self.menu.handle_admin_tools()
             elif choice == '5':
                 self.menu._open_workspace_folder(config)
+            elif choice == '6':
+                self._pesquisa_nps_ui()
             elif choice in ('0', 'b', 'B'):
                 break
             else:
@@ -90,6 +93,60 @@ class MenuConfigHandler:
         else:
             self.menu.print_warning("Operacao cancelada.")
             input("Pressione Enter para continuar...")
+
+    def _pesquisa_nps_ui(self):
+        from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
+        import json
+        from datetime import datetime
+        TUILayout.clear()
+        TUILayout.print_header("PESQUISA DE SATISFAÇÃO (NPS)")
+        print(f"\n  De 0 a 10, o quanto você recomendaria o Foton System")
+        print(f"  para outro arquiteto ou engenheiro?")
+        print()
+        raw = input(f"{Fore.CYAN}  Nota (0-10): {Style.RESET_ALL}").strip()
+        try:
+            score = int(raw)
+            if score < 0 or score > 10:
+                raise ValueError
+        except (ValueError, TypeError):
+            self.menu.print_error("  Nota inválida. Digite um número entre 0 e 10.")
+            input("\n  Pressione Enter para continuar...")
+            return
+        if score >= 9:
+            classification = "Promotor"
+        elif score >= 7:
+            classification = "Neutro"
+        else:
+            classification = "Detrator"
+        record = {
+            "timestamp": datetime.now().isoformat(),
+            "score": score,
+            "classification": classification
+        }
+        try:
+            config_dir = BootstrapService.get_user_config_dir()
+            nps_file = config_dir / "nps_responses.jsonl"
+            with open(nps_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            scores = []
+            if nps_file.exists():
+                with open(nps_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line:
+                            try:
+                                scores.append(json.loads(line)["score"])
+                            except Exception:
+                                pass
+            avg = sum(scores) / len(scores) if scores else score
+            print()
+            TUILayout.print_menu_option("+", f"Sua nota: {score} ({classification})")
+            TUILayout.print_menu_option("+", f"Média atual: {avg:.1f} ({len(scores)} respostas)")
+            print()
+            self.menu.print_success("  Obrigado pelo feedback!")
+        except Exception as e:
+            self.menu.print_error(f"  Erro ao salvar: {e}")
+        input("\n  Pressione Enter para continuar...")
 
     def _open_workspace_folder(self, config):
         import subprocess

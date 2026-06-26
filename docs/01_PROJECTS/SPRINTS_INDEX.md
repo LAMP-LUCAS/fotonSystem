@@ -31,7 +31,7 @@ SystemAudit ──> DualInterface ──> Resiliência ──> InfoNaming ──
 |--------|------|-------|---------|
 | **Resiliência** | Segurança (`eval`→parser), bare excepts, bugs, vapor, arquitetura, testes | 8 fases | ~21h |
 | **InfoNaming** | Sistema de nomenclatura configurável de arquivos INFO com placeholders | 7 fases | ~20h |
-| **DomainCRUD** | Domain Model (entidades, VOs), CRUD completo (soft delete), Pipeline sync, UI/UX, Navegação | 5 fases | ~30-40h |
+| **DomainCRUD** | Domain Model (entidades, VOs), CRUD completo (soft delete), Pipeline sync | 3 fases | ~20-26h |
 | **2026-07-SPRINT-4** | Consolidação UX + rastreabilidade | 4 stories | ~11h |
 
 ## Próximas Candidatas (não planejadas)

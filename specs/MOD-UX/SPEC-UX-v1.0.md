@@ -71,6 +71,9 @@ Padronizar a experiência TUI em 6 eixos:
 - **RULE-UX-8.7:** MCP `listar_clientes` deve aceitar parâmetros opcionais `pagina` (int, default 1) e `itens_por_pagina` (int, default 20) — backward compatibility mantida.
 - **RULE-UX-8.8:** Confirmação padronizada (S/N) em todas as ações destrutivas via `confirm_action()`, com variação visual `dangerous=True` para operações irreversíveis.
 
+### 3.9 Pesquisa de Satisfação (NPS)
+- **RULE-UX-9.1:** O menu Configurações deve conter a opção "Pesquisa de Satisfação (NPS)" que coleta nota 0-10, classifica como Detrator (0-6) / Neutro (7-8) / Promotor (9-10) e persiste em `nps_responses.jsonl` no diretório de configuração do usuário. Exibe a média histórica após cada resposta.
+
 ## 4. Relações
 - Código: `menus.py`, `tui_layout.py`, `form_view.py`
 - Specs relacionadas: `SPEC-CLIENTES-v1.0.md` (UX de clientes)
