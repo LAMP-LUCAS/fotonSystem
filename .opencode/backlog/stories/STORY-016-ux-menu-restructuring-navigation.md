@@ -1,12 +1,12 @@
 ---
-status: "ready"
+status: "done"
 sprint: "2026-SPRINT-5"
 ---
 
 # STORY-016: UX — Reestruturação de Menu + Navegação
 
-**Épico:** EPIC-002
-**Spec:** `MOD-DOMAIN-CRUD/SPEC-DOMAIN-CRUD-v1.0.md`
+**Épico:** EPIC-001
+**Spec:** `MOD-UX/SPEC-UX-v1.0.md`
 
 ## Descrição
 
@@ -14,11 +14,11 @@ Reestruturar o menu de clientes com subgrupos visuais. Implementar busca global 
 
 ## Regras Implementadas
 
-- **RULE-DOMAIN-4.4:** Menu reestruturado em subgrupos (Cadastro, Manutenção, Serviços, Perigo)
-- **RULE-DOMAIN-4.5:** Atalho `g` para busca global com drill-down
-- **RULE-DOMAIN-4.6:** `parse_command()` para `h`, `00`, `q`, texto livre
-- **RULE-DOMAIN-4.7:** `listar_clientes` MCP com parâmetros opcionais `pagina`/`itens_por_pagina`
-- **RULE-DOMAIN-4.8:** `confirm_action()` padronizada com `dangerous=True`
+- **RULE-UX-8.4:** Menu reestruturado em subgrupos (Cadastro, Manutenção, Serviços, Perigo)
+- **RULE-UX-8.5:** Atalho `g` para busca global com drill-down
+- **RULE-UX-8.6:** `parse_command()` para `h`, `00`, `q`, texto livre
+- **RULE-UX-8.7:** `listar_clientes` MCP com parâmetros opcionais `pagina`/`itens_por_pagina`
+- **RULE-UX-8.8:** `confirm_action()` padronizada com `dangerous=True`
 
 ## Critérios de Aceite
 

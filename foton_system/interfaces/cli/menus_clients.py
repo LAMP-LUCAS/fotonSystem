@@ -268,38 +268,11 @@ class MenuClientsHandler:
             self.menu.print_error(f"\n  Erro: {e}")
 
     def search_client_ui(self):
-        TUILayout.clear()
-        TUILayout.print_header("BUSCAR CLIENTE")
         term = input("\n  Digite o nome ou alias: ").strip().lower()
         if not term:
             self.menu.list_all_clients_ui()
             return
-        _start = time.perf_counter()
-        try:
-            df = self.menu.client_repo.get_clients_dataframe()
-            mask = (
-                df['NomeCliente'].astype(str).str.lower().str.contains(term, na=False) |
-                df['Alias'].astype(str).str.lower().str.contains(term, na=False)
-            )
-            results = df[mask]
-            if results.empty:
-                self.menu.print_warning("\nNenhum cliente encontrado.")
-            else:
-                self.menu.print_success(f"\n {len(results)} clientes encontrados:")
-                for i, (_, row) in enumerate(results.iterrows(), start=1):
-                    nome = row.get('NomeCliente', '') or ''
-                    alias = row.get('Alias', '') or ''
-                    print(f"  {Fore.YELLOW}{i}.{Style.RESET_ALL} {nome} ({alias})")
-                choice = input("\n  Digite o numero para abrir a ficha (ENTER para voltar): ").strip()
-                if choice.isdigit():
-                    idx = int(choice) - 1
-                    if 0 <= idx < len(results):
-                        selected = results.iloc[idx]
-                        self.menu.read_client_info_ui(selected.get('Alias', '') or '')
-            logger = self.menu._get_logger()
-            logger.info(f"perf: search_client_ui('{term}') completed in {time.perf_counter() - _start:.3f}s")
-        except Exception as e:
-            self.menu.print_error(f"\n  Erro ao buscar clientes: {e}")
+        self.menu.global_search_ui(term=term)
 
     def list_all_clients_ui(self):
         TUILayout.clear()

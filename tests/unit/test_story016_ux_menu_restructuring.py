@@ -1,7 +1,7 @@
 """
 Tests for STORY-016: UX — Menu Restructuring + Navigation.
 
-Covers RULE-DOMAIN-4.4, RULE-DOMAIN-4.5, RULE-DOMAIN-4.6, RULE-DOMAIN-4.7, RULE-DOMAIN-4.8.
+Covers RULE-UX-8.4, RULE-UX-8.5, RULE-UX-8.6, RULE-UX-8.7, RULE-UX-8.8.
 """
 
 import pytest
@@ -10,11 +10,11 @@ import sys
 from unittest.mock import MagicMock, patch
 
 # @story: STORY-016
-# @rule: RULE-DOMAIN-4.4, RULE-DOMAIN-4.5, RULE-DOMAIN-4.6, RULE-DOMAIN-4.7, RULE-DOMAIN-4.8
+# @rule: RULE-UX-8.4, RULE-UX-8.5, RULE-UX-8.6, RULE-UX-8.7, RULE-UX-8.8
 
 
 # ==============================================================================
-# parse_command Tests (RULE-DOMAIN-4.6)
+# parse_command Tests (RULE-UX-8.6)
 # ==============================================================================
 
 class TestParseCommand:
@@ -76,7 +76,7 @@ class TestParseCommand:
 
 
 # ==============================================================================
-# confirm_action Tests (RULE-DOMAIN-4.8)
+# confirm_action Tests (RULE-UX-8.8)
 # ==============================================================================
 
 def _make_menu():
@@ -129,7 +129,7 @@ class TestConfirmAction:
 
 
 # ==============================================================================
-# Menu Subgroups Tests (RULE-DOMAIN-4.4)
+# Menu Subgroups Tests (RULE-UX-8.4)
 # ==============================================================================
 
 class TestMenuSubgroups:
@@ -187,7 +187,7 @@ class TestMenuSubgroups:
 
 
 # ==============================================================================
-# global_search Expanded Tests (RULE-DOMAIN-4.5)
+# global_search Expanded Tests (RULE-UX-8.5)
 # ==============================================================================
 
 class TestGlobalSearchExpanded:
@@ -267,7 +267,7 @@ class TestGlobalSearchExpanded:
 
 
 # ==============================================================================
-# listar_clientes Pagination Tests (RULE-DOMAIN-4.7)
+# listar_clientes Pagination Tests (RULE-UX-8.7)
 # ==============================================================================
 
 class TestListarClientesPagination:
@@ -413,9 +413,20 @@ class TestRunWithParseCommand:
         with pytest.raises(SystemExit):
             menu.run()
 
+    def test_run_search_passes_term_to_global_search(self):
+        menu = _make_menu()
+        menu.display_main_menu = MagicMock(side_effect=['joão silva', 'q'])
+        menu.global_search_ui = MagicMock()
+        with pytest.raises(SystemExit):
+            menu.run()
+        menu.global_search_ui.assert_called_once()
+        args, kwargs = menu.global_search_ui.call_args
+        assert 'term' in kwargs, "global_search_ui deve receber term como named arg"
+        assert kwargs['term'] == 'joão silva'
+
 
 # ==============================================================================
-# confirm_action Integration in menus_clients (RULE-DOMAIN-4.8)
+# confirm_action Integration in menus_clients (RULE-UX-8.8)
 # ==============================================================================
 
 class TestConfirmActionIntegration:
@@ -454,3 +465,30 @@ class TestConfirmActionIntegration:
         handler = MenuClientsHandler(mock_menu)
         handler.fill_missing_codes_ui()
         mock_menu.confirm_action.assert_called_once()
+
+
+# ==============================================================================
+# search_client_ui Duplication Tests (Bug #2)
+# ==============================================================================
+
+class TestSearchClientUiDelegation:
+    def test_search_client_ui_delegates_to_global_search(self):
+        from foton_system.interfaces.cli.menus_clients import MenuClientsHandler
+        mock_menu = MagicMock()
+        mock_menu.global_search_ui = MagicMock()
+        handler = MenuClientsHandler(mock_menu)
+        with patch('builtins.input', return_value='joão silva'):
+            handler.search_client_ui()
+        mock_menu.global_search_ui.assert_called_once()
+        args, kwargs = mock_menu.global_search_ui.call_args
+        assert 'term' in kwargs
+        assert kwargs['term'] == 'joão silva'
+
+    def test_search_client_ui_empty_term_lists_all(self):
+        from foton_system.interfaces.cli.menus_clients import MenuClientsHandler
+        mock_menu = MagicMock()
+        mock_menu.list_all_clients_ui = MagicMock()
+        handler = MenuClientsHandler(mock_menu)
+        with patch('builtins.input', return_value=''):
+            handler.search_client_ui()
+        mock_menu.list_all_clients_ui.assert_called_once()

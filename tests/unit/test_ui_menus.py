@@ -210,8 +210,8 @@ class TestMenuUI(unittest.TestCase):
         printed = "".join([c.args[0] for c in mock_print.call_args_list if c.args])
         self.assertIn("1.", printed)
         self.assertIn("Ana Silva", printed)
-        self.assertIn("clientes encontrados", printed)
-        self.assertIn("(ana)", printed)
+        self.assertIn("Resultados para", printed)
+        self.assertIn("Cliente: ana", printed)
 
     def test_search_client_ui_select_navigates_to_read(self):
         """RULE-UX-3.1+3.3: Selecionar número abre read_client_info_ui."""

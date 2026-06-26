@@ -178,7 +178,7 @@ class MenuSystem:
                     continue
                 elif cmd['action'] == 'search':
                     self.print_info(f"  Buscando por '{cmd['term']}'...")
-                    self.global_search_ui()
+                    self.global_search_ui(term=cmd['term'])
                     continue
                 elif cmd['action'] == 'numeric':
                     val = cmd['value']
@@ -212,10 +212,13 @@ class MenuSystem:
             self.print_warning("Interrupcao detectada. Encerrando o sistema com seguranca...")
             sys.exit()
 
-    def global_search_ui(self):
+    def global_search_ui(self, term=None):
         TUILayout.clear()
         TUILayout.print_header("BUSCA GLOBAL")
-        query = input("\n  Digite o termo de busca: ").strip()
+        if term is None:
+            query = input("\n  Digite o termo de busca: ").strip()
+        else:
+            query = term
         if not query:
             self.print_warning("Termo vazio.")
             return
