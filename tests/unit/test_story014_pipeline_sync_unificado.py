@@ -292,7 +292,7 @@ class TestSyncReportSerialization:
         assert "bidir" in text.lower() or "Bidir" in text or "BIDIR" in text
         assert "dry" in text.lower()
 
-    def test_resumo_includes_counts(self, tmp_path):
+def test_resumo_includes_counts(tmp_path):
         from foton_system.modules.clients.application.use_cases.pipeline_sync import SyncReport
         report = SyncReport(
             direcao="pastas_to_db",
@@ -302,9 +302,8 @@ class TestSyncReportSerialization:
             duracao_segundos=1.5,
         )
         text = report.resumo()
-
-        assert "3" in text
-        assert "1.5" in text or "1,5" in text
+        assert "X, Y, Z" in text
+        assert "1.5s" in text
 
 
 # ==============================================================================

@@ -10,7 +10,57 @@ from foton_system.modules.finance.application.use_cases.finance_service import F
 
 
 class TestExcelClientRepositorioMetodosTipados(unittest.TestCase):
-    """Testa que ExcelClientRepository expoe metodos que retornam List[Client] e List[Service]."""
+    """Testa que ExcelClientRepository expoe metodos que retornam List[Client] e List[Service].
+    Uses mocked DataFrame methods to avoid real I/O and state pollution.
+    """
+
+    def setUp(self):
+        import pandas as pd
+        from unittest.mock import patch
+
+        self._clients_df = pd.DataFrame([
+            {"ID": 1, "NomeCliente": "Cliente Ativo", "Alias": "CLI_ATIVO", "CodCliente": "CAT01",
+             "NIF": "", "Email": "", "Telefone": "", "Endereco": "", "Status": "ATIVO"},
+            {"ID": 2, "NomeCliente": "Cliente Deletado", "Alias": "CLI_DEL", "CodCliente": "CDL01",
+             "NIF": "", "Email": "", "Telefone": "", "Endereco": "", "Status": "DELETADO"},
+        ])
+        self._all_clients_df = pd.DataFrame([
+            {"ID": 1, "NomeCliente": "Cliente Ativo", "Alias": "CLI_ATIVO", "CodCliente": "CAT01",
+             "NIF": "", "Email": "", "Telefone": "", "Endereco": "", "Status": "ATIVO"},
+            {"ID": 2, "NomeCliente": "Cliente Deletado", "Alias": "CLI_DEL", "CodCliente": "CDL01",
+             "NIF": "", "Email": "", "Telefone": "", "Endereco": "", "Status": "DELETADO"},
+        ])
+        self._clients_df = self._all_clients_df[self._all_clients_df['Status'] != 'DELETADO'].copy()
+
+        self._services_df = pd.DataFrame([
+            {"ID": 1, "AliasCliente": "CLI_ATIVO", "Alias": "SERVICO_A", "CodServico": "CATSVCA01",
+             "Modalidade": "", "Status": "ATIVO"},
+            {"ID": 2, "AliasCliente": "CLI_ATIVO", "Alias": "SERVICO_DEL", "CodServico": "CATSVCD01",
+             "Modalidade": "", "Status": "DELETADO"},
+        ])
+        self._all_services_df = pd.DataFrame([
+            {"ID": 1, "AliasCliente": "CLI_ATIVO", "Alias": "SERVICO_A", "CodServico": "CATSVCA01",
+             "Modalidade": "", "Status": "ATIVO"},
+            {"ID": 2, "AliasCliente": "CLI_ATIVO", "Alias": "SERVICO_DEL", "CodServico": "CATSVCD01",
+             "Modalidade": "", "Status": "DELETADO"},
+        ])
+        self._services_df = self._all_services_df[self._all_services_df['Status'] != 'DELETADO'].copy()
+
+        target = "foton_system.modules.clients.infrastructure.repositories.excel_client_repository.ExcelClientRepository"
+        self._patchers = [
+            patch(f"{target}.get_clients_dataframe", return_value=self._clients_df),
+            patch(f"{target}.get_services_dataframe", return_value=self._services_df),
+            patch(f"{target}.get_all_clients_dataframe", return_value=self._all_clients_df),
+            patch(f"{target}.get_all_services_dataframe", return_value=self._all_services_df),
+            patch(f"{target}.get_deleted_clients", return_value=[]),
+            patch(f"{target}.get_deleted_services", return_value=[]),
+        ]
+        for p in self._patchers:
+            p.start()
+
+    def tearDown(self):
+        for p in self._patchers:
+            p.stop()
 
     def test_get_clients_retorna_lista_de_client(self):
         """get_clients() retorna List[Client] com dados do DataFrame."""
