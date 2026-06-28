@@ -90,6 +90,26 @@ class TempFileClientRepository(ClientRepositoryPort):
     def get_deleted_services(self) -> list:
         return []
 
+    def get_clients(self) -> list:
+        from foton_system.modules.clients.domain.models import Client
+        df = self.get_clients_dataframe()
+        return [Client.from_row(row.to_dict()) for _, row in df.iterrows()]
+
+    def get_services(self) -> list:
+        from foton_system.modules.clients.domain.models import Service
+        df = self.get_services_dataframe()
+        return [Service.from_row(row.to_dict()) for _, row in df.iterrows()]
+
+    def get_all_clients(self) -> list:
+        from foton_system.modules.clients.domain.models import Client
+        df = self.get_all_clients_dataframe()
+        return [Client.from_row(row.to_dict()) for _, row in df.iterrows()]
+
+    def get_all_services(self) -> list:
+        from foton_system.modules.clients.domain.models import Service
+        df = self.get_all_services_dataframe()
+        return [Service.from_row(row.to_dict()) for _, row in df.iterrows()]
+
 
 class TestFullSyncCycle(unittest.TestCase):
     """Tests the full bidirectional sync cycle with real files."""

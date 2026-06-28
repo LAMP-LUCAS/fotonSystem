@@ -1,5 +1,7 @@
 """Tests: ExcelClientRepository filtra pastas ocultas (FASE A)."""
 import unittest
+import tempfile
+import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -8,15 +10,7 @@ class TestListClientFoldersFiltersHiddenDirs(unittest.TestCase):
     """list_client_folders() deve ignorar pastas iniciadas por '.'."""
 
     def setUp(self):
-        self.temp_dir = Path(__file__).parent / "_test_hidden_folders"
-        self.temp_dir.mkdir(exist_ok=True)
-        for p in self.temp_dir.iterdir():
-            if p.is_dir():
-                import shutil
-                shutil.rmtree(p)
-            else:
-                p.unlink()
-
+        self.temp_dir = Path(tempfile.mkdtemp())
         # Cria pastas visíveis
         (self.temp_dir / "CLIENTE_A").mkdir()
         (self.temp_dir / "CLIENTE_B").mkdir()
@@ -25,9 +19,8 @@ class TestListClientFoldersFiltersHiddenDirs(unittest.TestCase):
         (self.temp_dir / ".obsidian").mkdir()
 
     def tearDown(self):
-        import shutil
         if self.temp_dir.exists():
-            shutil.rmtree(self.temp_dir)
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_list_client_folders_excludes_dot_dirs(self):
         """Pastas com '.' inicial não devem aparecer no resultado."""
@@ -51,23 +44,14 @@ class TestSyncServiceFiltersHiddenDirs(unittest.TestCase):
     """sync_dashboard() deve ignorar pastas ocultas."""
 
     def setUp(self):
-        self.temp_dir = Path(__file__).parent / "_test_sync_hidden"
-        self.temp_dir.mkdir(exist_ok=True)
-        for p in self.temp_dir.iterdir():
-            if p.is_dir():
-                import shutil
-                shutil.rmtree(p)
-            else:
-                p.unlink()
-
+        self.temp_dir = Path(tempfile.mkdtemp())
         (self.temp_dir / "CLIENTE_OK").mkdir()
         (self.temp_dir / ".git").mkdir()
         (self.temp_dir / ".obsidian").mkdir()
 
     def tearDown(self):
-        import shutil
         if self.temp_dir.exists():
-            shutil.rmtree(self.temp_dir)
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("foton_system.modules.sync.sync_service.Config")
     def test_sync_ignores_dot_folders(self, MockConfig):

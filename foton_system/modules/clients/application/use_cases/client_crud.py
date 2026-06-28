@@ -420,6 +420,7 @@ def create_client(name: str, repository, config: Config, tax_id: str = "",
         else:
             # Strip digits from end, use letters-only as base, then append "01"
             base = re.sub(r'[0-9]+$', '', normalized) or normalized
+            base = re.sub(r'[^A-Z]', '', base) or 'XXX'
             if len(base) > 5:
                 base = base[:5]
             if not re.match(r'^[A-Z]{3,5}$', base):

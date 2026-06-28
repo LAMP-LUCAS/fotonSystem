@@ -1,6 +1,7 @@
 """Tests for ClientConformanceChecker."""
 
 import json
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -12,20 +13,12 @@ class TestClientConformanceChecker(unittest.TestCase):
     """Tests for folder name, INFO pattern, and conformance fixing."""
 
     def setUp(self):
-        self.temp_dir = Path(__file__).parent / "_test_conformance_temp"
-        self.temp_dir.mkdir(exist_ok=True)
-        # Clean up any previous test artifacts
-        for p in self.temp_dir.iterdir():
-            if p.is_dir():
-                import shutil
-                shutil.rmtree(p)
-            else:
-                p.unlink()
+        self.temp_dir = Path(tempfile.mkdtemp())
 
     def tearDown(self):
         import shutil
         if self.temp_dir.exists():
-            shutil.rmtree(self.temp_dir)
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def _make_config(self, patterns=None):
         cfg = MagicMock()

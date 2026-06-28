@@ -24,7 +24,8 @@ Implementar camada de domínio com entidades ricas, CRUD completo (soft delete/r
 | [STORY-013](stories/STORY-013-crud-financeiro-info-files.md) | CRUD — Validação Financeiro + INFO Files | 4h | DOMAIN-2.5, 2.6 | done |
 | [STORY-014](stories/STORY-014-pipeline-sync-unificado.md) | Pipeline de Sincronização Unificado | 8h | DOMAIN-3.1, 3.2, 3.3, 3.4, 3.5 | done |
 | [STORY-015](stories/STORY-015-ux-menus-split-helpers.md) | UX — Split menus.py + Helpers TUI | 6h | UX-8.1, 8.2, 8.3 | done |
-| | **Total** | **34h** | **21 RULE-IDs** | |
+| [STORY-018](stories/STORY-018-pop-audit-atualizar-ficha.md) | POP Audit para `atualizar_ficha_cliente` | 4h | DOMAIN-2.8 | done |
+| | **Total** | **38h** | **22 RULE-IDs** | |
 
 ## Dependências
 
@@ -48,7 +49,7 @@ STORY-015     STORY-016  (UX — EPIC-001, independentes entre si)
 - [ ] Atualizar CHANGELOG.md com todas as mudanças
 - [ ] Atualizar AGENTS.md com novas MCP tools
 - [ ] version.txt → `1.5.0`
-- [ ] Handoff gerado ao final da sprint
+- [x] Handoff gerado ao final da sprint
 
 ## Definição de Pronto (DoD)
 

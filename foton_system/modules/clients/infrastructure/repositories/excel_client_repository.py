@@ -313,6 +313,17 @@ class ExcelClientRepository(ClientRepositoryPort):
                 self._services_cache['Status'] = 'ATIVO'
             self._cache_valid = True
             return self._services_cache[self._services_cache['Status'] != 'DELETADO'].copy()
+        except ValueError:
+            # Sheet 'baseServicos' não existe — cria vazia e tenta novamente
+            df_vazia = pd.DataFrame(columns=[
+                'ID', 'AliasCliente', 'Alias', 'CodServico', 'Modalidade', 'Ano',
+                'Demanda', 'AreaTotal', 'AreaCoberta', 'AreaDescoberta',
+                'Detalhes', 'Estilo', 'Ambientes', 'ValorProposta', 'ValorContrato',
+                'Status'
+            ])
+            self._smart_write_dataframe(df_vazia, 'baseServicos')
+            self._invalidate_cache()
+            return self.get_services_dataframe()
         except Exception as e:
             logger.error(f"Erro ao ler base de serviços: {e}")
             raise
@@ -441,7 +452,7 @@ class ExcelClientRepository(ClientRepositoryPort):
 
     def _smart_write_dataframe(self, df: pd.DataFrame, sheet_name: str) -> None:
         self._ensure_database_exists()
-        with pd.ExcelWriter(self.base_dados, engine='openpyxl', mode='w') as writer:
+        with pd.ExcelWriter(self.base_dados, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
             df.to_excel(writer, sheet_name=sheet_name, index=False)
         self._invalidate_cache()
 
@@ -527,6 +538,16 @@ class ExcelClientRepository(ClientRepositoryPort):
                 self._services_cache['Status'] = 'ATIVO'
             self._cache_valid = True
             return self._services_cache.copy()
+        except ValueError:
+            df_vazia = pd.DataFrame(columns=[
+                'ID', 'AliasCliente', 'Alias', 'CodServico', 'Modalidade', 'Ano',
+                'Demanda', 'AreaTotal', 'AreaCoberta', 'AreaDescoberta',
+                'Detalhes', 'Estilo', 'Ambientes', 'ValorProposta', 'ValorContrato',
+                'Status'
+            ])
+            self._smart_write_dataframe(df_vazia, 'baseServicos')
+            self._invalidate_cache()
+            return self.get_all_services_dataframe()
         except Exception as e:
             logger.error(f"Erro ao ler base de serviços (all): {e}")
             raise

@@ -47,9 +47,10 @@ Os itens de UX/navegação que originalmente estavam neste EPIC-002 foram transf
 ## Stories Vinculadas
 
 | Story | Status |
-|---|---|
+|---|---|---|
 | STORY-010: Domain model status migration | ✅ done |
 | STORY-011: Domain model entities | ✅ done |
 | STORY-012: CRUD delete/restore MCP | ✅ done |
 | STORY-013: CRUD financeiro INFO files | ✅ done |
 | STORY-014: Pipeline sync unificado | ✅ done |
+| STORY-018: POP audit para atualizar_ficha_cliente | ✅ done |
