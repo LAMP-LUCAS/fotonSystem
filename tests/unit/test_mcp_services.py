@@ -721,6 +721,68 @@ class TestMCPDocumentService(unittest.TestCase):
             self.assertIn('ABC123', str(result))
             self.assertIn('CONTRATO', str(result))
 
+    def test_generate_delegates_to_op_generate_document(self):
+        """generate() delega para OpGenerateDocument ao invés de retornar stub."""
+        from unittest.mock import patch, MagicMock
+        from foton_system.interfaces.mcp.mcp_services import MCPDocumentService
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config = FakeConfig(templates_path=tmpdir)
+            docs = FakeDocumentService()
+            fake_op = MagicMock()
+            fake_op.execute.return_value = {
+                "status": "GENERATED",
+                "output_path": f"{tmpdir}/GERADO_contrato.docx",
+                "client": "TESTE",
+                "template": "contrato.docx"
+            }
+
+            with patch(
+                "foton_system.core.ops.op_doc_gen.OpGenerateDocument",
+                return_value=fake_op
+            ):
+                service = MCPDocumentService(config, docs)
+                result = service.generate(
+                    client_name="TESTE",
+                    template_name="contrato.docx",
+                    extra_data={"@cliente": "Teste"}
+                )
+
+            self.assertTrue(result.success)
+            self.assertEqual(result.message, "Documento gerado")
+            self.assertIn("GERADO_contrato.docx", result.output_path)
+            fake_op.execute.assert_called_once_with(
+                client_name="TESTE",
+                template_name="contrato.docx",
+                extra_data={"@cliente": "Teste"}
+            )
+
+    def test_generate_returns_error_on_exception(self):
+        """generate() retorna DocumentResult com success=False quando OpGenerateDocument falha."""
+        from unittest.mock import patch, MagicMock
+        from foton_system.interfaces.mcp.mcp_services import MCPDocumentService
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config = FakeConfig(templates_path=tmpdir)
+            docs = FakeDocumentService()
+            fake_op = MagicMock()
+            fake_op.execute.side_effect = ValueError("Cliente não encontrado")
+
+            with patch(
+                "foton_system.core.ops.op_doc_gen.OpGenerateDocument",
+                return_value=fake_op
+            ):
+                service = MCPDocumentService(config, docs)
+                result = service.generate(
+                    client_name="INEXISTENTE",
+                    template_name="contrato.docx"
+                )
+
+            self.assertFalse(result.success)
+            self.assertIn("Cliente não encontrado", result.message)
+
 
 class TestMCPKnowledgeService(unittest.TestCase):
     """Tests for MCPKnowledgeService with injected dependencies."""

@@ -54,7 +54,7 @@ class FakeClientRepository(ClientRepositoryPort):
         df = self._services.copy()
         if 'Status' not in df.columns:
             df['Status'] = 'ATIVO'
-        return df.copy()
+        return df[df['Status'] != 'DELETADO'].copy()
 
     def save_clients(self, df: pd.DataFrame):
         self._clients = df.copy()
@@ -454,3 +454,36 @@ class TestListServiceNodes(unittest.TestCase):
         names = {n['name'] for n in nodes}
         self.assertNotIn('_ignored', names)
         self.assertIn('REFORMA', names)
+
+
+class TestFakeClientRepository(unittest.TestCase):
+    """Tests for FakeClientRepository behavior matching real repo."""
+
+    def test_get_services_dataframe_filters_deleted(self):
+        repo = FakeClientRepository(
+            services_df=pd.DataFrame({
+                'AliasCliente': ['CLIENTE_A', 'CLIENTE_A'],
+                'Alias': ['SERVICO_ATIVO', 'SERVICO_DELETADO'],
+                'CodServico': ['SA-001', 'SD-001'],
+                'Status': ['ATIVO', 'DELETADO']
+            })
+        )
+        df = repo.get_services_dataframe()
+        self.assertNotIn('DELETADO', df['Status'].values,
+                         "get_services_dataframe() deve filtrar Status == 'DELETADO'")
+        self.assertEqual(len(df), 1)
+        self.assertEqual(df.iloc[0]['Alias'], 'SERVICO_ATIVO')
+
+    def test_get_all_services_dataframe_includes_deleted(self):
+        repo = FakeClientRepository(
+            services_df=pd.DataFrame({
+                'AliasCliente': ['CLIENTE_A', 'CLIENTE_A'],
+                'Alias': ['SERVICO_ATIVO', 'SERVICO_DELETADO'],
+                'CodServico': ['SA-001', 'SD-001'],
+                'Status': ['ATIVO', 'DELETADO']
+            })
+        )
+        df = repo.get_all_services_dataframe()
+        self.assertIn('DELETADO', df['Status'].values,
+                      "get_all_services_dataframe() deve incluir DELETADO")
+        self.assertEqual(len(df), 2)

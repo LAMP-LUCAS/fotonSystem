@@ -445,11 +445,20 @@ class MCPDocumentService:
                  extra_data: dict = None, path_resolver: ClientPathResolver = None) -> DocumentResult:
         """Generate a document for a client."""
         try:
+            from foton_system.core.ops.op_doc_gen import OpGenerateDocument
+            op = OpGenerateDocument(actor="Agent_MCP")
+            result = op.execute(
+                client_name=client_name,
+                template_name=template_name,
+                extra_data=extra_data or {}
+            )
             return DocumentResult(
                 success=True,
                 message="Documento gerado",
-                output_path=f"/output/{client_name}/{template_name}"
+                output_path=result["output_path"]
             )
+        except FileNotFoundError as e:
+            return DocumentResult(success=False, message=str(e))
         except (OSError, ValueError) as e:
             return DocumentResult(success=False, message=str(e))
         except Exception as e:
