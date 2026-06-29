@@ -104,5 +104,35 @@ class TestFinanceEntry(unittest.TestCase):
                 cliente_alias="TESTE"
             )
 
+    def test_validate_invalid_data_format(self):
+        with self.assertRaises(ValueError):
+            FinanceEntry(
+                tipo="ENTRADA",
+                valor=100.0,
+                descricao="Teste",
+                data="not-a-date",
+                cliente_alias="TESTE"
+            )
+
+    def test_validate_empty_data(self):
+        with self.assertRaises(ValueError):
+            FinanceEntry(
+                tipo="ENTRADA",
+                valor=100.0,
+                descricao="Teste",
+                data="",
+                cliente_alias="TESTE"
+            )
+
+    def test_validate_empty_cliente_alias(self):
+        with self.assertRaises(ValueError):
+            FinanceEntry(
+                tipo="ENTRADA",
+                valor=100.0,
+                descricao="Teste",
+                data="2026-06-01",
+                cliente_alias=""
+            )
+
 if __name__ == "__main__":
     unittest.main()

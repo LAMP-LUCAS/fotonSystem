@@ -1,7 +1,7 @@
 ---
-status: "active"
+status: "done"
 inicio: "2026-06-25"
-fim: "TBD"
+fim: "2026-06-28"
 ---
 
 # Sprint 5 — Domain Model, CRUD & Pipeline Sync

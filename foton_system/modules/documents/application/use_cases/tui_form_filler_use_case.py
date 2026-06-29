@@ -2,11 +2,14 @@
 TUI Form Filler Use Case - Orquestra o fluxo de preenchimento TUI de alta performance.
 """
 
+import logging
 import shutil
 from pathlib import Path
 from colorama import Fore, Style
 from foton_system.modules.documents.domain.models.form_session import FormSession
 from foton_system.interfaces.cli.views.form_view import TUIFormView
+
+logger = logging.getLogger(__name__)
 
 class TUIFormFillerUseCase:
     def __init__(self, file_path: Path):
@@ -40,7 +43,7 @@ class TUIFormFillerUseCase:
                 suffix = datetime.now().strftime("%Y%m%d_%H%M")
                 default_name = f"{self.file_path.stem}_{suffix}.md"
                 
-                print(f"\n{Fore.CYAN}--- SALVAR COMO ---{Style.RESET_ALL}")
+                logger.info("--- SALVAR COMO ---")
                 new_name = input(f"Digite o novo nome (Vazio para {default_name}): ").strip()
                 if not new_name:
                     new_name = default_name
