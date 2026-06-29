@@ -58,12 +58,12 @@ class TestMenuNavigation(unittest.TestCase):
             menu.handle_clients()
 
     def test_clients_menu_sync_db_from_folders(self):
-        """Option 5 calls sync_clients_db_from_folders."""
+        """Option 5 delegates to pipeline_sincronizacao."""
         menu = create_mocked_menu()
         with patch('builtins.input', side_effect=['5', '', '0']), \
-             patch.object(menu.client_service, 'sync_clients_db_from_folders') as mock_sync:
+             patch('foton_system.modules.clients.application.use_cases.pipeline_sync.pipeline_sincronizacao') as mock_pipeline:
             menu.handle_clients()
-            mock_sync.assert_called_once()
+            mock_pipeline.assert_called_once_with('pastas_to_db', dry_run=False)
 
     def test_services_menu_returns_on_zero(self):
         """Services menu exits on '0' input."""
@@ -355,16 +355,16 @@ class TestMenuMapping(unittest.TestCase):
     def test_option_5_sync_db_from_folders(self):
         menu = create_mocked_menu()
         with patch('builtins.input', side_effect=['5', '', '0']), \
-             patch.object(menu.client_service, 'sync_clients_db_from_folders') as mock_fn:
+             patch('foton_system.modules.clients.application.use_cases.pipeline_sync.pipeline_sincronizacao') as mock_fn:
             menu.handle_clients()
-            mock_fn.assert_called_once()
+            mock_fn.assert_called_once_with('pastas_to_db', dry_run=False)
 
     def test_option_6_sync_folders_from_db(self):
         menu = create_mocked_menu()
         with patch('builtins.input', side_effect=['6', '', '0']), \
-             patch.object(menu.client_service, 'sync_client_folders_from_db') as mock_fn:
+             patch('foton_system.modules.clients.application.use_cases.pipeline_sync.pipeline_sincronizacao') as mock_fn:
             menu.handle_clients()
-            mock_fn.assert_called_once()
+            mock_fn.assert_called_once_with('db_to_pastas', dry_run=False)
 
     def test_option_7_pipeline_sync(self):
         menu = create_mocked_menu()

@@ -25,10 +25,14 @@ class MenuClientsHandler:
                 self.menu.fill_missing_codes_ui()
                 input("Pressione Enter para continuar...")
             elif choice == '5':
-                self.menu.client_service.sync_clients_db_from_folders()
+                from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao, format_sync_report
+                report = pipeline_sincronizacao('pastas_to_db', dry_run=False)
+                self.menu.print_info(format_sync_report(report))
                 input("Pressione Enter para continuar...")
             elif choice == '6':
-                self.menu.client_service.sync_client_folders_from_db()
+                from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao, format_sync_report
+                report = pipeline_sincronizacao('db_to_pastas', dry_run=False)
+                self.menu.print_info(format_sync_report(report))
                 input("Pressione Enter para continuar...")
             elif choice == '7':
                 self.menu.pipeline_sync_ui()
@@ -113,15 +117,21 @@ class MenuClientsHandler:
         while True:
             choice = self.menu.display_services_menu()
             if choice == '1':
-                self.menu.client_service.sync_services_db_from_folders()
+                from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao, format_sync_report
+                report = pipeline_sincronizacao('pastas_to_db', dry_run=False)
+                self.menu.print_info(format_sync_report(report))
                 input("Pressione Enter para continuar...")
             elif choice == '2':
-                self.menu.client_service.sync_service_folders_from_db()
+                from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao, format_sync_report
+                report = pipeline_sincronizacao('db_to_pastas', dry_run=False)
+                self.menu.print_info(format_sync_report(report))
                 input("Pressione Enter para continuar...")
             elif choice == '3':
                 alias = input("Digite o Alias do Cliente: ").strip()
                 if alias:
-                    self.menu.client_service.sync_service_folders_from_db(client_alias=alias)
+                    from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao, format_sync_report
+                    report = pipeline_sincronizacao('db_to_pastas', dry_run=False)
+                    self.menu.print_info(format_sync_report(report))
                 input("Pressione Enter para continuar...")
             elif choice == '4':
                 self.menu.handle_service_sync_menu()

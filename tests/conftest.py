@@ -73,39 +73,55 @@ def fake_client_repository():
             self._created_folders.append(Path(path))
         
         def soft_delete_client(self, alias: str) -> bool:
+            from foton_system.modules.clients.domain.models import Client
             if 'Status' not in self._clients.columns:
                 self._clients['Status'] = 'ATIVO'
             mask = self._clients['Alias'] == alias
             if not mask.any():
                 return False
-            self._clients.loc[mask, 'Status'] = 'DELETADO'
+            row = self._clients[mask].iloc[0].to_dict()
+            client = Client.from_row(row)
+            client.soft_delete()
+            self._clients.loc[mask, 'Status'] = client.status
             return True
         
         def soft_delete_service(self, client_alias: str, service_alias: str) -> bool:
+            from foton_system.modules.clients.domain.models import Service
             if 'Status' not in self._services.columns:
                 self._services['Status'] = 'ATIVO'
             mask = (self._services['AliasCliente'] == client_alias) & (self._services['Alias'] == service_alias)
             if not mask.any():
                 return False
-            self._services.loc[mask, 'Status'] = 'DELETADO'
+            row = self._services[mask].iloc[0].to_dict()
+            service = Service.from_row(row)
+            service.soft_delete()
+            self._services.loc[mask, 'Status'] = service.status
             return True
         
         def restore_client(self, alias: str) -> bool:
+            from foton_system.modules.clients.domain.models import Client
             if 'Status' not in self._clients.columns:
                 return False
             mask = (self._clients['Alias'] == alias) & (self._clients['Status'] == 'DELETADO')
             if not mask.any():
                 return False
-            self._clients.loc[mask, 'Status'] = 'ATIVO'
+            row = self._clients[mask].iloc[0].to_dict()
+            client = Client.from_row(row)
+            client.restore()
+            self._clients.loc[mask, 'Status'] = client.status
             return True
         
         def restore_service(self, client_alias: str, service_alias: str) -> bool:
+            from foton_system.modules.clients.domain.models import Service
             if 'Status' not in self._services.columns:
                 return False
             mask = (self._services['AliasCliente'] == client_alias) & (self._services['Alias'] == service_alias) & (self._services['Status'] == 'DELETADO')
             if not mask.any():
                 return False
-            self._services.loc[mask, 'Status'] = 'ATIVO'
+            row = self._services[mask].iloc[0].to_dict()
+            service = Service.from_row(row)
+            service.restore()
+            self._services.loc[mask, 'Status'] = service.status
             return True
 
         def get_all_services_dataframe(self) -> pd.DataFrame:

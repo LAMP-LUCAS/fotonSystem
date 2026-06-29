@@ -466,7 +466,10 @@ class ExcelClientRepository(ClientRepositoryPort):
             mask = df['Alias'] == alias
             if not mask.any():
                 return False
-            df.loc[mask, 'Status'] = 'DELETADO'
+            row = df[mask].iloc[0].to_dict()
+            client = Client.from_row(row)
+            client.soft_delete()
+            df.loc[mask, 'Status'] = client.status
             self._smart_write_dataframe(df, 'baseClientes')
             logger.info(f"Cliente '{alias}' marcado como DELETADO")
             return True
@@ -484,7 +487,10 @@ class ExcelClientRepository(ClientRepositoryPort):
             mask = (df['AliasCliente'] == client_alias) & (df['Alias'] == service_alias)
             if not mask.any():
                 return False
-            df.loc[mask, 'Status'] = 'DELETADO'
+            row = df[mask].iloc[0].to_dict()
+            service = Service.from_row(row)
+            service.soft_delete()
+            df.loc[mask, 'Status'] = service.status
             self._smart_write_dataframe(df, 'baseServicos')
             logger.info(f"Serviço '{client_alias}/{service_alias}' marcado como DELETADO")
             return True
@@ -502,7 +508,10 @@ class ExcelClientRepository(ClientRepositoryPort):
             mask = (df['Alias'] == alias) & (df['Status'] == 'DELETADO')
             if not mask.any():
                 return False
-            df.loc[mask, 'Status'] = 'ATIVO'
+            row = df[mask].iloc[0].to_dict()
+            client = Client.from_row(row)
+            client.restore()
+            df.loc[mask, 'Status'] = client.status
             self._smart_write_dataframe(df, 'baseClientes')
             logger.info(f"Cliente '{alias}' restaurado")
             return True
@@ -520,7 +529,10 @@ class ExcelClientRepository(ClientRepositoryPort):
             mask = (df['AliasCliente'] == client_alias) & (df['Alias'] == service_alias) & (df['Status'] == 'DELETADO')
             if not mask.any():
                 return False
-            df.loc[mask, 'Status'] = 'ATIVO'
+            row = df[mask].iloc[0].to_dict()
+            service = Service.from_row(row)
+            service.restore()
+            df.loc[mask, 'Status'] = service.status
             self._smart_write_dataframe(df, 'baseServicos')
             logger.info(f"Serviço '{client_alias}/{service_alias}' restaurado")
             return True

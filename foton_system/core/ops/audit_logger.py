@@ -61,6 +61,6 @@ class AuditLogger:
                 lines = f.readlines()
                 for line in reversed(lines[-limit:]):
                     events.append(json.loads(line))
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.error(f"Erro ao ler eventos de auditoria: {e}")
         return events
