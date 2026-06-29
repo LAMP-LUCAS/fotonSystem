@@ -13,7 +13,85 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 
 from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
-from foton_system.scripts.fix_info_files import batch_fix
+from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+
+# --- Helper functions (inlined from deprecated fix_info_files.py) ---
+
+def _get_latest_info_file(folder, alias, suffix):
+    """Find the latest INFO file in a folder matching the pattern."""
+    tipo = "cliente" if suffix == "CLIENTE" else "servico"
+    glob_pattern = PathManager.get_info_glob(tipo)
+    files = list(folder.glob(glob_pattern))
+    if not files:
+        return None
+    files.sort(key=lambda f: f.name, reverse=True)
+    return files[0]
+
+def _fix_file(path, required_keys):
+    """Appends missing keys to the INFO file."""
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        lines = content.split('\n')
+        existing_keys = set()
+        for line in lines:
+            if ':' in line:
+                k = line.split(':', 1)[0].strip()
+                existing_keys.add(k)
+        
+        missing = [k for k in required_keys if k not in existing_keys]
+        
+        if not missing:
+            return False
+        
+        with open(path, 'a', encoding='utf-8') as f:
+            f.write("\n\n### VARIÁVEIS ADICIONADAS AUTOMATICAMENTE\n")
+            for k in missing:
+                f.write(f"{k}: \n")
+        
+        return True
+    except Exception as e:
+        print(Fore.RED + f"Erro ao corrigir {path}: {e}")
+        return False
+
+def _batch_fix(client_keys=None, service_keys=None):
+    """
+    Runs the batch fix process on all client INFO files.
+    Uses provided keys; does NOT parse the template (schema-driven).
+    """
+    print(Fore.CYAN + "=== CORREÇÃO EM LOTE DE ARQUIVOS INFO ===")
+    config_local = Config()
+    base_pasta = config_local.base_pasta_clientes
+    
+    print(f"Keys for Clientes: {len(client_keys or [])}, Serviços: {len(service_keys or [])}")
+    
+    for client_folder in base_pasta.iterdir():
+        if not client_folder.is_dir() or client_folder.name in config_local.ignored_folders:
+            continue
+            
+        alias = client_folder.name
+        info_file = _get_latest_info_file(client_folder, alias, "CLIENTE")
+        
+        if info_file:
+            if _fix_file(info_file, client_keys or []):
+                print(Fore.GREEN + f"✔ {alias}: Atualizado.")
+        else:
+            print(Fore.RED + f"✘ {alias}: Arquivo INFO não encontrado.")
+
+        for service_folder in client_folder.iterdir():
+            if not service_folder.is_dir():
+                continue
+                
+            service_alias = service_folder.name
+            info_service = _get_latest_info_file(service_folder, service_alias, "SERVICO")
+            
+            if info_service:
+                if _fix_file(info_service, service_keys or []):
+                    print(Fore.GREEN + f"✔ {alias}/{service_alias}: Atualizado.")
+    
+    print(Fore.CYAN + "\n=== CONCLUÍDO ===")
+
 
 class SchemaManager:
     def __init__(self):
@@ -332,7 +410,7 @@ class SchemaManager:
         # 2. Sync Info Files
         print(f"\n{Fore.YELLOW}>>> Sincronizando Arquivos INFO...")
         info_vars = [k for k, v in self.schema['variables'].items() if v['storage'] in ['info_file', 'ambos']]
-        batch_fix(client_keys=info_vars, service_keys=info_vars)
+        _batch_fix(client_keys=info_vars, service_keys=info_vars)
 
 
     def menu(self):

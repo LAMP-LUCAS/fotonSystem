@@ -1,4 +1,5 @@
 import hashlib
+import re
 from pathlib import Path
 from typing import Dict, Any, List
 from foton_system.core.ops.base_op import BaseOp
@@ -37,16 +38,31 @@ class OpIndexKnowledge(BaseOp):
         return hasher.hexdigest()
 
     def _chunk_text(self, text: str, chunk_size: int = 500) -> List[str]:
-        """
-        Simple overlapping chunker. 
-        TODO: Improve with header-aware splitting (Markdown).
-        """
+        """Header-aware chunker. Splits on Markdown headers to preserve context."""
+        header_pattern = re.compile(r'^(#{1,6}\s+.*)$', re.MULTILINE)
+        sections = header_pattern.split(text)
+        header = ""
         chunks = []
-        start = 0
-        while start < len(text):
-            end = start + chunk_size
-            chunks.append(text[start:end])
-            start += chunk_size - 50 # 50 char overlap
+        for part in sections:
+            part = part.strip()
+            if not part:
+                continue
+            if part.startswith('#'):
+                header = part
+                continue
+            content = f"{header}\n{part}" if header else part
+            if len(content) <= chunk_size:
+                chunks.append(content)
+            else:
+                overlap = 50
+                start = 0
+                while start < len(content):
+                    end = start + chunk_size
+                    piece = content[start:end]
+                    if header and start > 0:
+                        piece = f"{header} (cont.)\n{piece}"
+                    chunks.append(piece)
+                    start += chunk_size - overlap
         return chunks
 
     def execute_logic(self, validated_data: Dict[str, Any]) -> Dict[str, Any]:

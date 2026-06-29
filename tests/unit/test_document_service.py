@@ -516,3 +516,78 @@ class TestDocumentServiceContextCanonical(unittest.TestCase):
 
         expected = service / "00_DOC" / "GERADOS" / "MEMORIAL" / "MEMORIAL_DESCRITIVO.docx"
         self.assertEqual(result, expected)
+
+
+class TestDocumentServiceExtraData(unittest.TestCase):
+    """Tests for generate_document() extra_data parameter."""
+
+    def setUp(self):
+        self.service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
+
+    @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
+    @patch.object(DocumentService, '_load_context_data', return_value={})
+    @patch.object(DocumentService, '_validate_keys', return_value=[])
+    @patch.object(DocumentService, '_get_system_variables', return_value={})
+    def test_extra_data_bypasses_file_when_provided(self, mock_sysvars, mock_validate,
+                                                    mock_context, MockConfig):
+        """When extra_data is provided, _load_data should NOT be called."""
+        mock_config = MagicMock()
+        mock_config.base_pasta_clientes = Path("/tmp/fake_base")
+        MockConfig.return_value = mock_config
+        mock_adapter = MagicMock()
+
+        service = DocumentService(mock_adapter, mock_adapter)
+        with patch.object(service, '_load_data', return_value={}) as mock_load:
+            service.generate_document(
+                template_path="/tmp/template.docx",
+                data_path="/tmp/client_path",
+                output_path="/tmp/output.docx",
+                doc_type="docx",
+                extra_data={"@nome": "Extra Value"}
+            )
+            mock_load.assert_not_called()
+
+    @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
+    @patch.object(DocumentService, '_load_context_data', return_value={})
+    @patch.object(DocumentService, '_validate_keys', return_value=[])
+    @patch.object(DocumentService, '_get_system_variables', return_value={})
+    def test_extra_data_overrides_context_and_file(self, mock_sysvars, mock_validate,
+                                                   mock_context, MockConfig):
+        """extra_data should override context_data and file data in replacements."""
+        mock_config = MagicMock()
+        mock_config.base_pasta_clientes = Path("/tmp/fake_base")
+        MockConfig.return_value = mock_config
+        mock_adapter = MagicMock()
+        mock_context.return_value = {'@var': 'from_context'}
+
+        service = DocumentService(mock_adapter, mock_adapter)
+        with patch.object(service, '_load_data', return_value={'@var': 'from_file'}):
+            service.generate_document(
+                template_path="/tmp/template.docx",
+                data_path="/tmp/client_path",
+                output_path="/tmp/output.docx",
+                doc_type="docx",
+                extra_data={"@var": "from_extra"}
+            )
+
+    @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
+    @patch.object(DocumentService, '_load_context_data', return_value={})
+    @patch.object(DocumentService, '_validate_keys', return_value=[])
+    @patch.object(DocumentService, '_get_system_variables', return_value={})
+    def test_extra_data_none_reads_from_file(self, mock_sysvars, mock_validate,
+                                             mock_context, MockConfig):
+        """When extra_data is None, _load_data should read from file path."""
+        mock_config = MagicMock()
+        mock_config.base_pasta_clientes = Path("/tmp/fake_base")
+        MockConfig.return_value = mock_config
+        mock_adapter = MagicMock()
+
+        service = DocumentService(mock_adapter, mock_adapter)
+        with patch.object(service, '_load_data', return_value={}) as mock_load:
+            service.generate_document(
+                template_path="/tmp/template.docx",
+                data_path="/tmp/data.json",
+                output_path="/tmp/output.docx",
+                doc_type="docx"
+            )
+            mock_load.assert_called_once()

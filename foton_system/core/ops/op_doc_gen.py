@@ -1,3 +1,4 @@
+import json
 from typing import Dict, Any, List
 from pathlib import Path
 from foton_system.core.ops.base_op import BaseOp
@@ -6,7 +7,6 @@ from foton_system.modules.documents.infrastructure.adapters.python_docx_adapter 
 from foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter import PythonPPTXAdapter
 from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
-import json
 
 class OpGenerateDocument(BaseOp):
     """
@@ -78,29 +78,19 @@ class OpGenerateDocument(BaseOp):
         if not template_path.exists():
              raise FileNotFoundError(f"Template '{template_name}' not found in {template_dir}")
 
-        # 4. Prepare Data
-        # We need to temporarily write JSON for the legacy service to read
-        # TODO: Refactor Service to accept Dict directly to avoid IO
-        temp_data_file = client_path / "temp_pop_data.json"
-        with open(temp_data_file, 'w', encoding='utf-8') as f:
-            json.dump(validated_data["extra_data"], f)
-
-        # 5. Generate
+        # 4. Generate
         output_name = f"GERADO_{template_path.name}"
         output_path = client_path / output_name
         
         doc_type = "pptx" if template_path.suffix == ".pptx" else "docx"
         
-        try:
-            service.generate_document(
-                template_path=str(template_path),
-                data_path=str(temp_data_file),
-                output_path=str(output_path),
-                doc_type=doc_type
-            )
-        finally:
-            if temp_data_file.exists():
-                temp_data_file.unlink()
+        service.generate_document(
+            template_path=str(template_path),
+            data_path=str(client_path),
+            output_path=str(output_path),
+            doc_type=doc_type,
+            extra_data=validated_data["extra_data"]
+        )
 
         return {
             "status": "GENERATED",

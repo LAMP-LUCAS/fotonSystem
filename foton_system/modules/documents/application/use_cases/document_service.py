@@ -129,14 +129,14 @@ class DocumentService:
             logger.error(f"Erro ao parsear TXT {path}: {e}")
         return replacements
 
-    def generate_document(self, template_path, data_path, output_path, doc_type):
+    def generate_document(self, template_path, data_path, output_path, doc_type, extra_data: Optional[dict] = None):
         logger.info(f"Gerando documento do tipo {doc_type}...")
 
         # 1. Load Context Data (Centers of Truth)
         context_data = self._load_context_data(Path(data_path))
 
         # 2. Load Document Data
-        doc_data = self._load_data(data_path)
+        doc_data = self._load_data(data_path) if extra_data is None else extra_data
         
         # 3. Inject System Variables (Auto-Context)
         system_vars = self._get_system_variables()
@@ -202,7 +202,8 @@ class DocumentService:
         data = {}
         try:
             base_clients = self._config.base_pasta_clientes
-            current_dir = data_path.parent
+            start_dir = data_path if data_path.is_dir() else data_path.parent
+            current_dir = start_dir
 
             dirs_to_check = []
             while current_dir != base_clients and current_dir != current_dir.parent:
