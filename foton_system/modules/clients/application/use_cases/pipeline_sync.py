@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable
 from pathlib import Path
 from datetime import datetime
 import time
@@ -83,6 +83,7 @@ def pipeline_sincronizacao(
     dry_run: bool = True,
     repo: Any = None,
     config: Optional[Config] = None,
+    progress_callback: Optional[Callable[[str], None]] = None,
 ) -> SyncReport:
     """
     Unified sync pipeline for Clients and Services.
@@ -126,10 +127,10 @@ def pipeline_sincronizacao(
 
     try:
         if direcao in ("pastas_to_db", "bidir"):
-            _step_pastas_to_db(repo, report, dry_run, service)
+            _step_pastas_to_db(repo, report, dry_run, service, progress_callback)
 
         if direcao in ("db_to_pastas", "bidir"):
-            _step_db_to_pastas(repo, report, dry_run, service, config)
+            _step_db_to_pastas(repo, report, dry_run, service, config, progress_callback)
 
     except Exception as e:
         report.erros.append(str(e))
@@ -143,7 +144,7 @@ def pipeline_sincronizacao(
 # Step: snapshot + diff + validate + apply (pastas -> DB)
 # ---------------------------------------------------------------------------
 
-def _step_pastas_to_db(repo, report: SyncReport, dry_run: bool, service=None):
+def _step_pastas_to_db(repo, report: SyncReport, dry_run: bool, service=None, progress_callback=None):
     """Snapshot folders, diff against DB, validate, apply if not dry_run."""
     # Snapshot: folders
     client_folders = repo.list_client_folders()
@@ -170,21 +171,23 @@ def _step_pastas_to_db(repo, report: SyncReport, dry_run: bool, service=None):
 
         # Apply: add new clients if not dry_run
         if not dry_run and report.clientes_novos:
-            _apply_new_clients(repo, report)
+            _apply_new_clients(repo, report, progress_callback)
 
         # Sync services
-        _step_services_sync(repo, report, dry_run)
+        _step_services_sync(repo, report, dry_run, progress_callback)
     except Exception as e:
         report.erros.append(f"pastas_to_db error: {e}")
 
 
-def _apply_new_clients(repo, report: SyncReport):
+def _apply_new_clients(repo, report: SyncReport, progress_callback=None):
     """Add newly detected clients to the database."""
     try:
         db_clients = repo.get_clients_dataframe()
         new_rows = []
         for alias in report.clientes_novos:
             new_rows.append({"Alias": alias, "NomeCliente": alias, "Status": "ATIVO"})
+            if progress_callback:
+                progress_callback(f"cliente:{alias}")
         if new_rows:
             new_df = pd.DataFrame(new_rows)
             updated = pd.concat([db_clients, new_df], ignore_index=True)
@@ -194,13 +197,15 @@ def _apply_new_clients(repo, report: SyncReport):
         report.erros.append(f"Failed to add new clients: {e}")
 
 
-def _step_services_sync(repo, report: SyncReport, dry_run: bool):
+def _step_services_sync(repo, report: SyncReport, dry_run: bool, progress_callback=None):
     """Sync services: folders to DB."""
     try:
         client_folders = repo.list_client_folders()
         for client in sorted(client_folders):
             service_folders = repo.list_service_folders(client)
             if not service_folders:
+                if progress_callback:
+                    progress_callback(f"cliente:{client}")
                 continue
             db_services = repo.get_services_dataframe()
             new_services = []
@@ -212,6 +217,8 @@ def _step_services_sync(repo, report: SyncReport, dry_run: bool):
                 if not exists:
                     report.servicos_novos.append(f"{client}/{svc}")
                     new_services.append({"AliasCliente": client, "Alias": svc, "Status": "ATIVO"})
+                if progress_callback:
+                    progress_callback(f"servico:{client}/{svc}")
 
             if new_services and not dry_run:
                 new_df = pd.DataFrame(new_services)
@@ -226,7 +233,7 @@ def _step_services_sync(repo, report: SyncReport, dry_run: bool):
 # Step: snapshot + diff + validate + apply (DB -> pastas)
 # ---------------------------------------------------------------------------
 
-def _step_db_to_pastas(repo, report: SyncReport, dry_run: bool, service=None, config=None):
+def _step_db_to_pastas(repo, report: SyncReport, dry_run: bool, service=None, config=None, progress_callback=None):
     """Snapshot DB, diff folders, validate, apply if not dry_run."""
     try:
         # Snapshot: DB clients
@@ -250,17 +257,20 @@ def _step_db_to_pastas(repo, report: SyncReport, dry_run: bool, service=None, co
                 if not folder_exists and alias not in report.clientes_atualizados:
                     report.clientes_atualizados.append(alias)
 
+            if progress_callback:
+                progress_callback(f"cliente:{alias}" if alias else "cliente:?")
+
         # Apply: create folders if not dry_run
         if not dry_run and report.clientes_atualizados:
-            _apply_new_folders(repo, report, config)
+            _apply_new_folders(repo, report, config, progress_callback)
 
         # Snapshot: DB services
-        _step_db_services_to_pastas(repo, report, dry_run, config)
+        _step_db_services_to_pastas(repo, report, dry_run, config, progress_callback)
     except Exception as e:
         report.erros.append(f"db_to_pastas error: {e}")
 
 
-def _step_db_services_to_pastas(repo, report: SyncReport, dry_run: bool, config=None):
+def _step_db_services_to_pastas(repo, report: SyncReport, dry_run: bool, config=None, progress_callback=None):
     """Create service folders for DB entries that are missing folders."""
     try:
         db_services = repo.get_services_dataframe()
@@ -287,6 +297,9 @@ def _step_db_services_to_pastas(repo, report: SyncReport, dry_run: bool, config=
                 if not folder_exists and svc_key not in report.servicos_atualizados:
                     report.servicos_atualizados.append(svc_key)
 
+                if progress_callback:
+                    progress_callback(f"servico:{svc_key}")
+
         # Apply: create folders if not dry_run
         if not dry_run and report.servicos_atualizados:
             for svc_key in report.servicos_atualizados:
@@ -302,13 +315,15 @@ def _step_db_services_to_pastas(repo, report: SyncReport, dry_run: bool, config=
                             continue
                         svc_path.mkdir(parents=True, exist_ok=True)
                         logger.info(f"Created folder for service: {svc_key}")
+                        if progress_callback:
+                            progress_callback(f"servico:{svc_key}")
                     except Exception as e:
                         report.erros.append(f"Failed to create folder for {svc_key}: {e}")
     except Exception as e:
         report.erros.append(f"db_services_to_pastas error: {e}")
 
 
-def _apply_new_folders(repo, report: SyncReport, config=None):
+def _apply_new_folders(repo, report: SyncReport, config=None, progress_callback=None):
     """Create folders for DB entries missing folders."""
     try:
         db_clients = repo.get_clients_dataframe()
@@ -324,6 +339,8 @@ def _apply_new_folders(repo, report: SyncReport, config=None):
                         continue
                     client_path.mkdir(parents=True, exist_ok=True)
                     logger.info(f"Created folder for client: {alias}")
+                    if progress_callback:
+                        progress_callback(f"cliente:{alias}")
                 except Exception as e:
                     report.erros.append(f"Failed to create folder for {alias}: {e}")
     except Exception as e:

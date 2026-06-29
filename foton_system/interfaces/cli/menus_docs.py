@@ -1,6 +1,7 @@
 from pathlib import Path
 from colorama import Fore, Style
 from foton_system.interfaces.cli.views.tui_layout import TUILayout
+from foton_system.interfaces.cli.helpers.error_suggestions import format_error_with_suggestion
 
 
 class MenuDocsHandler:
@@ -89,7 +90,7 @@ class MenuDocsHandler:
             else:
                 self.menu.print_warning("Operacao cancelada.")
         except Exception as e:
-            self.menu.print_error(f"Erro no pipeline de interface: {e}")
+            self.menu.print_error(f"Erro no pipeline de interface: {format_error_with_suggestion(e)}")
             input("Pressione Enter para voltar...")
 
     def generate_document_ui(self, doc_type):
@@ -153,7 +154,7 @@ class MenuDocsHandler:
             self.menu.ui.open_folder(client_path)
             input("\nPressione Enter para continuar...")
         except Exception as e:
-            self.menu.print_error(f"\n  Erro ao gerar: {e}")
+            self.menu.print_error(f"\n  Erro ao gerar: {format_error_with_suggestion(e)}")
             input("\nPressione Enter para continuar...")
 
     def validate_template_ui(self):

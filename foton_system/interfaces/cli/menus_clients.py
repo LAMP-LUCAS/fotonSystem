@@ -3,6 +3,8 @@ import time
 from pathlib import Path
 from colorama import Fore, Style
 from foton_system.interfaces.cli.views.tui_layout import TUILayout
+from foton_system.interfaces.cli.helpers.progress_tracker import ProgressTracker
+from foton_system.interfaces.cli.helpers.error_suggestions import format_error_with_suggestion
 
 
 class MenuClientsHandler:
@@ -26,12 +28,18 @@ class MenuClientsHandler:
                 input("Pressione Enter para continuar...")
             elif choice == '5':
                 from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao, format_sync_report
+                _tracker = ProgressTracker(total=1, description="Sincronizando Pastas -> DB")
+                _tracker.advance()
                 report = pipeline_sincronizacao('pastas_to_db', dry_run=False)
+                _tracker.finish()
                 self.menu.print_info(format_sync_report(report))
                 input("Pressione Enter para continuar...")
             elif choice == '6':
                 from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao, format_sync_report
+                _tracker = ProgressTracker(total=1, description="Sincronizando DB -> Pastas")
+                _tracker.advance()
                 report = pipeline_sincronizacao('db_to_pastas', dry_run=False)
+                _tracker.finish()
                 self.menu.print_info(format_sync_report(report))
                 input("Pressione Enter para continuar...")
             elif choice == '7':
@@ -118,19 +126,28 @@ class MenuClientsHandler:
             choice = self.menu.display_services_menu()
             if choice == '1':
                 from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao, format_sync_report
+                _tracker = ProgressTracker(total=1, description="Sincronizando Pastas -> DB (servicos)")
+                _tracker.advance()
                 report = pipeline_sincronizacao('pastas_to_db', dry_run=False)
+                _tracker.finish()
                 self.menu.print_info(format_sync_report(report))
                 input("Pressione Enter para continuar...")
             elif choice == '2':
                 from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao, format_sync_report
+                _tracker = ProgressTracker(total=1, description="Sincronizando DB -> Pastas (servicos)")
+                _tracker.advance()
                 report = pipeline_sincronizacao('db_to_pastas', dry_run=False)
+                _tracker.finish()
                 self.menu.print_info(format_sync_report(report))
                 input("Pressione Enter para continuar...")
             elif choice == '3':
                 alias = input("Digite o Alias do Cliente: ").strip()
                 if alias:
                     from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao, format_sync_report
+                    _tracker = ProgressTracker(total=1, description="Sincronizando DB -> Pastas (servicos)")
+                    _tracker.advance()
                     report = pipeline_sincronizacao('db_to_pastas', dry_run=False)
+                    _tracker.finish()
                     self.menu.print_info(format_sync_report(report))
                 input("Pressione Enter para continuar...")
             elif choice == '4':
@@ -156,7 +173,7 @@ class MenuClientsHandler:
         except ValueError as e:
             self.menu.print_error(f"\n  {e}")
         except Exception as e:
-            self.menu.print_error(f"\n  Erro: {e}")
+            self.menu.print_error(f"\n  {format_error_with_suggestion(e)}")
 
     def update_client_info_ui(self):
         TUILayout.clear()
@@ -186,7 +203,7 @@ class MenuClientsHandler:
         except ValueError as e:
             self.menu.print_error(f"\n  {e}")
         except Exception as e:
-            self.menu.print_error(f"\n  Erro: {e}")
+            self.menu.print_error(f"\n  {format_error_with_suggestion(e)}")
 
     def fill_missing_codes_ui(self):
         TUILayout.clear()
@@ -198,7 +215,10 @@ class MenuClientsHandler:
             self.menu.print_warning("Operacao cancelada.")
             return
         try:
+            _tracker = ProgressTracker(total=1, description="Preenchendo codigos faltantes")
+            _tracker.advance()
             result = self.menu.client_service.fill_missing_codes()
+            _tracker.finish()
             clientes = result['clientes_alterados']
             servicos = result['servicos_alterados']
             if clientes:
@@ -208,7 +228,7 @@ class MenuClientsHandler:
             if not clientes and not servicos:
                 self.menu.print_success("\n  Nenhum codigo faltante encontrado. Todos os registros ja possuem codigo.")
         except Exception as e:
-            self.menu.print_error(f"\n  Erro: {e}")
+            self.menu.print_error(f"\n  {format_error_with_suggestion(e)}")
 
     def remove_client_ui(self):
         TUILayout.clear()
@@ -229,7 +249,7 @@ class MenuClientsHandler:
             else:
                 self.menu.print_error(f"\n  {result['error']}")
         except Exception as e:
-            self.menu.print_error(f"\n  Erro: {e}")
+            self.menu.print_error(f"\n  {format_error_with_suggestion(e)}")
 
     def restore_client_ui(self):
         try:
@@ -258,7 +278,7 @@ class MenuClientsHandler:
             else:
                 self.menu.print_error(f"\n  {result['error']}")
         except Exception as e:
-            self.menu.print_error(f"\n  Erro: {e}")
+            self.menu.print_error(f"\n  {format_error_with_suggestion(e)}")
 
     def pipeline_sync_ui(self):
         TUILayout.clear()
@@ -272,10 +292,13 @@ class MenuClientsHandler:
         direcao = direcao_map.get(choice, 'bidir')
         try:
             from foton_system.modules.clients.application.use_cases.pipeline_sync import pipeline_sincronizacao, format_sync_report
+            _tracker = ProgressTracker(total=1, description=f"Sincronizando ({direcao})")
+            _tracker.advance()
             report = pipeline_sincronizacao(direcao)
+            _tracker.finish()
             print(f"\n{format_sync_report(report)}")
         except Exception as e:
-            self.menu.print_error(f"\n  Erro: {e}")
+            self.menu.print_error(f"\n  {format_error_with_suggestion(e)}")
 
     def search_client_ui(self):
         term = input("\n  Digite o nome ou alias: ").strip().lower()
@@ -319,7 +342,7 @@ class MenuClientsHandler:
             logger.info(f"perf: list_all_clients_ui ({total} clients) completed in {time.perf_counter() - _start:.3f}s")
             input(f"\n  {Fore.GREEN}Fim da lista.{Style.RESET_ALL} Pressione Enter para continuar...")
         except Exception as e:
-            self.menu.print_error(f"\n  Erro ao listar clientes: {e}")
+            self.menu.print_error(f"\n  {format_error_with_suggestion(e)}")
             input("\n  Pressione Enter para continuar...")
 
     def handle_client_servicos_menu(self):
@@ -378,7 +401,7 @@ class MenuClientsHandler:
         except ValueError as e:
             self.menu.print_error(f"\n  {e}")
         except Exception as e:
-            self.menu.print_error(f"\n  Erro: {e}")
+            self.menu.print_error(f"\n  {format_error_with_suggestion(e)}")
 
     def create_client_servico_ui(self):
         TUILayout.clear()
@@ -421,16 +444,20 @@ class MenuClientsHandler:
         except ValueError as e:
             self.menu.print_error(f"\n  {e}")
         except Exception as e:
-            self.menu.print_error(f"\n  Erro: {e}")
+            self.menu.print_error(f"\n  {format_error_with_suggestion(e)}")
 
     def validar_codigos_servicos_ui(self):
         TUILayout.clear()
         TUILayout.print_header("VALIDAR CODIGOS DE SERVICO")
         try:
+            _tracker = ProgressTracker(total=2, description="Validando codigos de servico")
+            _tracker.advance("fill_missing")
             result = self.menu.client_service.fill_missing_codes()
+            _tracker.advance("validate")
+            issues = self.menu.client_service.validate_service_codes()
+            _tracker.finish()
             if result.get('servicos_alterados'):
                 self.menu.print_success(f"\n  {result['servicos_alterados']} servico(s) receberam codigo automaticamente.")
-            issues = self.menu.client_service.validate_service_codes()
             if not issues:
                 self.menu.print_success("\n  Todos os codigos de servico sao validos.")
                 return
@@ -442,23 +469,31 @@ class MenuClientsHandler:
                 print(f"      Codigo: '{iss['cod_servico']}'")
                 print(f"      Sugestao: {iss['suggested_fix']}")
         except Exception as e:
-            self.menu.print_error(f"\n  Erro: {e}")
+            self.menu.print_error(f"\n  {format_error_with_suggestion(e)}")
 
     def corrigir_codigos_servicos_ui(self):
         TUILayout.clear()
         TUILayout.print_header("CORRIGIR CODIGOS DE SERVICO")
         try:
+            _tracker = ProgressTracker(total=3, description="Corrigindo codigos de servico")
+            _tracker.advance("fill_missing")
             result = self.menu.client_service.fill_missing_codes()
-            if result.get('servicos_alterados'):
-                self.menu.print_success(f"\n  {result['servicos_alterados']} servico(s) receberam codigo automaticamente.")
+            _tracker.advance("validate")
             issues = self.menu.client_service.validate_service_codes()
             if not issues:
+                _tracker.finish()
+                if result.get('servicos_alterados'):
+                    self.menu.print_success(f"\n  {result['servicos_alterados']} servico(s) receberam codigo automaticamente.")
                 self.menu.print_success("\n  Todos os codigos de servico ja sao validos.")
                 return
+            _tracker.advance("fix")
             fixed = self.menu.client_service.fix_service_codes(issues)
+            _tracker.finish()
+            if result.get('servicos_alterados'):
+                self.menu.print_success(f"\n  {result['servicos_alterados']} servico(s) receberam codigo automaticamente.")
             self.menu.print_success(f"\n  {fixed} codigo(s) de servico corrigido(s) automaticamente.")
         except Exception as e:
-            self.menu.print_error(f"\n  Erro: {e}")
+            self.menu.print_error(f"\n  {format_error_with_suggestion(e)}")
 
     def handle_client_sync_menu(self):
         while True:
@@ -543,4 +578,4 @@ class MenuClientsHandler:
         except ValueError as ve:
             self.menu.print_error(f"\n  Erro de Validação: {ve}")
         except Exception as e:
-            self.menu.print_error(f"\n  Erro ao criar cliente: {e}")
+            self.menu.print_error(f"\n  Erro ao criar cliente: {format_error_with_suggestion(e)}")

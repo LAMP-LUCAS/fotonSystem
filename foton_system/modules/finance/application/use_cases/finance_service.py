@@ -90,7 +90,7 @@ class FinanceService:
             'saldo': entradas - saidas
         }
 
-    def get_firm_summary(self, client_paths: list) -> list:
+    def get_firm_summary(self, client_paths: list, progress_callback=None) -> list:
         """Aggregate financial summaries across multiple clients.
 
         Each entry: {name, income, expense, balance}.
@@ -102,6 +102,9 @@ class FinanceService:
                 summary = self.get_summary(p)
             except Exception:
                 continue
+            finally:
+                if progress_callback:
+                    progress_callback(p.name)
             if summary.get('total_entradas', 0) == 0 and summary.get('total_saidas', 0) == 0:
                 continue
             results.append({

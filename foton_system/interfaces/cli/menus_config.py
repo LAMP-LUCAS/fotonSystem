@@ -2,6 +2,8 @@ import os
 import sys
 from colorama import Fore, Style
 from foton_system.interfaces.cli.views.tui_layout import TUILayout
+from foton_system.interfaces.cli.helpers.progress_tracker import ProgressTracker
+from foton_system.interfaces.cli.helpers.error_suggestions import format_error_with_suggestion
 
 
 class MenuConfigHandler:
@@ -145,7 +147,7 @@ class MenuConfigHandler:
             print()
             self.menu.print_success("  Obrigado pelo feedback!")
         except Exception as e:
-            self.menu.print_error(f"  Erro ao salvar: {e}")
+            self.menu.print_error(f"  Erro ao salvar: {format_error_with_suggestion(e)}")
         input("\n  Pressione Enter para continuar...")
 
     def _open_workspace_folder(self, config):
@@ -160,7 +162,7 @@ class MenuConfigHandler:
                 subprocess.run(['xdg-open', path], check=True)
             self.menu.print_success(f"Abrindo pasta: {path}")
         except Exception as e:
-            self.menu.print_error(f"Erro ao abrir pasta: {e}")
+            self.menu.print_error(f"Erro ao abrir pasta: {format_error_with_suggestion(e)}")
         input("Pressione Enter para continuar...")
 
     def handle_installation(self):
@@ -189,7 +191,7 @@ class MenuConfigHandler:
             except Exception as e:
                 logger = self.menu._get_logger()
                 logger.error(f"Erro critico no menu de instalacao: {e}", exc_info=True)
-                self.menu.print_error(f"Erro na instalacao: {e}")
+                self.menu.print_error(f"Erro na instalacao: {format_error_with_suggestion(e)}")
             input("Pressione Enter para voltar...")
 
     def handle_admin_tools(self):
@@ -197,7 +199,7 @@ class MenuConfigHandler:
             from foton_system.scripts.admin_launcher import main_menu
             main_menu()
         except Exception as e:
-            self.menu.print_error(f"Erro: {e}")
+            self.menu.print_error(f"Erro: {format_error_with_suggestion(e)}")
 
     def start_pomodoro_ui(self):
         from foton_system.modules.shared.infrastructure.config.config import Config
@@ -225,7 +227,7 @@ class MenuConfigHandler:
             timer = PomodoroTimer(work, short, long, cycles, client_alias)
             timer.run()
         except Exception as e:
-            self.menu.print_error(f"Erro no timer: {e}")
+            self.menu.print_error(f"Erro no timer: {format_error_with_suggestion(e)}")
 
     def handle_watcher(self):
         while True:
@@ -256,7 +258,7 @@ class MenuConfigHandler:
                     self.menu.print_success("  Watcher ativado!")
                     input("Enter...")
                 except Exception as e:
-                    self.menu.print_error(f"Erro: {e}")
+                    self.menu.print_error(f"Erro: {format_error_with_suggestion(e)}")
                     input("Enter...")
             elif choice == '2':
                 if hasattr(self.menu, '_watcher') and self.menu._watcher:
@@ -279,12 +281,15 @@ class MenuConfigHandler:
         if input("\n  Prosseguir? (S/N): ").upper() != 'S':
             return
         try:
+            _tracker = ProgressTracker(total=1, description="Indexando conhecimento")
+            _tracker.advance()
             from foton_system.core.ops.op_index_knowledge import OpIndexKnowledge
             op = OpIndexKnowledge(actor="User")
             res = op.execute()
+            _tracker.finish()
             self.menu.print_success(f"\n  Indexado: {res.get('files_scanned')} arquivos.")
         except Exception as e:
-            self.menu.print_error(f"Erro: {e}")
+            self.menu.print_error(f"Erro: {format_error_with_suggestion(e)}")
         input("\nEnter...")
 
     def _query_knowledge_ui(self):
@@ -304,5 +309,5 @@ class MenuConfigHandler:
                     print(f"\n  [{i}] {r['source']} ({r['score']:.0%})")
                     print(f"  {r['document'][:200]}...")
         except Exception as e:
-            self.menu.print_error(f"Erro: {e}")
+            self.menu.print_error(f"Erro: {format_error_with_suggestion(e)}")
         input("\nEnter...")

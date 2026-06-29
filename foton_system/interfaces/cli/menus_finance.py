@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 from colorama import Fore, Style
 from foton_system.interfaces.cli.views.tui_layout import TUILayout
+from foton_system.interfaces.cli.helpers.progress_tracker import ProgressTracker
+from foton_system.interfaces.cli.helpers.error_suggestions import format_error_with_suggestion
 
 
 class MenuFinanceHandler:
@@ -72,7 +74,7 @@ class MenuFinanceHandler:
         except ValueError as e:
             self.menu.print_error(f"\n  {e}")
         except Exception as e:
-            self.menu.print_error(f"\n  Erro: {e}")
+            self.menu.print_error(f"\n  {format_error_with_suggestion(e)}")
 
     def consultar_financeiro_ui(self):
         TUILayout.clear()
@@ -100,7 +102,7 @@ class MenuFinanceHandler:
         except ValueError as e:
             self.menu.print_error(f"\n  {e}")
         except Exception as e:
-            self.menu.print_error(f"\n  Erro: {e}")
+            self.menu.print_error(f"\n  {format_error_with_suggestion(e)}")
 
     def resumo_financeiro_ui(self):
         try:
@@ -116,9 +118,11 @@ class MenuFinanceHandler:
             for d in sorted(clients_dir.iterdir()):
                 if d.is_dir() and d.name not in ignored:
                     client_paths.append(d)
+            _tracker = ProgressTracker(total=len(client_paths), description="Processando cliente")
             repo = CSVFinanceRepository(config=config)
             service = FinanceService(repo)
-            results = service.get_firm_summary(client_paths)
+            results = service.get_firm_summary(client_paths, progress_callback=lambda c: _tracker.advance(c))
+            _tracker.finish()
             if not results:
                 TUILayout.clear()
                 TUILayout.print_header("RESUMO FINANCEIRO GERAL")
@@ -147,4 +151,4 @@ class MenuFinanceHandler:
                   f"S: R$ {total_saidas:>8.2f}  "
                   f"{cor}Saldo: R$ {saldo:>8.2f}{Style.RESET_ALL}")
         except Exception as e:
-            self.menu.print_error(f"\n  Erro: {e}")
+            self.menu.print_error(f"\n  {format_error_with_suggestion(e)}")
