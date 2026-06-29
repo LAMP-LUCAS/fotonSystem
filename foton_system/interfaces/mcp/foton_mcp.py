@@ -142,9 +142,13 @@ def _validate_str(value: str, field_name: str) -> None:
 
 
 def _log_tool_call(func):
-    """Decorator: adds correlation ID + entry/exit logging + auto string validation."""
+    """Decorator: adds correlation ID + entry/exit logging + auto string validation + telemetry."""
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
+        from foton_system.core.ops.operation_tracker import _write_operation_record
+        from foton_system.core.ops.session_tracker import get_current_session, increment_operations
+        from datetime import datetime, timezone
+
         req_id = str(uuid.uuid4())[:8]
         _logger.info(f"[req-{req_id}] Tool called: {func.__name__}")
 
@@ -162,13 +166,35 @@ def _log_tool_call(func):
         except TypeError:
             pass
 
+        session = get_current_session()
+        session_id = session.session_id if session else None
+        interface = session.interface if session else "MCP"
+        timestamp = datetime.now(timezone.utc).isoformat()
+        start = time.perf_counter()
+        sucesso = True
+        metadados = {}
+
         try:
             result = func(*args, **kwargs)
+            increment_operations()
             _logger.info(f"[req-{req_id}] Tool completed: {func.__name__}")
             return result
         except Exception:
+            sucesso = False
             _logger.error(f"[req-{req_id}] Tool failed: {func.__name__}", exc_info=True)
             raise
+        finally:
+            elapsed = time.perf_counter() - start
+            record = {
+                "timestamp": timestamp,
+                "session_id": session_id,
+                "interface": interface,
+                "operacao": func.__name__,
+                "sucesso": sucesso,
+                "duracao_ms": round(elapsed * 1000, 2),
+                "metadados": metadados,
+            }
+            _write_operation_record(record)
     return wrapper
 
 

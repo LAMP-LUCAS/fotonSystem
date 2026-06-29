@@ -21,6 +21,7 @@ from foton_system.interfaces.cli.menus_finance import MenuFinanceHandler
 from foton_system.interfaces.cli.menus_docs import MenuDocsHandler
 from foton_system.interfaces.cli.menus_config import MenuConfigHandler
 from foton_system.interfaces.cli.command_parser import parse_command
+from foton_system.core.ops.session_tracker import increment_operations
 
 init(autoreset=True)
 
@@ -174,31 +175,42 @@ class MenuSystem:
                 elif cmd['action'] == 'home':
                     continue
                 elif cmd['action'] == 'global_search':
+                    increment_operations()
                     self.global_search_ui()
                     continue
                 elif cmd['action'] == 'search':
+                    increment_operations()
                     self.print_info(f"  Buscando por '{cmd['term']}'...")
                     self.global_search_ui(term=cmd['term'])
                     continue
                 elif cmd['action'] == 'numeric':
                     val = cmd['value']
                     if val == 1:
+                        increment_operations()
                         self.handle_clients()
                     elif val == 2:
+                        increment_operations()
                         self.handle_services()
                     elif val == 3:
+                        increment_operations()
                         self.handle_webview_interface()
                     elif val == 4:
+                        increment_operations()
                         self.handle_documents()
                     elif val == 5:
+                        increment_operations()
                         self.handle_finance()
                     elif val == 6:
+                        increment_operations()
                         self.handle_productivity()
                     elif val == 7:
+                        increment_operations()
                         self.handle_settings()
                     elif val == 8:
+                        increment_operations()
                         self.handle_installation()
                     elif val == 9:
+                        increment_operations()
                         self.handle_watcher()
                     elif val == 0:
                         print("Saindo...")

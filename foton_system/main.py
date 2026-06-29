@@ -31,8 +31,10 @@ def _start_mcp():
     if hasattr(sys.stderr, 'reconfigure'):
         sys.stderr.reconfigure(encoding='utf-8')
     _ensure_path()
+    _start_session()
     from foton_system.interfaces.mcp.foton_mcp import run_server
     run_server()
+    _end_session()
 
 
 def _start_watcher():
@@ -43,6 +45,7 @@ def _start_watcher():
     """
     import signal
     _ensure_path()
+    _start_session()
     original_stdout = sys.stdout
     sys.stdout = sys.stderr
     try:
@@ -65,6 +68,32 @@ def _start_watcher():
 
 _bootstrap_start: float = 0.0
 """Global bootstrap timer baseline, set by safety_entry()."""
+
+
+def _detect_interface() -> str:
+    if "--mcp" in sys.argv:
+        return "MCP"
+    if "--watcher" in sys.argv:
+        return "WATCHER"
+    return "TUI"
+
+
+def _start_session():
+    from foton_system.core.ops.session_tracker import start_session
+    interface = _detect_interface()
+    try:
+        session = start_session(interface)
+        _logger.info(f"Session started: {session.session_id} ({interface})")
+    except Exception as e:
+        _logger.warning(f"Failed to start session: {e}")
+
+
+def _end_session():
+    from foton_system.core.ops.session_tracker import end_session
+    try:
+        end_session()
+    except Exception as e:
+        _logger.warning(f"Failed to end session: {e}")
 
 
 def _first_run_setup():
@@ -142,9 +171,13 @@ def safety_entry():
 
         _first_run_setup()
 
+        _start_session()
+
         step_time = time.perf_counter()
         main()
         _logger.info(f"Bootstrap step 'main()' took {time.perf_counter() - step_time:.2f}s")
+
+        _end_session()
 
         _log_bootstrap_time()
 

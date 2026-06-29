@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 import traceback
+import time
 from typing import Any, Dict, Optional
 from foton_system.core.ops.audit_logger import AuditLogger
+
 
 class BaseOp(ABC):
     """
@@ -32,11 +34,20 @@ class BaseOp(ABC):
 
     def execute(self, client_id: Optional[str] = None, **kwargs) -> Dict[str, Any]:
         """
-        The main entry point. Orchestrates Validation -> Execution -> Auditing.
+        The main entry point. Orchestrates Validation -> Execution -> Auditing -> Telemetry.
         """
+        from foton_system.core.ops.session_tracker import get_current_session, increment_operations
+        from foton_system.core.ops.operation_tracker import _write_operation_record
+        
         status = "SUCCESS"
         result = {}
         validated_data = {}
+        session = get_current_session()
+        session_id = session.session_id if session else None
+        interface = session.interface if session else "UNKNOWN"
+        from datetime import datetime, timezone
+        timestamp = datetime.now(timezone.utc).isoformat()
+        start = time.perf_counter()
         
         try:
             # 1. Validation
@@ -54,7 +65,6 @@ class BaseOp(ABC):
         
         finally:
             # 3. Auditing (Always runs, even on failure)
-            # Filter passwords or sensitive data from payload if needed in future
             self.audit_logger.log_event(
                 op_name=self.op_name,
                 actor=self.actor,
@@ -63,3 +73,16 @@ class BaseOp(ABC):
                 result=result,
                 status=status
             )
+            # 4. Telemetry (Always runs, even on failure)
+            elapsed = time.perf_counter() - start
+            sucesso = status == "SUCCESS"
+            increment_operations()
+            _write_operation_record({
+                "timestamp": timestamp,
+                "session_id": session_id,
+                "interface": interface,
+                "operacao": self.op_name,
+                "sucesso": sucesso,
+                "duracao_ms": round(elapsed * 1000, 2),
+                "metadados": {"actor": self.actor, "client_id": client_id or "UNKNOWN"},
+            })
