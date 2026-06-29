@@ -443,8 +443,10 @@ class TestMenuPerformance(unittest.TestCase):
         self.assertLess(elapsed, 1.0, f"global_search_ui levou {elapsed:.3f}s")
 
 
-# ----- NPS (RULE-UX-9.1) -----
+# ----- NPS (RULE-UX-9.1, RULE-UX-9.2, RULE-TELEMETRY-1.5) -----
 class TestNps(unittest.TestCase):
+    """@story: STORY-021 @rule: RULE-UX-9.1, RULE-UX-9.2, RULE-TELEMETRY-1.5"""
+
     def setUp(self):
         patcher_repo = patch('foton_system.modules.clients.infrastructure.repositories.excel_client_repository.ExcelClientRepository')
         patcher_docx = patch('foton_system.modules.documents.infrastructure.adapters.python_docx_adapter.PythonDocxAdapter')
@@ -479,12 +481,20 @@ class TestNps(unittest.TestCase):
             printed = "".join(c.args[0] for c in mp.call_args_list if c.args)
         self.assertIn("inválida", printed.lower())
 
-    def test_nps_stores_response(self):
-        """Valid NPS score must be saved to JSONL."""
+    def test_nps_stores_response_with_all_fields(self):
+        """Valid NPS score saved with score, classification, comment, session context."""
         from foton_system.interfaces.cli.menus_config import MenuConfigHandler
-        import tempfile, pathlib
+        import tempfile, pathlib, json
         tmp = pathlib.Path(tempfile.mkdtemp())
-        with patch('builtins.input', side_effect=['9', '']), \
+        # Pre-create session.json with known counters
+        session_data = {
+            "total_sessoes_all_time": 42,
+            "total_operacoes_all_time": 315,
+            "session_id": "abc-123",
+            "interface": "TUI"
+        }
+        (tmp / "session.json").write_text(json.dumps(session_data), encoding="utf-8")
+        with patch('builtins.input', side_effect=['9', 'Excelente ferramenta!', '', '', '']), \
              patch('builtins.print'), \
              patch('foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service.BootstrapService.get_user_config_dir', return_value=tmp):
             handler = MenuConfigHandler(self.menu)
@@ -492,8 +502,160 @@ class TestNps(unittest.TestCase):
         nps_file = tmp / "nps_responses.jsonl"
         self.assertTrue(nps_file.exists())
         content = nps_file.read_text(encoding='utf-8')
-        self.assertIn('"score": 9', content)
-        self.assertIn('"classification": "Promotor"', content)
+        record = json.loads(content.strip())
+        self.assertEqual(record["score"], 9)
+        self.assertEqual(record["classification"], "Promotor")
+        self.assertEqual(record["comentario"], "Excelente ferramenta!")
+        self.assertIn("session_count", record)
+        self.assertIn("operation_count", record)
+        self.assertIn("session_id", record)
+        self.assertIn("interface", record)
+        self.assertEqual(record["session_count"], 42)
+
+    def test_nps_comment_skipped_when_empty(self):
+        """Comment field is empty string when skipped."""
+        from foton_system.interfaces.cli.menus_config import MenuConfigHandler
+        import tempfile, pathlib, json
+        tmp = pathlib.Path(tempfile.mkdtemp())
+        session_data = {"total_sessoes_all_time": 1, "total_operacoes_all_time": 0, "session_id": "x", "interface": "TUI"}
+        (tmp / "session.json").write_text(json.dumps(session_data), encoding="utf-8")
+        with patch('builtins.input', side_effect=['9', '', '', '']), \
+             patch('builtins.print'), \
+             patch('foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service.BootstrapService.get_user_config_dir', return_value=tmp):
+            handler = MenuConfigHandler(self.menu)
+            handler._pesquisa_nps_ui()
+        nps_file = tmp / "nps_responses.jsonl"
+        record = json.loads(nps_file.read_text(encoding='utf-8').strip())
+        self.assertEqual(record["comentario"], "")
+
+    def test_nps_classification_not_displayed_to_user(self):
+        """Classification must NOT appear in user-facing output."""
+        from foton_system.interfaces.cli.menus_config import MenuConfigHandler
+        import tempfile, pathlib, json
+        tmp = pathlib.Path(tempfile.mkdtemp())
+        session_data = {"total_sessoes_all_time": 1, "total_operacoes_all_time": 0, "session_id": "x", "interface": "TUI"}
+        (tmp / "session.json").write_text(json.dumps(session_data), encoding="utf-8")
+        with patch('builtins.input', side_effect=['9', '', '', '']), \
+             patch('builtins.print') as mp, \
+             patch('foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service.BootstrapService.get_user_config_dir', return_value=tmp):
+            handler = MenuConfigHandler(self.menu)
+            handler._pesquisa_nps_ui()
+        printed = "".join(c.args[0] for c in mp.call_args_list if c.args)
+        self.assertNotIn("Promotor", printed)
+        self.assertNotIn("Detrator", printed)
+        self.assertNotIn("Neutro", printed)
+
+    def test_nps_trend_displayed(self):
+        """Trend visual must appear after response."""
+        from foton_system.interfaces.cli.menus_config import MenuConfigHandler
+        import tempfile, pathlib, json
+        tmp = pathlib.Path(tempfile.mkdtemp())
+        # Pre-populate with 3 previous responses
+        nps_file = tmp / "nps_responses.jsonl"
+        for s in [5, 7, 9]:
+            with open(nps_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps({"score": s, "timestamp": "2026-01-01T00:00:00", "classification": "x",
+                                    "comentario": "", "session_count": 1, "operation_count": 0,
+                                    "session_id": "x", "interface": "TUI"}) + "\n")
+        session_data = {"total_sessoes_all_time": 1, "total_operacoes_all_time": 0, "session_id": "x", "interface": "TUI"}
+        (tmp / "session.json").write_text(json.dumps(session_data), encoding="utf-8")
+        with patch('builtins.input', side_effect=['10', '', '', '']), \
+             patch('builtins.print') as mp, \
+             patch('foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service.BootstrapService.get_user_config_dir', return_value=tmp):
+            handler = MenuConfigHandler(self.menu)
+            handler._pesquisa_nps_ui()
+        printed = "".join(c.args[0] for c in mp.call_args_list if c.args)
+        self.assertTrue("📈" in printed or "📉" in printed or "➡️" in printed)
+
+    def test_nps_history_table_displayed(self):
+        """Last 5 responses table must appear."""
+        from foton_system.interfaces.cli.menus_config import MenuConfigHandler
+        import tempfile, pathlib, json
+        tmp = pathlib.Path(tempfile.mkdtemp())
+        nps_file = tmp / "nps_responses.jsonl"
+        for s in range(1, 7):
+            with open(nps_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps({"score": s, "timestamp": f"2026-01-0{s}T00:00:00", "classification": "x",
+                                    "comentario": "", "session_count": 1, "operation_count": 0,
+                                    "session_id": "x", "interface": "TUI"}) + "\n")
+        session_data = {"total_sessoes_all_time": 1, "total_operacoes_all_time": 0, "session_id": "x", "interface": "TUI"}
+        (tmp / "session.json").write_text(json.dumps(session_data), encoding="utf-8")
+        with patch('builtins.input', side_effect=['10', '', '', '']), \
+             patch('builtins.print') as mp, \
+             patch('foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service.BootstrapService.get_user_config_dir', return_value=tmp):
+            handler = MenuConfigHandler(self.menu)
+            handler._pesquisa_nps_ui()
+        printed = "".join(c.args[0] for c in mp.call_args_list if c.args)
+        self.assertIn("Últimas avaliações", printed)
+
+    def test_nps_export_option_displayed(self):
+        """'Exportar para Email' option must appear after response."""
+        from foton_system.interfaces.cli.menus_config import MenuConfigHandler
+        import tempfile, pathlib, json
+        tmp = pathlib.Path(tempfile.mkdtemp())
+        session_data = {"total_sessoes_all_time": 1, "total_operacoes_all_time": 0, "session_id": "x", "interface": "TUI"}
+        (tmp / "session.json").write_text(json.dumps(session_data), encoding="utf-8")
+        with patch('builtins.input', side_effect=['9', '', '', 's', '']), \
+             patch('builtins.print') as mp, \
+             patch('foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service.BootstrapService.get_user_config_dir', return_value=tmp), \
+             patch('foton_system.interfaces.cli.menus_config.MenuConfigHandler._exportar_nps_zip') as mock_export:
+            handler = MenuConfigHandler(self.menu)
+            handler._pesquisa_nps_ui()
+        printed = "".join(c.args[0] for c in mp.call_args_list if c.args)
+        self.assertIn("Exportar", printed)
+
+    def test_nps_export_creates_zip(self):
+        """Export generates .zip with NPS report + operation_log + session."""
+        from foton_system.interfaces.cli.menus_config import MenuConfigHandler
+        import tempfile, pathlib, json, os, zipfile
+        tmp = pathlib.Path(tempfile.mkdtemp())
+        session_file = tmp / "session.json"
+        session_file.write_text(json.dumps({"session_id": "s1", "interface": "TUI"}), encoding="utf-8")
+        nps_file = tmp / "nps_responses.jsonl"
+        nps_file.write_text(json.dumps({"score": 9, "classification": "Promotor", "comentario": "Bom"}) + "\n", encoding="utf-8")
+        op_file = tmp / "operation_log.jsonl"
+        op_file.write_text(json.dumps({"operacao": "teste"}) + "\n", encoding="utf-8")
+        desktop = pathlib.Path(tempfile.mkdtemp())
+        handler = MenuConfigHandler(self.menu)
+        with patch('foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service.BootstrapService.get_user_config_dir', return_value=tmp), \
+             patch('pathlib.Path.home', return_value=desktop.parent):
+            result = handler._exportar_nps_zip()
+        self.assertIsNotNone(result)
+        self.assertTrue(os.path.exists(result))
+        self.assertTrue(result.endswith(".zip"))
+        with zipfile.ZipFile(result, 'r') as zf:
+            names = [n.lower() for n in zf.namelist()]
+            self.assertTrue(any("nps" in n for n in names))
+            self.assertTrue(any("operation_log" in n for n in names))
+            self.assertTrue(any("session" in n for n in names))
+
+    def test_nps_export_no_http(self):
+        """Export must NOT make any HTTP requests."""
+        from foton_system.interfaces.cli.menus_config import MenuConfigHandler
+        import tempfile, pathlib, json, os
+        tmp = pathlib.Path(tempfile.mkdtemp())
+        session_file = tmp / "session.json"
+        session_file.write_text(json.dumps({"session_id": "s1", "interface": "TUI"}), encoding="utf-8")
+        nps_file = tmp / "nps_responses.jsonl"
+        nps_file.write_text(json.dumps({"score": 9, "classification": "Promotor"}) + "\n", encoding="utf-8")
+        op_file = tmp / "operation_log.jsonl"
+        op_file.write_text(json.dumps({"operacao": "teste"}) + "\n", encoding="utf-8")
+        handler = MenuConfigHandler(self.menu)
+        with patch('foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service.BootstrapService.get_user_config_dir', return_value=tmp), \
+             patch('pathlib.Path.home', return_value=pathlib.Path(tempfile.mkdtemp()).parent), \
+             patch('urllib.request.urlopen') as mock_http:
+            handler._exportar_nps_zip()
+        mock_http.assert_not_called()
+
+    def test_export_dados_uso_option_in_settings(self):
+        """'Exportar Dados de Uso' must appear in Config menu."""
+        with patch('builtins.input', side_effect=['7', '0', '0']), \
+             patch('builtins.print') as mock_print, \
+             patch('foton_system.interfaces.cli.views.tui_layout.TUILayout.clear'):
+            with self.assertRaises(SystemExit):
+                self.menu.run()
+            printed = "".join([call.args[0] for call in mock_print.call_args_list if call.args])
+        self.assertIn("Exportar Dados de Uso", printed)
 
 
 if __name__ == '__main__':

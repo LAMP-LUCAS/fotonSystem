@@ -39,6 +39,7 @@ class MenuConfigHandler:
         TUILayout.print_menu_option("4", "Ferramentas Administrativas")
         TUILayout.print_menu_option("5", "Abrir Pasta do Sistema (Workspace)")
         TUILayout.print_menu_option("6", "Pesquisa de Satisfação (NPS)")
+        TUILayout.print_menu_option("7", "Exportar Dados de Uso")
         TUILayout.print_menu_option("0", "Voltar")
         try:
             tip = self.menu.tip_service.get_random_tip("SANDBOX")
@@ -75,6 +76,8 @@ class MenuConfigHandler:
                 self.menu._open_workspace_folder(config)
             elif choice == '6':
                 self._pesquisa_nps_ui()
+            elif choice == '7':
+                self._exportar_dados_uso_ui()
             elif choice in ('0', 'b', 'B'):
                 break
             else:
@@ -97,6 +100,7 @@ class MenuConfigHandler:
             input("Pressione Enter para continuar...")
 
     def _pesquisa_nps_ui(self):
+        from foton_system.core.ops.session_tracker import get_current_session
         from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
         import json
         from datetime import datetime
@@ -114,40 +118,168 @@ class MenuConfigHandler:
             self.menu.print_error("  Nota inválida. Digite um número entre 0 e 10.")
             input("\n  Pressione Enter para continuar...")
             return
+        # @rule: RULE-UX-9.1 — classificação interna (não exibida)
         if score >= 9:
             classification = "Promotor"
         elif score >= 7:
             classification = "Neutro"
         else:
             classification = "Detrator"
+        print("\n  Comentário ou sugestão? (Enter para pular)")
+        comment_lines = []
+        first_line = input().strip()
+        if first_line:
+            comment_lines.append(first_line)
+            while True:
+                line = input()
+                if not line:
+                    break
+                comment_lines.append(line)
+        comment = "\n".join(comment_lines)
+        config_dir = BootstrapService.get_user_config_dir()
+        session_count = 0
+        operation_count = 0
+        session_file = config_dir / "session.json"
+        if session_file.exists():
+            try:
+                persisted = json.loads(session_file.read_text(encoding="utf-8"))
+                session_count = persisted.get("total_sessoes_all_time", 0)
+                operation_count = persisted.get("total_operacoes_all_time", 0)
+            except (json.JSONDecodeError, OSError):
+                pass
+        current = get_current_session()
+        session_id = current.session_id if current else ""
+        interface = current.interface if current else ""
         record = {
             "timestamp": datetime.now().isoformat(),
             "score": score,
-            "classification": classification
+            "classification": classification,
+            "comentario": comment,
+            "session_count": session_count,
+            "operation_count": operation_count,
+            "session_id": session_id,
+            "interface": interface,
         }
         try:
-            config_dir = BootstrapService.get_user_config_dir()
             nps_file = config_dir / "nps_responses.jsonl"
             with open(nps_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
             scores = []
+            all_responses = []
             if nps_file.exists():
                 with open(nps_file, "r", encoding="utf-8") as f:
                     for line in f:
                         line = line.strip()
                         if line:
                             try:
-                                scores.append(json.loads(line)["score"])
+                                data = json.loads(line)
+                                scores.append(data["score"])
+                                all_responses.append(data)
                             except Exception:
                                 pass
             avg = sum(scores) / len(scores) if scores else score
             print()
-            TUILayout.print_menu_option("+", f"Sua nota: {score} ({classification})")
+            TUILayout.print_menu_option("+", f"Sua nota: {score}")
             TUILayout.print_menu_option("+", f"Média atual: {avg:.1f} ({len(scores)} respostas)")
+            if len(scores) >= 4:
+                last_3_avg = sum(scores[-3:]) / 3
+                prev = scores[-6:-3] if len(scores) >= 6 else scores[:-3]
+                prev_avg = sum(prev) / len(prev) if prev else 0
+                diff = last_3_avg - prev_avg
+                if diff > 0.5:
+                    trend = "📈"
+                elif diff < -0.5:
+                    trend = "📉"
+                else:
+                    trend = "➡️"
+            else:
+                trend = "➡️"
+            TUILayout.print_menu_option("+", f"Tendência: {trend}")
+            last_5 = all_responses[-5:]
+            if last_5 and len(scores) > 1:
+                print("\n  Últimas avaliações:")
+                for i, r in enumerate(reversed(last_5), 1):
+                    ts = r.get("timestamp", "")[:10]
+                    s = r.get("score", "?")
+                    print(f"  [{i}] {ts} — Nota: {s}")
+            print()
+            print("  Exportar para Email? (S/N)")
+            if input().upper() == 'S':
+                zip_path = self._exportar_nps_zip()
+                if zip_path:
+                    self.menu.print_success(f"  Arquivo gerado: {zip_path}")
+                    print("  Envie o arquivo para contato@mundoaec.com")
             print()
             self.menu.print_success("  Obrigado pelo feedback!")
         except Exception as e:
             self.menu.print_error(f"  Erro ao salvar: {format_error_with_suggestion(e)}")
+        input("\n  Pressione Enter para continuar...")
+
+    # @rule: RULE-UX-9.2 — Exportação para email (.zip local + instrução)
+    # @rule: RULE-TELEMETRY-1.5 — Exportar Dados de Uso
+    def _exportar_nps_zip(self):
+        import json, os, zipfile, shutil, tempfile, datetime
+        from pathlib import Path
+        from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
+        config_dir = BootstrapService.get_user_config_dir()
+        desktop = Path.home() / "Desktop"
+        desktop.mkdir(exist_ok=True)
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        zip_name = f"foton_dados_uso_{ts}"
+        zip_path = desktop / zip_name
+        nps_file = config_dir / "nps_responses.jsonl"
+        report_lines = ["# Relatório de Satisfação (NPS)\n", f"Gerado em: {datetime.datetime.now().isoformat()}\n\n"]
+        if nps_file.exists():
+            try:
+                with open(nps_file, "r", encoding="utf-8") as f:
+                    responses = [json.loads(l) for l in f if l.strip()]
+                if responses:
+                    scores = [r["score"] for r in responses]
+                    report_lines.append(f"Total de respostas: {len(responses)}\n")
+                    report_lines.append(f"Média geral: {sum(scores)/len(scores):.1f}\n\n")
+                    report_lines.append("## Histórico de Respostas\n\n")
+                    report_lines.append("| # | Data | Nota | Classificação | Comentário |\n")
+                    report_lines.append("|---|------|------|---------------|------------|\n")
+                    for i, r in enumerate(responses, 1):
+                        ts_r = r.get("timestamp", "")[:10]
+                        s = r.get("score", "")
+                        c = r.get("classification", "")
+                        cm = r.get("comentario", "").replace("\n", " ")
+                        report_lines.append(f"| {i} | {ts_r} | {s} | {c} | {cm} |\n")
+                else:
+                    report_lines.append("Nenhuma resposta registrada.\n")
+            except Exception:
+                report_lines.append("Erro ao ler dados NPS.\n")
+        report_content = "".join(report_lines)
+        tmp_dir = Path(tempfile.mkdtemp())
+        (tmp_dir / "relatorio_nps.md").write_text(report_content, encoding="utf-8")
+        if nps_file.exists():
+            shutil.copy(nps_file, tmp_dir / "nps_responses.jsonl")
+        op_file = config_dir / "operation_log.jsonl"
+        if op_file.exists():
+            shutil.copy(op_file, tmp_dir / "operation_log.jsonl")
+        session_file = config_dir / "session.json"
+        if session_file.exists():
+            shutil.copy(session_file, tmp_dir / "session.json")
+        shutil.make_archive(str(zip_path), 'zip', tmp_dir)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return str(zip_path) + ".zip"
+
+    def _exportar_dados_uso_ui(self):
+        TUILayout.clear()
+        TUILayout.print_header("EXPORTAR DADOS DE USO")
+        print("\n  Isso irá gerar um arquivo .zip na Área de Trabalho com:\n")
+        print("    • Relatório NPS")
+        print("    • Log de operações (telemetria)")
+        print("    • Dados da sessão atual\n")
+        if input("  Prosseguir? (S/N): ").upper() != 'S':
+            return
+        zip_path = self._exportar_nps_zip()
+        if zip_path:
+            self.menu.print_success(f"\n  Arquivo gerado: {zip_path}")
+            print("\n  Envie o arquivo para contato@mundoaec.com")
+        else:
+            self.menu.print_error("  Erro ao gerar arquivo.")
         input("\n  Pressione Enter para continuar...")
 
     def _open_workspace_folder(self, config):
