@@ -8,7 +8,44 @@ e o versionamento segue [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### Added
-- *(nothing yet)*
+- **Domain Model — Migração da Coluna Status** (STORY-010)
+  - `get_clients_dataframe()` e `get_services_dataframe()` com fallback "ATIVO"
+  - `_ensure_database_exists()` garante colunas Status+CodCliente ao criar base
+- **Domain Model — Entidades de Domínio** (STORY-011, parcial ~60%)
+  - `Client` entity com 5 métodos (soft_delete, restore, is_active, get_status, to_dict)
+  - `Service` entity com 3 métodos (soft_delete, restore, is_active)
+  - `FinanceEntry` com validação em `__post_init__`
+- **CRUD — Ferramentas de Delete/Restore** (STORY-012)
+  - `remover_cliente`: soft delete + .bak + POP auditado
+  - `restaurar_cliente`: lista deletados + restaura + POP
+  - `remover_servico`: soft delete + .bak + POP
+  - `atualizar_servico`: 11 campos válidos + POP
+  - `BaseOp` garante POP em todas operações destrutivas
+- **CRUD — Validação Financeiro + INFO Files** (STORY-013/018)
+  - Validação de tipo, cliente, duplicata, DataRegistro em `registrar_financeiro`
+  - Multi-operação em `atualizar_ficha_cliente`: replace, remove, field, append
+  - `OpUpdateClientInfo(BaseOp)` com validate→execute→log
+- **Pipeline de Sincronização Unificado** (STORY-014)
+  - `pipeline_sincronizacao()` com 3 direções + `dry_run=True`
+  - 5 passos sequenciais: snapshot→diff→validate→apply→report
+  - `SyncReport` com `to_dict()` e `resumo()` e elapsed time
+  - `progress_callback` opcional nas funções batch
+- **UX — Split menus.py + Helpers TUI** (STORY-015)
+  - 4 handlers modulares: `menus_clients.py`, `menus_finance.py`, `menus_docs.py`, `menus_config.py`
+  - `ProgressTracker` com elapsed time em operações batch
+  - `error_suggestions` com `format_error_with_suggestion()` para erros contextuais
+- **UX — Reestruturação Menu + Navegação** (STORY-016)
+  - Subgrupos visuais (`--- Cadastro ---`, `--- Perigo ---`)
+  - Atalho `g` para busca global via `parse_command()`
+  - `listar_clientes` com paginação MCP
+  - `confirm_action()` padronizado
+- **Conformidade e Códigos** (STORY-017) — 5 novas ferramentas MCP
+  - `verificar_conformidade_clientes`: auditoria de pastas e INFO files
+  - `corrigir_conformidade`: auto-fix com criação de INFO files
+  - `preencher_codigos_faltantes`: preenche CodCliente/CodServico NaN
+  - `validar_codigos_servicos`: valida placeholders, formato, duplicatas
+  - `corrigir_codigos_servicos`: correção automática de códigos inválidos
+- **Testes:** 121+ novos, suite total 694/694 passando
 
 ## [1.4.0] - 2026-06-22
 

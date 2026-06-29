@@ -8,11 +8,11 @@ fim: "TBD"
 
 **Épico:** EPIC-002
 **Spec:** `MOD-DOMAIN-CRUD/SPEC-DOMAIN-CRUD-v1.1.md`
-**Dependência externa:** UI/UX items now in EPIC-001 (SPEC-UX-v1.0 — RULE-UX-8.1 to 8.8)
+**Dependência externa:** UI/UX items now in EPIC-001 (SPEC-UX-v1.1 — RULE-UX-8.1 to 8.8)
 
 ## Objetivo
 
-Implementar camada de domínio com entidades ricas, CRUD completo (soft delete/restore) e pipeline de sincronização unificado. UI/UX foi realocado para EPIC-001 (ver SPEC-UX-v1.0).
+Implementar camada de domínio com entidades ricas, CRUD completo (soft delete/restore) e pipeline de sincronização unificado. UI/UX foi realocado para EPIC-001 (ver SPEC-UX-v1.1).
 
 ## Stories
 
@@ -47,7 +47,7 @@ STORY-017 (integração — depende de STORY-011, adicionado durante sprint)
 - STORY-013 depende de STORY-011 (usa entidades)
 - STORY-014 depende de STORY-012 (usa soft delete no relatório)
 - STORY-017 depende de STORY-011 (integra entidades no fluxo de produção)
-- UI/UX items (STORY-015, STORY-016) movidos para EPIC-001 — ver SPEC-UX-v1.0 e v1.1 (RULE-UX-8.1 a 8.8)
+- UI/UX items (STORY-015, STORY-016) movidos para EPIC-001 — ver SPEC-UX-v1.1 e v1.1 (RULE-UX-8.1 a 8.8)
 
 ## Débito Técnico
 

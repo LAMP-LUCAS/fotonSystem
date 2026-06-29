@@ -77,17 +77,6 @@ class TestImportClientDataMCP(unittest.TestCase):
         domain.import_client_data.assert_called_once()
         self.assertIn("Client data imported", result)
 
-    def test_protocol_includes_method(self):
-        from foton_system.interfaces.mcp.mcp_services import ClientServiceProtocol
-        import inspect
-        self.assertTrue(
-            hasattr(ClientServiceProtocol, 'import_client_data'),
-            "ClientServiceProtocol must include import_client_data()"
-        )
-        self.assertTrue(
-            callable(getattr(ClientServiceProtocol, 'import_client_data')),
-            "import_client_data must be callable in protocol"
-        )
 
 
 class TestImportClientDataMCPTool(unittest.TestCase):

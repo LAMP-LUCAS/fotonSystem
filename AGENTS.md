@@ -127,7 +127,7 @@ foton_system/
 
 ---
 
-## 38 Ferramentas MCP (v1.4.0)
+## 41 Ferramentas MCP (v1.4.0)
 
 ### 📂 Clientes (6)
 | Ferramenta | Descrição |
@@ -206,7 +206,7 @@ foton_system/
 | ID | Título | Status | Spec |
 |---|---|---|---|
 | EPIC-000 | Jornada do Cliente AECD (transversal) | draft | — |
-| EPIC-001 | Usabilidade TUI e Navegação | **completed** | SPEC-UX-v1.0 |
+| EPIC-001 | Usabilidade TUI e Navegação | **completed** | SPEC-UX-v1.1 |
 | EPIC-002 | Domínio, CRUD e Sincronização | active | SPEC-DOMAIN-CRUD-v1.1 + SPEC-SYNC-v1.0 |
 | EPIC-003 | Automação Comercial e Documentos | draft | SPEC-DOCUMENTOS-v1.1 |
 | EPIC-004 | Recuperação Inteligente (RAG) | draft | — |
