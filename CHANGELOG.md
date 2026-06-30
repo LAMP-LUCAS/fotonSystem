@@ -8,7 +8,24 @@ e o versionamento segue [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### Added
-- **Domain Model — Migração da Coluna Status** (STORY-010)
+- **Telemetria — Session Tracking** (STORY-020, RULE-TELEMETRY-1.1/1.2)
+  - `session_tracker.py`: UUID por execução, detecção de interface (TUI/MCP), contadores monotônicos (total_sessoes, total_operacoes, primeiro_uso)
+  - Persistência em `session.json` no diretório de configuração
+- **Telemetria — Operation Tracking** (STORY-020, RULE-TELEMETRY-1.3/1.4)
+  - `operation_tracker.py`: decorator `@track_operation` + escrita em `operation_log.jsonl`
+  - Instrumentação: 35+ MCP tools (via `_log_tool_call`), 12 POPs (via `BaseOp.execute()`), menus TUI
+  - Rotação automática: 10MB máximo, trunca para ≤8MB
+- **NPS Evolutivo** (STORY-021, RULE-UX-9.1)
+  - Comentário/sugestão opcional (textarea multi-linha)
+  - Contexto automático: session_count, operation_count, interface, session_id
+  - Tendência visual (📈📉➡️) e tabela das últimas 5 respostas
+  - Classificação (Detrator/Neutro/Promotor) armazenada mas oculta na TUI
+- **Export Unificado** (STORY-021, RULE-UX-9.2, RULE-TELEMETRY-1.5)
+  - `telemetry_exporter.py`: gera .zip na Área de Trabalho com relatório NPS.md + operation_log.jsonl + session.json
+  - Opção "Exportar Dados de Uso" (opção 7) no menu Configurações
+  - Opção "Exportar para Email" no pós-NPS
+  - 100% local — nenhuma requisição HTTP, LGPD por design
+- **Testes:** 29 novos (18 STORY-020 + 11 STORY-021), suite total 732/732 passando
   - `get_clients_dataframe()` e `get_services_dataframe()` com fallback "ATIVO"
   - `_ensure_database_exists()` garante colunas Status+CodCliente ao criar base
 - **Domain Model — Entidades de Domínio** (STORY-011, parcial ~60%)

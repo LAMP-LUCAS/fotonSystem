@@ -206,7 +206,7 @@ foton_system/
 | ID | Título | Status | Spec |
 |---|---|---|---|
 | EPIC-000 | Jornada do Cliente AECD (transversal) | draft | — |
-| EPIC-001 | Usabilidade TUI e Navegação | **completed** | SPEC-UX-v1.1 |
+| EPIC-001 | Usabilidade TUI e Navegação | **completed** | SPEC-UX-v1.2 |
 | EPIC-002 | Domínio, CRUD e Sincronização | active | SPEC-DOMAIN-CRUD-v1.1 + SPEC-SYNC-v1.0 |
 | EPIC-003 | Automação Comercial e Documentos | draft | SPEC-DOCUMENTOS-v1.1 |
 | EPIC-004 | Recuperação Inteligente (RAG) | draft | — |
@@ -217,6 +217,7 @@ foton_system/
 | EPIC-009 | Conformidade e Perenidade | draft | — |
 | EPIC-010 | Diário de Obra e Atas de Reunião | draft | — |
 | EPIC-011 | Controle de Qualidade e Inspeção | draft | — |
+| EPIC-012 | Observabilidade e Telemetria de Uso | draft | SPEC-TELEMETRY-v1.0 |
 
 ---
 

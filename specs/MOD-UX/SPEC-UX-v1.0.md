@@ -1,7 +1,7 @@
 # Spec: Interface de Usuário (TUI) — Experiência e Navegação
 
-**Data:** 2026-06-25
-**Versão:** 1.1
+**Data:** 2026-06-28
+**Versão:** 1.2
 **Responsável:** Time Core
 
 ## 1. Problema
@@ -72,9 +72,27 @@ Padronizar a experiência TUI em 6 eixos:
 - **RULE-UX-8.8:** Confirmação padronizada (S/N) em todas as ações destrutivas via `confirm_action()`, com variação visual `dangerous=True` para operações irreversíveis.
 
 ### 3.9 Pesquisa de Satisfação (NPS)
-- **RULE-UX-9.1:** O menu Configurações deve conter a opção "Pesquisa de Satisfação (NPS)" que coleta nota 0-10, classifica como Detrator (0-6) / Neutro (7-8) / Promotor (9-10) e persiste em `nps_responses.jsonl` no diretório de configuração do usuário. Exibe a média histórica após cada resposta.
+
+- **RULE-UX-9.1:** O menu Configurações deve conter a opção "Pesquisa de Satisfação (NPS)" que:
+  - Coleta nota 0-10 e classifica como **Detrator** (0-6) / **Neutro** (7-8) / **Promotor** (9-10)
+  - Coleta comentário ou sugestão opcional (textarea multi-linha)
+  - Injeta automaticamente no registro: `session_count` (total de execuções do sistema), `operation_count` (total de operações realizadas), `interface` (TUI|MCP), `session_id` (UUID da sessão atual), `timestamp` (ISO 8601)
+  - Persiste em `nps_responses.jsonl` no diretório de configuração do usuário
+  - Exibe após cada resposta: nota atual com classificação, média histórica geral, tendência visual (📈📉➡️ baseada nas últimas 3 respostas) e uma tabela simples das últimas 5 respostas
+- **RULE-UX-9.2:** O formulário NPS deve oferecer a opção "Exportar para Email" que:
+  - Gera um arquivo na área de trabalho do usuário contendo: (a) relatório da avaliação em formato Markdown legível com nota, classificação, comentário e contexto de uso, (b) evolução histórica de todas as respostas NPS, (c) dados brutos de telemetria das operações (`operation_log.jsonl`) do período
+  - Exibe a instrução: "Envie o arquivo para contato@mundoaec.com"
+  - NÃO realiza envio automático — o arquivo é local e o compartilhamento é responsabilidade do usuário
 
 ## 4. Relações
-- Código: `menus.py`, `tui_layout.py`, `form_view.py`
-- Specs relacionadas: `SPEC-CLIENTES-v1.0.md` (UX de clientes)
+- Código: `menus.py`, `tui_layout.py`, `form_view.py`, `menus_config.py`
+- Specs relacionadas: `SPEC-CLIENTES-v1.0.md` (UX de clientes), `SPEC-TELEMETRY-v1.0.md` (telemetria subjacente ao contexto de uso do NPS)
 - ADRs: `ADR001_ParaZettelkastenDoc` (estrutura de navegação)
+
+## 5. Histórico de Versões
+
+| Versão | Data | Mudanças |
+|--------|------|----------|
+| 1.0 | 2026-06-24 | Versão inicial (22 RULE-IDs, seções 3.1 a 3.9) |
+| 1.1 | 2026-06-25 | Migração das RULE-UX-8.x do EPIC-002 (8 novas regras: menus modulares, ProgressTracker, error_suggestions, subgrupos, busca global, parse_command, paginação MCP, confirmação perigosa) |
+| 1.2 | 2026-06-28 | RULE-UX-9.1 expandida: comentário, contexto automático (session/operation/interface), tendência visual. RULE-UX-9.2 adicionada: exportação para email (arquivo .zip local + instrução). Relacionamento com SPEC-TELEMETRY-v1.0 |
