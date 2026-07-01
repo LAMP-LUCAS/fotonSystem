@@ -143,7 +143,6 @@ class DocumentService:
         
         if not doc_data and not context_data:
             logger.error("Nenhum dado carregado (nem do arquivo nem do contexto).")
-            # We proceed anyway because we might rely on system variables or manual fixes
         
         # 4. Merge (System < Context < Document)
         replacements = {**system_vars, **context_data, **doc_data}
@@ -154,24 +153,31 @@ class DocumentService:
         # 6. Apply Formatting (Auto-Formatting Middleware)
         self._apply_formatting(replacements)
 
-        # Validate Keys
-        missing_keys = self._validate_keys(template_path, replacements, doc_type)
-
-        # Clean missing variables
-        if missing_keys and self._config.clean_missing_variables:
-            placeholder = self._config.missing_variable_placeholder
-            logger.info(f"Limpando {len(missing_keys)} variáveis faltando com placeholder '{placeholder}'")
-            for key in missing_keys:
-                replacements[key] = placeholder
+        # 7. Pré-validação obrigatória (RULE-DOC-2.4 / RULE-DOC-2.5)
+        validation = self._validate_keys(template_path, replacements, doc_type)
+        errors = []
+        if validation["missing"]:
+            errors.append(f"Variáveis não encontradas ({len(validation['missing'])}):\n" +
+                          "\n".join(f"   ❌ {k}" for k in validation["missing"]))
+        if validation["none_values"]:
+            errors.append(f"Valores inválidos (None/---/vazio) ({len(validation['none_values'])}):\n" +
+                          "\n".join(f"   ⚠️ {k}" for k in validation["none_values"]))
+        if errors:
+            report = "\n\n".join(errors)
+            raise ValueError(
+                f"❌ Geração bloqueada — pré-validação falhou:\n\n{report}"
+            )
 
         if doc_type == 'pptx':
             presentation = self.pptx_handler.load_document(template_path)
             presentation = self.pptx_handler.replace_text(presentation, replacements)
+            self.pptx_handler.validate_no_placeholders(presentation, doc_type)
             self.pptx_handler.save_document(presentation, output_path)
 
         elif doc_type == 'docx':
             document = self.docx_handler.load_document(template_path)
             document = self.docx_handler.replace_text(document, replacements)
+            self.docx_handler.validate_no_placeholders(document, doc_type)
             self.docx_handler.save_document(document, output_path)
 
         else:
@@ -279,11 +285,13 @@ class DocumentService:
     def validate_template_keys(self, template_path, data_path, doc_type):
         """
         Public method to validate template keys against context and local data.
-        Ensures everything is case-insensitive by lowercasing keys.
+        Returns categorized dict: resolved, missing, none_values, formulas.
         """
         context_data = self._load_context_data(Path(data_path))
         doc_data = self._load_data(Path(data_path))
         replacements = {**context_data, **doc_data}
+        self._resolve_operations(replacements)
+        self._apply_formatting(replacements)
         return self._validate_keys(template_path, replacements, doc_type)
 
     def _validate_keys(self, template_path, replacements, doc_type):
@@ -319,14 +327,25 @@ class DocumentService:
                                             self._extract_keys_from_text(p.text, required_keys)
         except Exception as e:
             logger.warning(f"Não foi possível validar as chaves do template: {e}")
-            return []
+            return {"resolved": [], "missing": [], "none_values": [], "formulas": []}
 
-        # All keys are normalized to lowercase for comparison
-        missing_keys = [k for k in required_keys if k.lower() not in replacements]
-        if missing_keys:
-            logger.warning(f"CHAVES FALTANDO: {missing_keys}")
+        report = {"resolved": [], "missing": [], "none_values": [], "formulas": []}
+        for key in required_keys:
+            kl = key.lower()
+            if kl not in replacements:
+                report["missing"].append(key)
+            else:
+                val = replacements[kl]
+                report["resolved"].append({"key": key, "value": val})
+                if val is None or str(val).strip() in ("---", ""):
+                    report["none_values"].append(key)
 
-        return missing_keys
+        if report["missing"]:
+            logger.warning(f"CHAVES FALTANDO: {report['missing']}")
+        if report["none_values"]:
+            logger.warning(f"VALORES INVÁLIDOS (None/---/vazio): {report['none_values']}")
+
+        return report
 
     def get_generated_doc_path(self, service_path: Path, template_name: str) -> Path:
         template_stem = Path(template_name).stem.upper()

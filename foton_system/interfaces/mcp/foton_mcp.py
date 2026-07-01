@@ -894,7 +894,7 @@ def gerar_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -
 def validar_template(cliente: str, nome_template: str, arquivo_dados: str = "") -> str:
     """
     Pre-flight validation: Checks if the INFO files provide all variables required by the template.
-    Returns: A list of MISSING variables.
+    Returns categorized report with resolved, missing, none_values and formulas.
     PROTOCOL: Mandatory check before calling 'gerar_documento'.
     AGNOSTICISM: Searches the entire folder hierarchy for information.
     """
@@ -921,14 +921,43 @@ def validar_template(cliente: str, nome_template: str, arquivo_dados: str = "") 
 
         from foton_system.interfaces.mcp.mcp_services import MCPServiceFactory
         doc_service = MCPServiceFactory.get_instance().get_document_service()
-        missing = doc_service.validate_template_keys(str(template_path), str(data_path), doc_type)
+        report = doc_service.validate_template_keys(str(template_path), str(data_path), doc_type)
 
-        if not missing:
-            return f"✅ Pre-flight OK! Template '{nome_template}' has all variables satisfied."
+        resolved = report.get("resolved", [])
+        missing = report.get("missing", [])
+        none_values = report.get("none_values", [])
+        formulas = report.get("formulas", [])
 
-        output = f"⚠️ Pre-flight: {len(missing)} variable(s) MISSING:\n"
-        for key in missing:
-            output += f"   ❌ {key}\n"
+        output = f"📋 Relatório de Pré-validação — '{nome_template}'\n"
+
+        if resolved:
+            output += f"\n✅ Resolvidas ({len(resolved)}):\n"
+            for r in resolved[:20]:
+                output += f"   {r['key']} → {r['value']}\n"
+            if len(resolved) > 20:
+                output += f"   ... e mais {len(resolved) - 20}\n"
+        else:
+            output += "\n⚠️ Nenhuma variável resolvida\n"
+
+        if missing:
+            output += f"\n❌ Não encontradas ({len(missing)}):\n"
+            for k in missing:
+                output += f"   {k}\n"
+
+        if none_values:
+            output += f"\n⚠️ Valores inválidos (None/---/vazio) ({len(none_values)}):\n"
+            for k in none_values:
+                output += f"   {k}\n"
+
+        if formulas:
+            output += f"\n🧮 Fórmulas validadas ({len(formulas)}):\n"
+            for f in formulas:
+                status_icon = "✅" if f.get("status") == "ok" else "❌"
+                output += f"   {status_icon} {f['expression']} = {f['result']}\n"
+
+        if not missing and not none_values:
+            output += f"\n✅ Todos os placeholders verificados — template pronto para geração."
+
         return output
     except OSError as e:
         return f"❌ File access error: {e}"

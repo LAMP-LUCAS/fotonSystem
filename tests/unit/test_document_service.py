@@ -18,6 +18,7 @@ from unittest.mock import MagicMock, patch, PropertyMock
 import json
 
 from foton_system.modules.documents.application.use_cases.document_service import DocumentService
+from foton_system.modules.documents.infrastructure.adapters.python_docx_adapter import PythonDocxAdapter
 
 
 class FakeDocumentAdapter:
@@ -29,6 +30,9 @@ class FakeDocumentAdapter:
         return doc
     
     def save_document(self, doc, path):
+        pass
+
+    def validate_no_placeholders(self, doc, doc_type):
         pass
 
 
@@ -397,6 +401,141 @@ class TestDocumentServiceCustomDataFile(unittest.TestCase):
         self.assertIsNone(result)
 
 
+class TestDocumentServicePreValidacao(unittest.TestCase):
+    """STORY-022: Pré-validação Obrigatória + Placeholder Zero."""
+
+    def setUp(self):
+        self.service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
+
+    def test_validate_keys_returns_categorized_dict(self):
+        """_validate_keys returns dict with resolved, missing, none_values, formulas."""
+        report = self.service._validate_keys(
+            "/nonexistent/template.docx", {}, "docx"
+        )
+        self.assertIn("resolved", report)
+        self.assertIn("missing", report)
+        self.assertIn("none_values", report)
+        self.assertIn("formulas", report)
+
+    def test_validate_keys_detects_none_values(self):
+        """none_values should include keys whose replacement is None or '---'."""
+        replacements = {
+            "@nome": "João",
+            "@telefone": None,
+            "@endereco": "---",
+            "@observacao": ""
+        }
+        with patch.object(self.service.docx_handler, 'load_document') as mock_load:
+            mock_doc = MagicMock()
+            mock_para = MagicMock()
+            mock_para.text = "@nome @telefone @endereco @observacao"
+            mock_doc.paragraphs = [mock_para]
+            mock_doc.tables = []
+            mock_doc.sections = []
+            mock_doc.inline_shapes = []
+            mock_load.return_value = mock_doc
+            report = self.service._validate_keys(
+                "/tmp/template.docx", replacements, "docx"
+            )
+
+        self.assertIn("@telefone", report["none_values"])
+        self.assertIn("@endereco", report["none_values"])
+        self.assertIn("@observacao", report["none_values"])
+        self.assertNotIn("@nome", report["none_values"])
+
+    @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
+    @patch.object(DocumentService, '_load_context_data', return_value={})
+    @patch.object(DocumentService, '_get_system_variables', return_value={})
+    def test_generate_blocked_on_missing_keys(self, mock_sysvars, mock_context, MockConfig):
+        """generate_document should raise ValueError when keys are missing."""
+        mock_config = MagicMock()
+        mock_config.base_pasta_clientes = Path("/tmp/fake_base")
+        MockConfig.return_value = mock_config
+
+        # Mock adapter to return a docx with an unresolved @var
+        mock_docx_adapter = MagicMock()
+        mock_doc = MagicMock()
+        mock_para = MagicMock()
+        mock_para.text = "Cliente @nomeCompleto nao informado"
+        mock_doc.paragraphs = [mock_para]
+        mock_doc.tables = []
+        mock_doc.sections = []
+        mock_doc.inline_shapes = []
+        mock_docx_adapter.load_document.return_value = mock_doc
+
+        service = DocumentService(mock_docx_adapter, MagicMock())
+        with patch.object(service, '_load_data', return_value={}):
+            with self.assertRaises(ValueError) as ctx:
+                service.generate_document(
+                    template_path="/tmp/template.docx",
+                    data_path="/tmp/client_path",
+                    output_path="/tmp/output.docx",
+                    doc_type="docx",
+                    extra_data={"@nome": "João"}
+                )
+        self.assertIn("bloqueada", str(ctx.exception).lower())
+
+    @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
+    @patch.object(DocumentService, '_load_context_data', return_value={})
+    @patch.object(DocumentService, '_get_system_variables', return_value={})
+    def test_generate_blocked_on_none_values(self, mock_sysvars, mock_context, MockConfig):
+        """generate_document should raise ValueError when a value is None."""
+        mock_config = MagicMock()
+        mock_config.base_pasta_clientes = Path("/tmp/fake_base")
+        MockConfig.return_value = mock_config
+
+        mock_adapter = MagicMock()
+        mock_doc = MagicMock()
+        mock_para = MagicMock()
+        mock_para.text = "@telefone do cliente"
+        mock_doc.paragraphs = [mock_para]
+        mock_doc.tables = []
+        mock_doc.sections = []
+        mock_doc.inline_shapes = []
+        mock_adapter.load_document.return_value = mock_doc
+
+        svc = DocumentService(mock_adapter, MagicMock())
+        with patch.object(svc, '_load_data', return_value={'@telefone': None}):
+            with self.assertRaises(ValueError) as ctx:
+                svc.generate_document(
+                    template_path="/tmp/template.docx",
+                    data_path="/tmp/client_path",
+                    output_path="/tmp/output.docx",
+                    doc_type="docx",
+                    extra_data={"@nome": "João"}
+                )
+        self.assertIn("bloqueada", str(ctx.exception).lower())
+
+    def test_validate_no_placeholders_docx_raises_on_survivor(self):
+        """DOCX adapter validate_no_placeholders raises ValueError if @VAR survives."""
+        adapter = PythonDocxAdapter()
+        mock_doc = MagicMock()
+        mock_para = MagicMock()
+        mock_para.text = "Cliente @NOME nao substituido"
+        mock_doc.paragraphs = [mock_para]
+        mock_doc.tables = []
+        mock_doc.sections = []
+
+        with self.assertRaises(ValueError) as ctx:
+            adapter.validate_no_placeholders(mock_doc, "docx")
+        self.assertIn("@NOME", str(ctx.exception))
+
+    def test_validate_no_placeholders_docx_passes_clean(self):
+        """DOCX adapter validate_no_placeholders passes when no @VAR survives."""
+        adapter = PythonDocxAdapter()
+        mock_doc = MagicMock()
+        mock_para = MagicMock()
+        mock_para.text = "Cliente João Silva já substituído"
+        mock_doc.paragraphs = [mock_para]
+        mock_doc.tables = []
+        mock_doc.sections = []
+
+        try:
+            adapter.validate_no_placeholders(mock_doc, "docx")
+        except ValueError:
+            self.fail("validate_no_placeholders raised ValueError on clean document")
+
+
 if __name__ == '__main__':
     unittest.main()
 
@@ -526,7 +665,7 @@ class TestDocumentServiceExtraData(unittest.TestCase):
 
     @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
     @patch.object(DocumentService, '_load_context_data', return_value={})
-    @patch.object(DocumentService, '_validate_keys', return_value=[])
+    @patch.object(DocumentService, '_validate_keys', return_value={"resolved": [{"key": "@nome", "value": "Extra Value"}], "missing": [], "none_values": [], "formulas": []})
     @patch.object(DocumentService, '_get_system_variables', return_value={})
     def test_extra_data_bypasses_file_when_provided(self, mock_sysvars, mock_validate,
                                                     mock_context, MockConfig):
@@ -549,7 +688,7 @@ class TestDocumentServiceExtraData(unittest.TestCase):
 
     @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
     @patch.object(DocumentService, '_load_context_data', return_value={})
-    @patch.object(DocumentService, '_validate_keys', return_value=[])
+    @patch.object(DocumentService, '_validate_keys', return_value={"resolved": [{"key": "@var", "value": "from_extra"}], "missing": [], "none_values": [], "formulas": []})
     @patch.object(DocumentService, '_get_system_variables', return_value={})
     def test_extra_data_overrides_context_and_file(self, mock_sysvars, mock_validate,
                                                    mock_context, MockConfig):
@@ -572,7 +711,7 @@ class TestDocumentServiceExtraData(unittest.TestCase):
 
     @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
     @patch.object(DocumentService, '_load_context_data', return_value={})
-    @patch.object(DocumentService, '_validate_keys', return_value=[])
+    @patch.object(DocumentService, '_validate_keys', return_value={"resolved": [], "missing": [], "none_values": [], "formulas": []})
     @patch.object(DocumentService, '_get_system_variables', return_value={})
     def test_extra_data_none_reads_from_file(self, mock_sysvars, mock_validate,
                                              mock_context, MockConfig):

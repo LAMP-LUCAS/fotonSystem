@@ -34,11 +34,14 @@ SystemAudit ──> DualInterface ──> Resiliência ──> InfoNaming ──
 | **DomainCRUD** | Domain Model (entidades, VOs), CRUD completo (soft delete), Pipeline sync | 3 fases | ~20-26h |
 | **2026-07-SPRINT-4** | Consolidação UX + rastreabilidade | 4 stories | ~11h |
 
-## Próximas Candidatas (não planejadas)
+## Próximas Candidatas
 
-- **UX Agêntica**: JSON estruturado nas tools MCP, rate limiting, observabilidade
-- **i18n**: Internacionalização das strings de interface
-- **WebView Revival**: Feature parity TUI↔WebView, autosave, segurança
+| Sprint | Foco | Esforço | Status | Doc |
+|--------|------|---------|--------|-----|
+| **EPIC-003 / Sprint 7** | Automação Comercial e Documentos (v1.1) — 9 RULE-IDs | ~21h | 📋 planejado | `docs/01_PROJECTS/EPIC-003/SprintPlan.md` |
+| **UX Agêntica** | JSON estruturado nas tools MCP, rate limiting, observabilidade | — | 🗓️ candidata | — |
+| **i18n** | Internacionalização das strings de interface | — | 🗓️ candidata | — |
+| **WebView Revival** | Feature parity TUI↔WebView, autosave, segurança | — | 🗓️ candidata | — |
 
 ---
 
