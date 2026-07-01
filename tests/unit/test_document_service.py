@@ -105,8 +105,8 @@ class TestDocumentServiceMathResolution(unittest.TestCase):
         # Result should be 1500.50 formatted as "1500.50"
         self.assertEqual(data['@total'], '1500.50')
 
-    def test_resolve_handles_invalid_expression(self):
-        """Invalid expressions should not crash, just log warning."""
+    def test_resolve_handles_missing_var_as_zero(self):
+        """Missing variables default to zero in calculations."""
         service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
         
         data = {
@@ -116,8 +116,8 @@ class TestDocumentServiceMathResolution(unittest.TestCase):
         # Should not raise
         service._resolve_operations(data)
         
-        # Original value may remain unchanged or partially resolved
-        self.assertIn('[calculo:', data['@invalid'])
+        # Missing @missing defaults to 0.0, so result is 100.00
+        self.assertEqual(data['@invalid'], '100.00')
 
     def test_resolve_with_description_after_calculo(self):
         """[calculo: ...] with trailing description text should resolve correctly."""

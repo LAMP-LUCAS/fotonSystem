@@ -1,5 +1,8 @@
 import ast
+import math
 import operator
+
+from foton_system.modules.shared.domain.exceptions import FormulaError
 
 _MAX_TOKENS = 50
 
@@ -14,8 +17,12 @@ _ALLOWED_OPS = {
 
 
 class _SafeVisitor(ast.NodeVisitor):
-    def __init__(self):
+    def __init__(self, expression: str = ""):
         self._depth = 0
+        self._expr = expression
+
+    def _err(self, msg: str):
+        raise FormulaError(self._expr, msg)
 
     def visit_Expression(self, node):
         self._depth = 0
@@ -46,7 +53,7 @@ class _SafeVisitor(ast.NodeVisitor):
         left = self.visit(node.left)
         right = self.visit(node.right)
         if isinstance(node.op, ast.Div) and right == 0:
-            return 0.0
+            self._err("divisão por zero")
         return op(left, right)
 
     def visit_Name(self, node):
@@ -81,5 +88,12 @@ def safe_eval(expression: str) -> float:
     except SyntaxError:
         raise ValueError("Expressão inválida")
 
-    visitor = _SafeVisitor()
-    return float(visitor.visit(tree))
+    visitor = _SafeVisitor(expression)
+    result = float(visitor.visit(tree))
+
+    if math.isnan(result):
+        raise FormulaError(expression, "resultado NaN (operação inválida)")
+    if math.isinf(result):
+        raise FormulaError(expression, "resultado Infinity (overflow ou divisão por zero)")
+
+    return result

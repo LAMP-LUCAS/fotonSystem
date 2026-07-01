@@ -8,11 +8,11 @@ from foton_system.modules.shared.infrastructure.config.logger import setup_logge
 from foton_system.modules.documents.application.ports.document_service_port import DocumentServicePort
 from foton_system.modules.shared.infrastructure.utils.formatting import FotonFormatter
 from foton_system.modules.shared.infrastructure.services.cub_service import CubService
-from foton_system.modules.shared.domain.services.safe_math import safe_eval
 from foton_system.modules.shared.domain.exceptions import (
     TemplateNotFoundError,
     DocumentGenerationError
 )
+from foton_system.core.ops.formula_engine import FormulaEngine
 
 logger = setup_logger()
 
@@ -379,57 +379,5 @@ class DocumentService:
                 keys_set.add(k.lower())
 
     def _resolve_operations(self, replacements):
-        """
-        Resolves mathematical operations recursively (drill-down).
-        Each variable's dependencies are resolved recursively before evaluation,
-        supporting arbitrary cascade depth. Handles Brazilian number formats,
-        case-insensitive variable matching, and circular dependency detection.
-        """
-        def _resolve_var(key, visited=None):
-            if visited is None:
-                visited = set()
-            if key in visited:
-                logger.warning(f"Dependência circular detectada em {key}")
-                return 0.0
-
-            value = replacements.get(key, '')
-            if not isinstance(value, str) or '[calculo:' not in value:
-                try:
-                    return float(FotonFormatter.parse_br_number(value)) if value else 0.0
-                except (ValueError, TypeError):
-                    return 0.0
-
-            match = re.search(r'\[calculo:\s*(.+?)\]', value)
-            if not match:
-                return 0.0
-
-            visited = visited | {key}
-            expression = match.group(1)
-
-            for k in sorted(replacements.keys(), key=len, reverse=True):
-                if k.lower() in expression.lower() and k != key:
-                    try:
-                        v = replacements[k]
-                        if isinstance(v, str) and '[calculo:' in v:
-                            ref_val = _resolve_var(k, visited.copy())
-                        else:
-                            ref_val = float(FotonFormatter.parse_br_number(v)) if v else 0.0
-                        expression = re.sub(re.escape(k), str(ref_val), expression, flags=re.IGNORECASE)
-                    except (ValueError, TypeError):
-                        pass
-
-            if not re.match(r'^[\d\.\-\+\*\/\(\)\s]+$', expression):
-                logger.warning(f"Falha ao calcular {key}: expressão contém caracteres inválidos após resolução")
-                return 0.0
-
-            try:
-                result = safe_eval(expression)
-                replacements[key] = f"{result:.2f}"
-                return result
-            except Exception as e:
-                logger.warning(f"Falha ao calcular {key}: {e}")
-                return 0.0
-
-        for key in list(replacements.keys()):
-            if isinstance(replacements.get(key), str) and '[calculo:' in replacements[key]:
-                _resolve_var(key)
+        engine = FormulaEngine()
+        engine.resolve(replacements)

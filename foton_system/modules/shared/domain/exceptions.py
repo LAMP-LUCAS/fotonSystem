@@ -74,6 +74,15 @@ class DocumentGenerationError(FotonError):
         super().__init__(f"Erro ao gerar documento: {reason}")
 
 
+# --- Formula Errors ---
+
+class FormulaError(FotonError):
+    """Raised when formula evaluation fails (div/0, NaN, Infinity)."""
+    def __init__(self, expression: str, reason: str):
+        self.expression = expression
+        super().__init__(f"Erro na fórmula '{expression}': {reason}")
+
+
 # --- Validation Errors ---
 
 class ValidationError(FotonError):
