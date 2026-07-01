@@ -143,7 +143,22 @@ class MenuDocsHandler:
             self.menu.print_warning("  Nenhum template encontrado.")
             return
         print("\n  Selecione o Template:")
-        template_name = self.menu._select_from_list(templates)
+        display_list = []
+        for t in templates:
+            desc = f" — {t.description}" if t.description else ""
+            display_list.append((t.filename, f"{t.filename}{desc}"))
+        for i, (fname, label) in enumerate(display_list):
+            print(f"  {i + 1}. {label}")
+        try:
+            choice = int(input(f"\n  {'Opção:'} "))
+            if 1 <= choice <= len(display_list):
+                template_name = display_list[choice - 1][0]
+            else:
+                self.menu.print_error("  Opção inválida.")
+                return
+        except ValueError:
+            self.menu.print_error("  Entrada inválida.")
+            return
         if not template_name:
             return
         template_path = Config().templates_path / template_name
@@ -263,7 +278,17 @@ class MenuDocsHandler:
         doc_type = 'pptx' if input("  Escolha: ") == '1' else 'docx'
         templates = self.menu.document_service.list_templates(doc_type)
         print("\n  Templates:")
-        template_name = self.menu._select_from_list(templates)
+        display_list = []
+        for t in templates:
+            desc = f" — {t.description}" if t.description else ""
+            display_list.append((t.filename, f"{t.filename}{desc}"))
+        for i, (fname, label) in enumerate(display_list):
+            print(f"  {i + 1}. {label}")
+        try:
+            choice = int(input(f"\n  {'Opção:'} "))
+            template_name = display_list[choice - 1][0] if 1 <= choice <= len(display_list) else None
+        except (ValueError, IndexError):
+            template_name = None
         if not template_name:
             return
         template_path = Config().templates_path / template_name

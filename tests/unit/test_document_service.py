@@ -356,8 +356,9 @@ class TestDocumentServiceTemplates(unittest.TestCase):
         result = service.list_templates('docx')
         
         self.assertEqual(len(result), 2)
-        self.assertIn('template1.docx', result)
-        self.assertIn('template2.docx', result)
+        filenames = [t.filename for t in result]
+        self.assertIn('template1.docx', filenames)
+        self.assertIn('template2.docx', filenames)
 
     @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
     def test_list_templates_empty_for_missing_dir(self, MockConfig):

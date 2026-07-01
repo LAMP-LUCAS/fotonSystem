@@ -1,11 +1,13 @@
 ﻿import re
 import json
+import time
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
 from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
 from foton_system.modules.documents.application.ports.document_service_port import DocumentServicePort
+from foton_system.modules.documents.domain.models.template_info import TemplateInfo
 from foton_system.modules.shared.infrastructure.utils.formatting import FotonFormatter
 from foton_system.modules.shared.infrastructure.services.cub_service import CubService
 from foton_system.modules.shared.domain.exceptions import (
@@ -31,14 +33,56 @@ class DocumentService:
         self.docx_handler = docx_adapter
         self.pptx_handler = pptx_adapter
         self._config = config or Config()
+        self._template_index_cache = None
+        self._template_index_mtime = 0
+        self._index_filename = "templates_index.json"
 
-    def list_templates(self, extension):
+    # @story: STORY-027 @rule: RULE-DOC-1.4
+    def list_templates(self, extension: Optional[str] = None) -> list[TemplateInfo]:
         templates_dir = self._config.templates_path
         if not templates_dir or not templates_dir.exists():
             logger.warning(f"Diretório de templates não encontrado: {templates_dir}")
             return []
-        
-        return [f.name for f in templates_dir.glob(f'*.{extension}')]
+
+        pattern = f'*.{extension}' if extension else '*'
+        files = sorted(templates_dir.glob(pattern))
+        templates = [f for f in files if f.suffix in ('.pptx', '.docx')]
+        filenames = [f.name for f in templates]
+
+        index = self._load_template_index(templates_dir)
+        lookup = {entry['filename']: entry for entry in index} if index else {}
+
+        result = []
+        for name in filenames:
+            entry = lookup.get(name, {})
+            result.append(TemplateInfo(
+                filename=name,
+                description=entry.get('description', ''),
+                category=entry.get('category'),
+                tags=entry.get('tags', []),
+                version=entry.get('version'),
+            ))
+        return result
+
+    def _load_template_index(self, templates_dir: Path) -> Optional[list[dict]]:
+        index_file = templates_dir / self._index_filename
+        if not index_file.exists():
+            return None
+        try:
+            mtime = index_file.stat().st_mtime
+            if self._template_index_cache is not None and mtime == self._template_index_mtime:
+                return self._template_index_cache
+            with open(index_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            if not isinstance(data, list):
+                logger.warning(f"templates_index.json não é uma lista: {type(data)}")
+                return None
+            self._template_index_cache = data
+            self._template_index_mtime = mtime
+            return data
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(f"Erro ao ler templates_index.json: {e}")
+            return None
 
     def list_data_files(self):
         data_dir = self._config.templates_path

@@ -775,10 +775,12 @@ def pipeline_sincronizacao(direcao: str = "bidir", dry_run: bool = True) -> str:
 
 @mcp.tool()
 @_log_tool_call
-def listar_templates() -> str:
+def listar_templates(categoria: str = "") -> str:
     """
     Lists all available document templates (DOCX for contracts, PPTX for proposals).
     PROTOCOL: Show this to the user to let them choose the document type they want to generate.
+    PARAMETERS:
+      categoria: Optional category filter (e.g., 'proposta', 'contrato', 'administrativo')
     """
     try:
         result = _get_factory().get_document_service().list_templates()
@@ -789,15 +791,23 @@ def listar_templates() -> str:
         pptx = templates.get('pptx', [])
         docx = templates.get('docx', [])
 
+        def format_template(t):
+            desc = f" — {t.description}" if t.description else ""
+            return f"{t.filename}{desc}"
+
+        if categoria:
+            pptx = [t for t in pptx if t.category == categoria]
+            docx = [t for t in docx if t.category == categoria]
+
         output = "📄 Templates disponíveis:\n"
         if pptx:
             output += f"\n🟦 PPTX ({len(pptx)}):\n"
-            for t in sorted(pptx):
-                output += f"  • {t}\n"
+            for t in sorted(pptx, key=lambda x: x.filename):
+                output += f"  • {format_template(t)}\n"
         if docx:
             output += f"\n🟩 DOCX ({len(docx)}):\n"
-            for t in sorted(docx):
-                output += f"  • {t}\n"
+            for t in sorted(docx, key=lambda x: x.filename):
+                output += f"  • {format_template(t)}\n"
 
         if not pptx and not docx:
             return "📭 No templates found."
