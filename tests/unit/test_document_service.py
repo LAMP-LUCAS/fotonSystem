@@ -8,6 +8,7 @@ Covers:
 - Mathematical expression resolution
 - Context data loading (hierarchical folders)
 - Key validation
+- Generation history (JSONL + versioning)
 """
 
 import unittest
@@ -16,6 +17,7 @@ import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch, PropertyMock
 import json
+import os
 
 from foton_system.modules.documents.application.use_cases.document_service import DocumentService
 from foton_system.modules.documents.infrastructure.adapters.python_docx_adapter import PythonDocxAdapter
@@ -730,3 +732,285 @@ class TestDocumentServiceExtraData(unittest.TestCase):
                 doc_type="docx"
             )
             mock_load.assert_called_once()
+
+
+class TestDocumentServiceHistory(unittest.TestCase):
+    """Tests for generation history (JSONL + versioning) — STORY-024 [RULE-DOC-3.6]"""
+
+    def setUp(self):
+        self.temp_dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.temp_dir)
+        self.service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
+
+    def _make_jsonl_path(self, client_dir=None):
+        client_dir = client_dir or self.temp_dir
+        return client_dir / 'historico_documentos.jsonl'
+
+    # =====================================================================
+    # _log_generation writes JSONL
+    # =====================================================================
+
+    def test_log_generation_creates_jsonl_file(self):
+        """First generation should create historico_documentos.jsonl."""
+        output_path = self.temp_dir / 'GERADO_Teste.docx'
+        self.service._log_generation(
+            output_path=output_path, doc_type='docx',
+            template_path='/tmp/template.docx', data_path='/tmp/data.md'
+        )
+        self.assertTrue(self._make_jsonl_path().exists())
+
+    def test_log_generation_appends_on_multiple_calls(self):
+        """Multiple generations should append lines to JSONL."""
+        for i in range(3):
+            output_path = self.temp_dir / f'GERADO_Teste_v{i}.docx'
+            self.service._log_generation(
+                output_path=output_path, doc_type='docx',
+                template_path='/tmp/template.docx', data_path='/tmp/data.md'
+            )
+        jsonl_path = self._make_jsonl_path()
+        lines = jsonl_path.read_text(encoding='utf-8').strip().split('\n')
+        self.assertEqual(len(lines), 3)
+
+    def test_log_generation_contains_required_fields(self):
+        """Each JSONL entry must have all required fields from RULE-DOC-3.6."""
+        output_path = self.temp_dir / 'GERADO_Teste.docx'
+        self.service._log_generation(
+            output_path=output_path, doc_type='docx',
+            template_path='/tmp/template.docx', data_path='/tmp/data.md'
+        )
+        entry = json.loads(self._make_jsonl_path().read_text(encoding='utf-8').strip())
+        self.assertIn('data_hora', entry)
+        self.assertIn('tipo_template', entry)
+        self.assertIn('nome_arquivo', entry)
+        self.assertIn('status', entry)
+        self.assertIn('versao', entry)
+        self.assertIn('cliente', entry)
+
+    def test_log_generation_has_iso8601_timestamp(self):
+        """data_hora should be ISO 8601 format."""
+        output_path = self.temp_dir / 'doc.docx'
+        self.service._log_generation(
+            output_path=output_path, doc_type='docx',
+            template_path='/tmp/template.docx', data_path='/tmp/data.md'
+        )
+        entry = json.loads(self._make_jsonl_path().read_text(encoding='utf-8'))
+        # ISO 8601 contains 'T' separator
+        self.assertIn('T', entry['data_hora'])
+
+    def test_log_generation_record_status_sucesso(self):
+        """Status should be 'sucesso' for normal generation."""
+        output_path = self.temp_dir / 'doc.docx'
+        self.service._log_generation(
+            output_path=output_path, doc_type='docx',
+            template_path='/tmp/template.docx', data_path='/tmp/data.md'
+        )
+        entry = json.loads(self._make_jsonl_path().read_text(encoding='utf-8'))
+        self.assertEqual(entry['status'], 'sucesso')
+
+    def test_log_generation_includes_cliente_name(self):
+        """cliente field should match client folder name (output parent)."""
+        client_dir = self.temp_dir / 'CLIENTE_TESTE'
+        client_dir.mkdir()
+        output_path = client_dir / 'GERADO_Teste.docx'
+        self.service._log_generation(
+            output_path=output_path, doc_type='docx',
+            template_path='/tmp/template.docx', data_path='/tmp/data.md'
+        )
+        entry = json.loads(self._make_jsonl_path(client_dir).read_text(encoding='utf-8'))
+        self.assertEqual(entry['cliente'], 'CLIENTE_TESTE')
+
+    def test_log_generation_includes_versao_anterior_when_provided(self):
+        """When versao_anterior is passed in extra_data, record it."""
+        self.service._log_generation(
+            output_path=self.temp_dir / 'doc.docx', doc_type='docx',
+            template_path='/tmp/template.docx', data_path='/tmp/data.md',
+            extra_params={'versao_anterior': 'GERADO_Teste_v1.docx'}
+        )
+        entry = json.loads(self._make_jsonl_path().read_text(encoding='utf-8'))
+        self.assertEqual(entry['versao_anterior'], 'GERADO_Teste_v1.docx')
+
+    # =====================================================================
+    # read_generation_history
+    # =====================================================================
+
+    def test_read_history_returns_entries(self):
+        """read_generation_history should return list of dicts."""
+        output_path = self.temp_dir / 'doc.docx'
+        self.service._log_generation(
+            output_path=output_path, doc_type='docx',
+            template_path='/tmp/template.docx', data_path='/tmp/data.md'
+        )
+        entries = self.service.read_generation_history(self.temp_dir)
+        self.assertIsInstance(entries, list)
+        self.assertEqual(len(entries), 1)
+
+    def test_read_history_respects_limit(self):
+        """read_generation_history should limit returned entries."""
+        for i in range(5):
+            self.service._log_generation(
+                output_path=self.temp_dir / f'doc_{i}.docx', doc_type='docx',
+                template_path='/tmp/template.docx', data_path='/tmp/data.md'
+            )
+        entries = self.service.read_generation_history(self.temp_dir, limit=3)
+        self.assertEqual(len(entries), 3)
+
+    def test_read_history_returns_most_recent_first(self):
+        """read_generation_history should return newest entries first."""
+        for i in range(3):
+            self.service._log_generation(
+                output_path=self.temp_dir / f'doc_{i}.docx', doc_type='docx',
+                template_path='/tmp/template.docx', data_path='/tmp/data.md'
+            )
+        entries = self.service.read_generation_history(self.temp_dir, limit=2)
+        self.assertEqual(entries[0]['nome_arquivo'], 'doc_2.docx')
+        self.assertEqual(entries[1]['nome_arquivo'], 'doc_1.docx')
+
+    def test_read_history_missing_jsonl_returns_empty_list(self):
+        """When JSONL does not exist, return empty list (no crash)."""
+        entries = self.service.read_generation_history(self.temp_dir)
+        self.assertEqual(entries, [])
+
+    def test_read_history_corrupted_jsonl_returns_valid_entries(self):
+        """Corrupted lines should be skipped, valid ones returned."""
+        jsonl_path = self._make_jsonl_path()
+        jsonl_path.write_text(
+            '{"nome_arquivo": "ok1.docx", "status": "sucesso"}\n'
+            'NOT JSON\n'
+            '{"nome_arquivo": "ok2.docx", "status": "sucesso"}\n',
+            encoding='utf-8'
+        )
+        entries = self.service.read_generation_history(self.temp_dir)
+        self.assertEqual(len(entries), 2)
+
+    # =====================================================================
+    # Versioning logic (via _resolve_version_and_archive)
+    # =====================================================================
+
+    def test_first_version_is_1(self):
+        """First generation for a template should get version 1."""
+        output_path = self.temp_dir / 'GERADO_Teste.docx'
+        template_name = 'template.docx'
+        client_dir = self.temp_dir
+        version, prev_file = self.service._resolve_version_and_archive(
+            client_dir, output_path, template_name
+        )
+        self.assertEqual(version, 1)
+        self.assertIsNone(prev_file)
+
+    def test_version_increments_on_regeneration(self):
+        """Regeneration should increment version."""
+        output_path = self.temp_dir / 'GERADO_Teste.docx'
+        template_name = 'template.docx'
+        client_dir = self.temp_dir
+        # Simulate first gen
+        output_path.write_text('v1 content')
+        self.service._log_generation(
+            output_path=output_path, doc_type='docx',
+            template_path=f'/tmp/{template_name}', data_path='/tmp/data.md'
+        )
+        version, prev_file = self.service._resolve_version_and_archive(
+            client_dir, output_path, template_name
+        )
+        self.assertEqual(version, 2)
+        self.assertIsNotNone(prev_file)
+
+    def test_archive_renames_existing_file(self):
+        """Previous file should be renamed with _vN suffix."""
+        output_path = self.temp_dir / 'GERADO_Teste.docx'
+        output_path.write_text('original content')
+        template_name = 'template.docx'
+        client_dir = self.temp_dir
+        self.service._log_generation(
+            output_path=output_path, doc_type='docx',
+            template_path=f'/tmp/{template_name}', data_path='/tmp/data.md'
+        )
+        version, prev_file = self.service._resolve_version_and_archive(
+            client_dir, output_path, template_name
+        )
+        self.assertIsNotNone(prev_file)
+        self.assertTrue(prev_file.exists())
+        self.assertEqual(prev_file.read_text(), 'original content')
+        # Original file should have been moved
+        self.assertFalse(output_path.exists())
+
+    # =====================================================================
+    # Integration: versioning via generate_document
+    # =====================================================================
+
+    @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
+    @patch.object(DocumentService, '_load_context_data', return_value={})
+    @patch.object(DocumentService, '_validate_keys', return_value={"resolved": [], "missing": [], "none_values": [], "formulas": []})
+    @patch.object(DocumentService, '_get_system_variables', return_value={})
+    def test_generate_document_creates_jsonl(self, mock_sysvars, mock_validate,
+                                              mock_context, MockConfig):
+        """generate_document should create historico_documentos.jsonl."""
+        mock_config = MagicMock()
+        mock_config.base_pasta_clientes = Path("/tmp/fake_base")
+        MockConfig.return_value = mock_config
+        adapter = MagicMock()
+
+        client_dir = self.temp_dir / 'CLIENTE_X'
+        client_dir.mkdir()
+        output_path = client_dir / 'GERADO_Teste.docx'
+
+        service = DocumentService(adapter, adapter)
+        with patch.object(service, '_load_data', return_value={'@nome': 'Teste'}):
+            service.generate_document(
+                template_path="/tmp/template.docx",
+                data_path="/tmp/data.md",
+                output_path=str(output_path),
+                doc_type="docx"
+            )
+        jsonl_path = client_dir / 'historico_documentos.jsonl'
+        self.assertTrue(jsonl_path.exists())
+
+    @patch('foton_system.modules.documents.application.use_cases.document_service.Config')
+    @patch.object(DocumentService, '_load_context_data', return_value={})
+    @patch.object(DocumentService, '_validate_keys', return_value={"resolved": [], "missing": [], "none_values": [], "formulas": []})
+    @patch.object(DocumentService, '_get_system_variables', return_value={})
+    def test_regeneration_archives_previous_file(self, mock_sysvars, mock_validate,
+                                                  mock_context, MockConfig):
+        """Regeneration should archive previous file with _v1 suffix."""
+        mock_config = MagicMock()
+        mock_config.base_pasta_clientes = Path("/tmp/fake_base")
+        MockConfig.return_value = mock_config
+
+        client_dir = self.temp_dir / 'CLIENTE_Y'
+        client_dir.mkdir()
+        output_path = client_dir / 'GERADO_Teste.docx'
+        # Pre-create the output file to simulate a previously generated document
+        output_path.write_text('v1 content')
+
+        # Create JSONL history simulating first generation
+        jsonl_path = client_dir / 'historico_documentos.jsonl'
+        entry = {
+            'data_hora': '2026-06-30T10:00:00',
+            'tipo_template': 'docx',
+            'nome_arquivo': 'GERADO_Teste.docx',
+            'template': 'template.docx',
+            'status': 'sucesso',
+            'versao': 1,
+            'versao_anterior': None,
+            'cliente': 'CLIENTE_Y',
+        }
+        with open(jsonl_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + '\n')
+
+        adapter = MagicMock()
+        service = DocumentService(adapter, adapter)
+        with patch.object(service, '_load_data', return_value={'@nome': 'Teste'}):
+            # Regeneration (second version)
+            service.generate_document(
+                template_path="/tmp/template.docx",
+                data_path="/tmp/data.md",
+                output_path=str(output_path),
+                doc_type="docx"
+            )
+
+        # Original file should have been renamed to _v1
+        v1_path = client_dir / 'GERADO_Teste_v1.docx'
+        self.assertTrue(v1_path.exists(), "Previous version should be archived as _v1")
+        self.assertEqual(v1_path.read_text(), 'v1 content', "Archived content should match original")
+
+        # Mock was called to save new version at output_path
+        adapter.save_document.assert_called_once()

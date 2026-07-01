@@ -16,6 +16,7 @@ class MenuDocsHandler:
             ("1", "Gerar Proposta (PPTX)"),
             ("2", "Gerar Contrato (DOCX)"),
             ("3", "Validar Template (Pre-voo)"),
+            ("4", "Histórico de Documentos"),
             ("0", "Voltar")
         ]
         for key, label in options:
@@ -37,6 +38,8 @@ class MenuDocsHandler:
                 self.menu.generate_document_ui('docx')
             elif choice == '3':
                 self.menu.validate_template_ui()
+            elif choice == '4':
+                self.history_documents_ui()
             elif choice in ('0', 'b', 'B'):
                 break
             else:
@@ -194,4 +197,48 @@ class MenuDocsHandler:
             self.menu.print_warning(f"\n  FALTANDO {len(missing)} VARIAVEIS:")
             for k in missing:
                 print(f"    {k}")
+        input("\nPressione Enter para voltar...")
+
+    def history_documents_ui(self):
+        from pathlib import Path
+        TUILayout.clear()
+        TUILayout.print_header("HISTÓRICO DE DOCUMENTOS")
+        print("\n  Selecione a pasta do cliente...")
+        client_folder = self.menu.ui.select_directory("Selecione a Pasta do Cliente")
+        if not client_folder:
+            self.menu.print_warning("  Operação cancelada.")
+            return
+        client_path = Path(client_folder)
+        jsonl_path = client_path / 'historico_documentos.jsonl'
+        if not jsonl_path.exists():
+            self.menu.print_warning("  Nenhum histórico encontrado para este cliente.")
+            input("\nPressione Enter para voltar...")
+            return
+        try:
+            import json
+            entries = []
+            with open(jsonl_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        try:
+                            entries.append(json.loads(line))
+                        except json.JSONDecodeError:
+                            continue
+            entries.reverse()
+            if not entries:
+                self.menu.print_warning("  Nenhum histórico encontrado.")
+                input("\nPressione Enter para voltar...")
+                return
+            self.menu.print_success(f"  {len(entries)} registro(s) encontrado(s):\n")
+            for i, e in enumerate(entries[:20], 1):
+                status_icon = "✅" if e.get('status') == 'sucesso' else "❌"
+                versao = e.get('versao', 1)
+                data_hora = e.get('data_hora', '?')[:19]
+                nome = e.get('nome_arquivo', '?')
+                print(f"  {i}. {status_icon} [{data_hora}] {nome} (v{versao})")
+            if len(entries) > 20:
+                self.menu.print_warning(f"  ... e mais {len(entries) - 20} registro(s).")
+        except Exception as ex:
+            self.menu.print_error(f"  Erro ao ler histórico: {ex}")
         input("\nPressione Enter para voltar...")

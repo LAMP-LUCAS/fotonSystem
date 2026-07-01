@@ -53,6 +53,7 @@ class DocumentServiceProtocol(Protocol):
     def create_custom_data_file(self, client_path, cod, ver='00', rev='R00', desc='PROPOSTA'): ...
     def generate_document(self, template_path: str, data_path: str, output_path: str, doc_type: str) -> None: ...
     def validate_template_keys(self, template_path: str, data_path: str, doc_type: str) -> list: ...
+    def read_generation_history(self, client_dir, limit: int = 10) -> list: ...
 
 
 
@@ -446,6 +447,13 @@ class MCPDocumentService:
     def create_custom_data_file(self, client_path, cod: str, ver='00', rev='R00', desc='PROPOSTA'):
         """Create a custom data file for a client."""
         return self._documents.create_custom_data_file(client_path, cod, ver, rev, desc)
+
+    def get_history(self, client_path, limit: int = 10) -> list:
+        """Get generation history for a client folder."""
+        try:
+            return self._documents.read_generation_history(client_path, limit=limit)
+        except Exception as e:
+            return []
 
 
 class MCPKnowledgeService:

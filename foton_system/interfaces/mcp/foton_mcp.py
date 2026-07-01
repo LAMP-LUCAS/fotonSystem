@@ -1018,6 +1018,52 @@ def criar_arquivo_dados(cliente: str, cod: str, descricao: str = "PROPOSTA") -> 
 
 
 # ==============================================================================
+# HISTORY TOOLS (STORY-024)
+# ==============================================================================
+
+@mcp.tool()
+@_log_tool_call
+def historico_documentos(cliente: str, limite: int = 10) -> str:
+    """
+    Lists the version history of generated documents for a client.
+    PARAMETERS:
+      cliente: Client name (supports fuzzy match)
+      limite: Maximum number of entries to show (default 10)
+    CONTEXT: Returns JSONL-based history with versioning info.
+    """
+    try:
+        factory = _get_factory()
+        client_path = factory.get_client_service().resolve_client_path(cliente)
+        doc_service = factory.get_document_service()
+        entries = doc_service.get_history(client_path, limit=limite)
+
+        if not entries:
+            return f"📭 Nenhum histórico encontrado para '{cliente}'."
+
+        total = len(entries)
+        output = f"📜 Histórico de Documentos — '{cliente}' ({total} registro(s)):\n"
+        for i, e in enumerate(entries, 1):
+            status_icon = "✅" if e.get('status') == 'sucesso' else "❌"
+            versao = e.get('versao', 1)
+            versao_anterior = e.get('versao_anterior')
+            ver_info = f"v{versao}"
+            if versao_anterior:
+                ver_info += f" (anterior: {versao_anterior})"
+            output += (
+                f"\n{status_icon} "
+                f"[{e.get('data_hora', '?')}] "
+                f"{e.get('nome_arquivo', '?')} "
+                f"({ver_info})"
+            )
+        return output
+    except ValueError as e:
+        return f"❌ {e}"
+    except Exception as e:
+        _logger.error(f"historico_documentos failed: {e}", exc_info=True)
+        return f"❌ Error: {e}"
+
+
+# ==============================================================================
 # KNOWLEDGE / RAG TOOLS
 # ==============================================================================
 

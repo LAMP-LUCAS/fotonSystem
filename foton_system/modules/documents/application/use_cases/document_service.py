@@ -168,6 +168,16 @@ class DocumentService:
                 f"❌ Geração bloqueada — pré-validação falhou:\n\n{report}"
             )
 
+        # 8. Versioning (RULE-DOC-3.6): archive existing file before saving
+        output_path_obj = Path(output_path)
+        client_dir = output_path_obj.parent
+        versao_anterior = None
+        versao, prev_file = self._resolve_version_and_archive(
+            client_dir, output_path_obj, template_path
+        )
+        if prev_file is not None:
+            versao_anterior = prev_file.name
+
         if doc_type == 'pptx':
             presentation = self.pptx_handler.load_document(template_path)
             presentation = self.pptx_handler.replace_text(presentation, replacements)
@@ -184,8 +194,11 @@ class DocumentService:
             logger.error(f"Tipo de documento desconhecido: {doc_type}")
             return
 
-        # Log generation
-        self._log_generation(output_path, doc_type, template_path, data_path)
+        # 9. Log generation (JSONL — RULE-DOC-3.6)
+        self._log_generation(
+            output_path, doc_type, template_path, data_path,
+            extra_params={'versao': versao, 'versao_anterior': versao_anterior}
+        )
 
     def _get_system_variables(self):
         """Injects dynamic system variables"""
@@ -357,19 +370,74 @@ class DocumentService:
         folder_doc = self._config.folder_doc
         return service_path / folder_doc / "GERADOS" / tipo / template_name
 
-    def _log_generation(self, output_path, doc_type, template_path, data_path):
+    def _log_generation(self, output_path, doc_type, template_path, data_path, extra_params=None):
         try:
             client_dir = Path(output_path).parent
-            history_file = client_dir / 'history.log'
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            jsonl_path = client_dir / 'historico_documentos.jsonl'
             template_name = Path(template_path).name
-            data_name = Path(data_path).name
             output_name = Path(output_path).name
-            log_entry = f"[{timestamp}] Documento '{output_name}' ({doc_type}) gerado usando Template '{template_name}' e Dados '{data_name}'\n"
-            with open(history_file, 'a', encoding='utf-8') as f:
-                f.write(log_entry)
+            timestamp = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+            extra_params = extra_params or {}
+            entry = {
+                'data_hora': timestamp,
+                'tipo_template': doc_type,
+                'nome_arquivo': output_name,
+                'template': template_name,
+                'status': 'sucesso',
+                'versao': extra_params.get('versao', 1),
+                'versao_anterior': extra_params.get('versao_anterior'),
+                'cliente': client_dir.name,
+            }
+            with open(jsonl_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + '\n')
         except Exception as e:
             logger.error(f"Erro ao gravar log de geração: {e}")
+
+    def read_generation_history(self, client_dir, limit=10):
+        try:
+            jsonl_path = Path(client_dir) / 'historico_documentos.jsonl'
+            if not jsonl_path.exists():
+                return []
+            entries = []
+            with open(jsonl_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entries.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+            entries.reverse()
+            return entries[:limit]
+        except Exception as e:
+            logger.error(f"Erro ao ler histórico: {e}")
+            return []
+
+    def _resolve_version_and_archive(self, client_dir, output_path, template_name):
+        client_dir = Path(client_dir)
+        output_path = Path(output_path)
+        history = self.read_generation_history(client_dir, limit=100)
+        last_version = 0
+        last_entry = None
+        template_filename = Path(template_name).name
+        for entry in history:
+            if entry.get('template') == template_filename:
+                v = entry.get('versao', 0)
+                if v > last_version:
+                    last_version = v
+                    last_entry = entry
+
+        new_version = last_version + 1
+        prev_file = None
+
+        if output_path.exists():
+            stem = output_path.stem
+            suffix = output_path.suffix
+            prev_file = output_path.parent / f'{stem}_v{last_version}{suffix}'
+            output_path.rename(prev_file)
+
+        return new_version, prev_file
 
     def _extract_keys_from_text(self, text, keys_set):
         """Extracts keys from text and normalizes them to lowercase for consistent validation."""
