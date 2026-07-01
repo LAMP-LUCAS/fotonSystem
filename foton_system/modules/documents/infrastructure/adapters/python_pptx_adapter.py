@@ -3,6 +3,8 @@ import re
 from typing import Dict, Any
 from pptx import Presentation
 from pptx.util import Inches, Pt
+
+# @story: STORY-026 @rule: RULE-DOC-1.2
 from pptx.slide import Slide
 from pptx.shapes.base import BaseShape
 from pptx.table import Table, _Cell, _Row

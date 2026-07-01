@@ -5,6 +5,16 @@ from typing import Any, Dict, Optional
 from foton_system.core.ops.audit_logger import AuditLogger
 
 
+# @story: STORY-026 @rule: RULE-DOC-3.4
+def _truncate_payload(payload: dict) -> dict:
+    """Trunca extra_data no payload para evitar logs muito grandes."""
+    truncated = dict(payload)
+    for key, value in truncated.items():
+        if isinstance(value, dict) and len(value) > 5:
+            truncated[key] = f"<dict with {len(value)} keys>"
+    return truncated
+
+
 class BaseOp(ABC):
     """
     Abstract Base Class for all FOTON Standard Operating Procedures (POPs).
@@ -69,7 +79,7 @@ class BaseOp(ABC):
                 op_name=self.op_name,
                 actor=self.actor,
                 client_id=client_id or validated_data.get("client_name", "UNKNOWN"),
-                payload=kwargs, # Log raw inputs
+                payload=_truncate_payload(kwargs),
                 result=result,
                 status=status
             )

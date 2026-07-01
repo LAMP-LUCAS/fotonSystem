@@ -3,11 +3,22 @@ MCP Services Layer
 
 Provides testable service classes for MCP tools with dependency injection.
 All dependencies are injected via constructor, enabling easy mocking for tests.
+@story: STORY-026 @rule: RULE-DOC-2.3
 """
 
 from pathlib import Path
 from typing import Protocol, Optional, Any
 from dataclasses import dataclass
+
+
+# @story: STORY-026 @rule: RULE-DOC-2.3
+def sanitize_path_component(name: str) -> str:
+    """Sanitiza um nome de componente de path contra path traversal.
+
+    Usa Path(name).name para extrair apenas o nome final, descartando
+    qualquer tentativa de subir diretórios (../../etc/passwd).
+    """
+    return Path(name).name
 
 
 # ==============================================================================

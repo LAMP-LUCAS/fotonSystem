@@ -1091,7 +1091,7 @@ class TestDocumentServiceNaming(unittest.TestCase):
             client_name="CLIENTE", template_stem="PROPOSTA", doc_type="pptx",
             service_name="SERVICO"
         )
-        self.assertRegex(name, r'^[A-Z0-9]+_[A-Z0-9]+_[A-Z0-9]+_\d{4}-\d{2}-\d{2}\.pptx$')
+        self.assertRegex(name, r'^GERADO_[A-Z0-9]+_[A-Z0-9]+_[A-Z0-9]+_\d{4}-\d{2}-\d{2}\.pptx$')
 
 
 class TestDocumentServiceBatch(unittest.TestCase):
@@ -1187,3 +1187,52 @@ class TestDocumentServiceBatch(unittest.TestCase):
         self.assertIn("CLIENTE_NAMEDOC", output.upper())
         self.assertIn("PROPOSTA", output.upper())
         self.assertTrue(output.endswith('.pptx'))
+
+
+class TestPPTXAdapterPlaceholders(unittest.TestCase):
+    """E3: Tests for PPTXAdapter validate_no_placeholders [RULE-DOC-1.2]"""
+
+    def setUp(self):
+        from foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter import PythonPPTXAdapter
+        self.adapter = PythonPPTXAdapter()
+
+    def test_validate_raises_on_survivor(self):
+        mock_slide = MagicMock()
+        mock_shape = MagicMock()
+        mock_shape.has_text_frame = True
+        mock_shape.text_frame.paragraphs = [MagicMock()]
+        mock_shape.text_frame.paragraphs[0].text = "Cliente @NOME nao substituido"
+        mock_shape.has_table = False
+        mock_slide.shapes = [mock_shape]
+        mock_prs = MagicMock()
+        mock_prs.slides = [mock_slide]
+
+        with self.assertRaises(ValueError) as ctx:
+            self.adapter.validate_no_placeholders(mock_prs, "pptx")
+        self.assertIn("@NOME", str(ctx.exception))
+
+    def test_validate_passes_clean(self):
+        mock_slide = MagicMock()
+        mock_shape = MagicMock()
+        mock_shape.has_text_frame = True
+        mock_shape.text_frame.paragraphs = [MagicMock()]
+        mock_shape.text_frame.paragraphs[0].text = "Cliente Joao Silva"
+        mock_shape.has_table = False
+        mock_slide.shapes = [mock_shape]
+        mock_prs = MagicMock()
+        mock_prs.slides = [mock_slide]
+
+        try:
+            self.adapter.validate_no_placeholders(mock_prs, "pptx")
+        except ValueError:
+            self.fail("validate_no_placeholders raised ValueError on clean PPTX")
+
+
+class TestFormulasInReport(unittest.TestCase):
+    """E4: Test formulas field in _validate_keys report [RULE-DOC-4.4]"""
+
+    def test_report_includes_formulas_field(self):
+        from unittest.mock import patch, MagicMock
+        service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
+        report = service._validate_keys("/nonexistent/template.docx", {}, "docx")
+        self.assertIn("formulas", report)

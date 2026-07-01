@@ -3,6 +3,8 @@ import re
 from typing import Dict, Any
 from docx import Document
 from docx.oxml import CT_P
+
+# @story: STORY-026 @rule: RULE-DOC-1.2
 from docx.text.paragraph import Paragraph
 from docx.text.run import Run
 from docx.table import Table, _Cell, _Row

@@ -1,6 +1,7 @@
 """
 TUI Form View - Interface Interativa.
 Renderiza o formato do arquivo no visualizador com destaque para edições.
+@story: STORY-026 @rule: RULE-DOC-5.2 @rule: RULE-DOC-5.3
 """
 
 from colorama import Fore, Style

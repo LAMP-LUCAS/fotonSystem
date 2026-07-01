@@ -9,12 +9,20 @@ from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
 
 
+# @story: STORY-026 @rule: RULE-DOC-2.3
+def _sanitize_name(name: str) -> str:
+    """Sanitiza nome contra path traversal."""
+    return Path(name).name
+
+
+# @story: STORY-026 @rule: RULE-DOC-2.3
 def _resolve_client_path(client_name):
+    safe_name = _sanitize_name(client_name)
     base = Config().base_pasta_clientes
-    client_path = base / client_name
+    client_path = base / safe_name
     if not client_path.exists():
         for p in base.iterdir():
-            if p.is_dir() and client_name.lower() in p.name.lower():
+            if p.is_dir() and safe_name.lower() in p.name.lower():
                 client_path = p
                 break
     if not client_path.exists():
@@ -22,15 +30,17 @@ def _resolve_client_path(client_name):
     return client_path
 
 
+# @story: STORY-026 @rule: RULE-DOC-2.3
 def _resolve_template_path(template_name):
+    safe_name = _sanitize_name(template_name)
     template_dir = Config().templates_path
-    template_path = template_dir / template_name
+    template_path = template_dir / safe_name
     if not template_path.exists():
-        if not template_name.endswith(('.docx', '.pptx')):
-            if (template_dir / f"{template_name}.docx").exists():
-                template_path = template_dir / f"{template_name}.docx"
-            elif (template_dir / f"{template_name}.pptx").exists():
-                template_path = template_dir / f"{template_name}.pptx"
+        if not safe_name.endswith(('.docx', '.pptx')):
+            if (template_dir / f"{safe_name}.docx").exists():
+                template_path = template_dir / f"{safe_name}.docx"
+            elif (template_dir / f"{safe_name}.pptx").exists():
+                template_path = template_dir / f"{safe_name}.pptx"
     if not template_path.exists():
         raise FileNotFoundError(f"Template '{template_name}' not found in {template_dir}")
     return template_path

@@ -16,6 +16,7 @@ from foton_system.core.ops.formula_engine import FormulaEngine
 
 logger = setup_logger()
 
+# @story: STORY-026 @rule: RULE-DOC-3.2
 
 class DocumentService:
     def __init__(self, docx_adapter: DocumentServicePort, pptx_adapter: DocumentServicePort, config: Optional[Config] = None):
@@ -397,7 +398,7 @@ class DocumentService:
         parts.append(tipo)
         parts.append(date_part)
 
-        return "_".join(parts) + f".{doc_type}"
+        return "GERADO_" + "_".join(parts) + f".{doc_type}"
 
     def _log_generation(self, output_path, doc_type, template_path, data_path, extra_params=None):
         try:

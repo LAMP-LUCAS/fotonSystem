@@ -2,10 +2,14 @@
 FormSession Domain Model - Gerencia o estado e lógica do formulário MD.
 """
 
+import logging
 import re
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Any
 from foton_system.core.ops.formula_engine import FormulaEngine
+
+# @story: STORY-026 @rule: RULE-DOC-4.3
+log = logging.getLogger(__name__)
 
 @dataclass
 class FormField:
@@ -122,5 +126,6 @@ class FormSession:
         try:
             engine = FormulaEngine()
             return engine.evaluate_expression(expr, var_map)
-        except Exception:
-            return 0.0
+        except Exception as e:
+            log.warning("Erro ao avaliar fórmula '%s': %s", expr, e)
+            raise

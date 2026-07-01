@@ -6,6 +6,7 @@ from foton_system.modules.shared.domain.exceptions import FormulaError
 from foton_system.modules.shared.domain.services.safe_math import safe_eval
 from foton_system.modules.shared.infrastructure.utils.formatting import FotonFormatter
 
+# @story: STORY-026 @rule: RULE-DOC-4.3 @rule: RULE-DOC-4.4
 
 @dataclass
 class FormulaResult:

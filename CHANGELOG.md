@@ -7,7 +7,29 @@ e o versionamento segue [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-### Added
+### Added (EPIC-003 — Sprint 7: Automação Comercial e Documentos)
+- **Pré-validação Obrigatória + Placeholder Zero** (STORY-022, RULE-DOC-2.1/2.4/2.5)
+  - `gerar_documento()` executa `validar_template` internamente e bloqueia geração se houver variáveis não resolvidas
+  - Pós-processamento nos adapters DOCX/PPTX detecta `@VAR` sobreviventes como `"None"`/`"---"` — erro explícito
+  - `validar_template` relatório colorido com categorias ✅ Resolvidas / ❌ Não encontradas / ⚠️ Valores inválidos
+- **Engine de Fórmulas Extraída + Hardening** (STORY-023, RULE-DOC-4.1-4.4)
+  - `FormulaEngine` em `core/ops/formula_engine.py` — extraído de `DocumentService._resolve_operations`
+  - Div/0, NaN, Infinity → erro explícito (status FAIL) em vez de 0.0 silencioso
+  - `FormulaEngine.report()` — relatório de fórmulas com expressão, resultado e status (OK/ERRO)
+  - Harmonização do parser com `FormSession._evaluate` (mesma engine, comportamento unificado)
+- **Histórico de Versões** (STORY-024, RULE-DOC-3.6)
+  - `historico_documentos.jsonl` por cliente com campos: data_hora, tipo_template, nome_arquivo, status, versao, cliente
+  - Regeneração preserva versão anterior com sufixo `_v1` → nova salva como `_v2`
+  - Nova MCP tool `historico_documentos(cliente, limite=10)` — consulta por cliente
+  - Opção "Histórico de Documentos" no menu TUI Documentos
+- **Geração em Lote + Nomenclatura Padronizada** (STORY-025, RULE-DOC-3.2/3.5)
+  - `gerar_documentos_lote(cliente, documentos)` — MCP tool com pipeline 2 fases (pré-voo → geração)
+  - `OpGenerateBatchDocuments(BaseOp)` — POP auditado com telemetria
+  - Padrão `CLIENTE_SERVICO_TIPO_DATA.ext` com sanitização e fallback legado
+  - Opção "Gerar Lote (Proposta + Contrato + Anexo)" no menu TUI Documentos
+- **Testes:** 98 novos (4 stories), suite total **792/792 passando**
+
+### Added (sprints anteriores)
 - **Telemetria — Session Tracking** (STORY-020, RULE-TELEMETRY-1.1/1.2)
   - `session_tracker.py`: UUID por execução, detecção de interface (TUI/MCP), contadores monotônicos (total_sessoes, total_operacoes, primeiro_uso)
   - Persistência em `session.json` no diretório de configuração

@@ -1,7 +1,7 @@
 ---
-status: "planning"
-inicio: "TBD"
-fim: "TBD"
+status: "done"
+inicio: "2026-06-30"
+fim: "2026-06-30"
 ---
 
 # Sprint 7 — Automação Comercial e Documentos (EPIC-003)
@@ -45,13 +45,13 @@ STORY-025 depende fortemente de STORY-022 (precisa da pré-validação obrigató
 
 ## Débito Técnico
 
-- [ ] Atualizar CHANGELOG.md com mudanças da sprint
-- [ ] Gerar handoff ao final da sprint
+- [x] Atualizar CHANGELOG.md com mudanças da sprint
+- [x] Gerar handoff ao final da sprint
 
 ## Definição de Pronto (DoD)
 
-- [ ] Código implementado seguindo RULE-IDs da spec
-- [ ] 9 RULE-IDs cobertos por testes
-- [ ] Testes passando (`python -m pytest` — zero regressão)
-- [ ] RULE-IDs referenciados nos commits
-- [ ] Handoff gerado ao final
+- [x] Código implementado seguindo RULE-IDs da spec
+- [x] 9 RULE-IDs cobertos por testes
+- [x] Testes passando (`python -m pytest` — 792/792, zero regressão)
+- [x] RULE-IDs referenciados nos commits
+- [x] Handoff gerado ao final

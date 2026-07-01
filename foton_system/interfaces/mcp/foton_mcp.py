@@ -9,6 +9,7 @@ ARCHITECTURE NOTES:
 - Tools are thin wrappers that delegate to service layer
 - Lazy loading via factory pattern for instant startup
 - CRITICAL: No stdout output allowed outside mcp.run() — stdout is JSON-RPC
+@story: STORY-026 @rule: RULE-DOC-2.2 @rule: RULE-DOC-2.3
 """
 
 from mcp.server.fastmcp import FastMCP
@@ -22,6 +23,7 @@ import logging
 import logging.handlers
 import uuid
 import functools
+from typing import Optional
 
 # --- CRITICAL: PATH PATCHING (Must be FIRST) ---
 def _ensure_import_path():
@@ -820,7 +822,8 @@ def listar_documentos_cliente(cliente: str, servico: str = "") -> str:
         config = _get_config()
         client_path = _resolve_client_path(config.base_pasta_clientes, cliente, config)
 
-        target = client_path / servico if servico else client_path
+        safe_servico = Path(servico).name if servico else ""
+        target = client_path / safe_servico if safe_servico else client_path
 
         if not target.exists():
             return f"⚠️ Path not found: {target}"
@@ -860,7 +863,7 @@ def listar_documentos_cliente(cliente: str, servico: str = "") -> str:
 
 @mcp.tool()
 @_log_tool_call
-def gerar_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -> str:
+def gerar_documento(cliente: str, nome_template: str, dados_extras: Optional[dict] = None) -> str:
     """
     Merging Engine: Template + Client Data = Generated Document.
     PROTOCOL: 
@@ -870,10 +873,12 @@ def gerar_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -
     CASE-INSENSITIVITY: Variables are matched regardless of casing (@CLIENTE == @cliente).
     """
     try:
+        dados_extras = dados_extras or {}
         _validate_dados_extras(dados_extras)
         from foton_system.core.ops.op_doc_gen import OpGenerateDocument
         op = OpGenerateDocument(actor="Agent_MCP")
         result = op.execute(
+            client_id=cliente,
             client_name=cliente,
             template_name=nome_template,
             extra_data=dados_extras
@@ -1546,13 +1551,14 @@ def pipeline_novo_cliente(nome: str, apelido: str = "", nif: str = "", email: st
 
 @mcp.tool()
 @_log_tool_call
-def pipeline_emitir_documento(cliente: str, nome_template: str, dados_extras: dict = {}) -> str:
+def pipeline_emitir_documento(cliente: str, nome_template: str, dados_extras: Optional[dict] = None) -> str:
     """
     SAFE pre-flight report before document generation.
     AI RECOMMENDED: Always run this before 'gerar_documento' to provide a summary to the user.
     Logic: Validates variables AND checks for existing generated files to avoid duplicates.
     """
     try:
+        dados_extras = dados_extras or {}
         _validate_dados_extras(dados_extras)
         svc = _get_factory().get_client_service()
         client_path = svc.resolve_client_path(cliente)

@@ -127,7 +127,7 @@ foton_system/
 
 ---
 
-## 41 Ferramentas MCP (v1.4.0)
+## 43 Ferramentas MCP (v1.4.0)
 
 ### 📂 Clientes (6)
 | Ferramenta | Descrição |
@@ -146,7 +146,7 @@ foton_system/
 | `consultar_financeiro` | Saldo e extrato do cliente |
 | `resumo_financeiro_geral` | Dashboard do escritório |
 
-### 📄 Documentos (6)
+### 📄 Documentos (8)
 | Ferramenta | Descrição |
 |---|---|
 | `listar_templates` | Catálogo de contratos/propostas |
@@ -155,6 +155,8 @@ foton_system/
 | `criar_arquivo_dados` | Arquivo de dados customizado |
 | `validar_template` | Pré-voo de variáveis do template |
 | `gerar_documento` | Merge template + dados → DOCX/PPTX |
+| `historico_documentos` | Histórico versionado de documentos gerados |
+| `gerar_documentos_lote` | Geração em lote com pré-voo unificado |
 
 ### 🔄 Sincronização (8)
 | Ferramenta | Descrição |
@@ -208,7 +210,7 @@ foton_system/
 | EPIC-000 | Jornada do Cliente AECD (transversal) | draft | — |
 | EPIC-001 | Usabilidade TUI e Navegação | **completed** | SPEC-UX-v1.2 |
 | EPIC-002 | Domínio, CRUD e Sincronização | active | SPEC-DOMAIN-CRUD-v1.1 + SPEC-SYNC-v1.0 |
-| EPIC-003 | Automação Comercial e Documentos | draft | SPEC-DOCUMENTOS-v1.1 |
+| EPIC-003 | Automação Comercial e Documentos | **completed** | SPEC-DOCUMENTOS-v1.1 |
 | EPIC-004 | Recuperação Inteligente (RAG) | draft | — |
 | ~~EPIC-005~~ | ~~Arquitetura de Acesso~~ | **deprecated → ADR004** | — |
 | EPIC-006 | Inteligência Financeira | draft | SPEC-FINANCEIRO-v2.0 |
@@ -233,6 +235,12 @@ listar_clientes → pipeline_novo_cliente → ler_ficha_cliente
 ```
 listar_templates → validar_template → pipeline_emitir_documento
 → gerar_documento
+
+# Lote: valida todos antes de gerar qualquer um
+gerar_documentos_lote → pré-voo unificado → geração consolidada
+
+# Consultar histórico após geração
+historico_documentos → consulta versionada
 ```
 
 ### 3. Financeiro

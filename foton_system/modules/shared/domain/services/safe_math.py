@@ -28,10 +28,16 @@ class _SafeVisitor(ast.NodeVisitor):
         self._depth = 0
         return self.visit(node.body)
 
+    # @story: STORY-026 @rule: RULE-DOC-4.3
     def visit_Constant(self, node):
         if not isinstance(node.value, (int, float)):
             raise ValueError("Valor não numérico")
-        return float(node.value)
+        val = float(node.value)
+        if math.isnan(val):
+            raise FormulaError(self._expr, "constante NaN não permitida")
+        if math.isinf(val):
+            raise FormulaError(self._expr, "constante Infinity não permitida")
+        return val
 
     def visit_UnaryOp(self, node):
         self._depth += 1
