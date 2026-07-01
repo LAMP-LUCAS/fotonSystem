@@ -1014,3 +1014,176 @@ class TestDocumentServiceHistory(unittest.TestCase):
 
         # Mock was called to save new version at output_path
         adapter.save_document.assert_called_once()
+
+
+class TestDocumentServiceNaming(unittest.TestCase):
+    """Tests for standard filename generation — STORY-025 [RULE-DOC-3.2]"""
+
+    def setUp(self):
+        self.service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
+
+    def test_standard_filename_has_client_name(self):
+        """build_standard_filename should include client name."""
+        name = self.service.build_standard_filename(
+            client_name="SMITH RESIDENCE",
+            template_stem="PROPOSTA_RESIDENCIAL",
+            doc_type="pptx"
+        )
+        self.assertIn("SMITH", name.upper())
+        self.assertTrue(name.endswith(".pptx"))
+
+    def test_standard_filename_includes_tipo_from_template(self):
+        """TIPO should be derived from template stem prefix."""
+        name = self.service.build_standard_filename(
+            client_name="CLIENTE_X", template_stem="CONTRATO_SERVICOS", doc_type="docx"
+        )
+        self.assertIn("CONTRATO", name.upper())
+
+    def test_standard_filename_includes_date(self):
+        """Filename should contain today's date in YYYY-MM-DD format."""
+        from datetime import date
+        today = date.today().strftime('%Y-%m-%d')
+        name = self.service.build_standard_filename(
+            client_name="CLIENTE_X", template_stem="PROPOSTA", doc_type="pptx"
+        )
+        self.assertIn(today, name)
+
+    def test_standard_filename_default_tipo_when_no_match(self):
+        """When template stem doesn't match known tipo, use 'DOC'."""
+        name = self.service.build_standard_filename(
+            client_name="CLIENTE_X", template_stem="ANEXO_TECNICO", doc_type="pdf"
+        )
+        self.assertIn("DOC", name.upper())
+
+    def test_standard_filename_with_service_name(self):
+        """When service_name is provided, it should appear in filename."""
+        name = self.service.build_standard_filename(
+            client_name="SMITH", template_stem="PROPOSTA", doc_type="pptx",
+            service_name="APTO_502"
+        )
+        parts = name.upper().split("_")
+        self.assertIn("APTO", parts)
+        self.assertIn("502", parts)
+
+    def test_standard_filename_fallback_when_no_client(self):
+        """Fallback to GERADO_{template_name} when client_name is empty."""
+        name = self.service.build_standard_filename(
+            client_name="", template_stem="PROPOSTA", doc_type="pptx"
+        )
+        self.assertTrue(name.startswith("GERADO_"))
+        self.assertIn("PROPOSTA", name)
+
+    def test_standard_filename_sanitizes_special_chars(self):
+        """Special characters in names should be replaced or removed."""
+        name = self.service.build_standard_filename(
+            client_name="Sr. João & Silva (Arq)", template_stem="PROPOSTA", doc_type="pptx"
+        )
+        self.assertNotIn("&", name)
+        self.assertNotIn("(", name)
+        self.assertNotIn(")", name)
+        self.assertNotIn(". ", name)
+        self.assertIn("SILVA", name.upper())
+        self.assertIn("JOÃO", name.upper())
+
+    def test_standard_filename_has_underscore_separators(self):
+        """Parts should be separated by underscores."""
+        name = self.service.build_standard_filename(
+            client_name="CLIENTE", template_stem="PROPOSTA", doc_type="pptx",
+            service_name="SERVICO"
+        )
+        self.assertRegex(name, r'^[A-Z0-9]+_[A-Z0-9]+_[A-Z0-9]+_\d{4}-\d{2}-\d{2}\.pptx$')
+
+
+class TestDocumentServiceBatch(unittest.TestCase):
+    """Tests for batch document generation — STORY-025 [RULE-DOC-3.5]"""
+
+    def setUp(self):
+        self.service = DocumentService(FakeDocumentAdapter(), FakeDocumentAdapter())
+        self.temp_dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.temp_dir)
+
+    def test_batch_all_valid_generates_all(self):
+        """When all items are valid, all should be generated."""
+        client_dir = self.temp_dir / "CLIENTE_BATCH"
+        client_dir.mkdir()
+        docs = [
+            {"template_stem": "PROPOSTA", "doc_type": "pptx"},
+            {"template_stem": "CONTRATO", "doc_type": "docx"},
+        ]
+        with patch.object(self.service, '_load_context_data', return_value={}), \
+             patch.object(self.service, '_validate_keys', return_value={"resolved": [], "missing": [], "none_values": [], "formulas": []}), \
+             patch.object(self.service, '_get_system_variables', return_value={}), \
+             patch.object(self.service, '_load_data', return_value={}):
+            report = self.service.generate_batch(
+                client_name="CLIENTE_BATCH",
+                client_dir=client_dir,
+                documentos=docs
+            )
+        self.assertEqual(len(report), 2)
+        for item in report:
+            self.assertEqual(item['status'], 'sucesso')
+            self.assertIn('output_path', item)
+
+    def test_batch_one_invalid_blocks_all(self):
+        """If one item fails validation, no items should be generated."""
+        client_dir = self.temp_dir / "CLIENTE_BLOCK"
+        client_dir.mkdir()
+        docs = [
+            {"template_stem": "PROPOSTA", "doc_type": "pptx"},
+            {"template_stem": "CONTRATO", "doc_type": "docx"},
+        ]
+        def mock_validate(template_path, replacements, doc_type):
+            if "CONTRATO" in str(template_path):
+                return {"resolved": [], "missing": ["@FALTA"], "none_values": [], "formulas": []}
+            return {"resolved": [], "missing": [], "none_values": [], "formulas": []}
+
+        with patch.object(self.service, '_load_context_data', return_value={}), \
+             patch.object(self.service, '_get_system_variables', return_value={}), \
+             patch.object(self.service, '_load_data', return_value={}), \
+             patch.object(self.service, '_validate_keys', side_effect=mock_validate):
+            report = self.service.generate_batch(
+                client_name="CLIENTE_BLOCK",
+                client_dir=client_dir,
+                documentos=docs
+            )
+        # First item: blocked because second failed, or all blocked
+        any_success = any(r['status'] == 'sucesso' for r in report)
+        self.assertFalse(any_success, "No items should succeed when one fails")
+
+    def test_batch_returns_consolidated_report(self):
+        """Batch should return a report with status per document."""
+        client_dir = self.temp_dir / "CLIENTE_REPORT"
+        client_dir.mkdir()
+        docs = [{"template_stem": "PROPOSTA", "doc_type": "pptx"}]
+        with patch.object(self.service, '_load_context_data', return_value={}), \
+             patch.object(self.service, '_validate_keys', return_value={"resolved": [], "missing": [], "none_values": [], "formulas": []}), \
+             patch.object(self.service, '_get_system_variables', return_value={}), \
+             patch.object(self.service, '_load_data', return_value={}):
+            report = self.service.generate_batch(
+                client_name="CLIENTE_REPORT",
+                client_dir=client_dir,
+                documentos=docs
+            )
+        self.assertIsInstance(report, list)
+        self.assertEqual(len(report), 1)
+        self.assertIn('status', report[0])
+        self.assertIn('template_stem', report[0])
+
+    def test_batch_generates_with_standard_naming(self):
+        """Batch should use standard naming for output files."""
+        client_dir = self.temp_dir / "CLIENTE_NAMEDOC"
+        client_dir.mkdir()
+        docs = [{"template_stem": "PROPOSTA", "doc_type": "pptx"}]
+        with patch.object(self.service, '_load_context_data', return_value={}), \
+             patch.object(self.service, '_validate_keys', return_value={"resolved": [], "missing": [], "none_values": [], "formulas": []}), \
+             patch.object(self.service, '_get_system_variables', return_value={}), \
+             patch.object(self.service, '_load_data', return_value={}):
+            report = self.service.generate_batch(
+                client_name="CLIENTE_NAMEDOC",
+                client_dir=client_dir,
+                documentos=docs
+            )
+        output = report[0].get('output_path', '')
+        self.assertIn("CLIENTE_NAMEDOC", output.upper())
+        self.assertIn("PROPOSTA", output.upper())
+        self.assertTrue(output.endswith('.pptx'))

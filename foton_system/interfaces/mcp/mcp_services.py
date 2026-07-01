@@ -129,6 +129,7 @@ class DocumentResult:
     message: str
     output_path: Optional[str] = None
     templates: Optional[list] = None
+    batch_result: Optional[dict] = None
 
 
 @dataclass
@@ -428,6 +429,25 @@ class MCPDocumentService:
         except FileNotFoundError as e:
             return DocumentResult(success=False, message=str(e))
         except (OSError, ValueError) as e:
+            return DocumentResult(success=False, message=str(e))
+        except Exception as e:
+            return DocumentResult(success=False, message=f"Erro: {e}")
+
+    def generate_batch(self, client_name: str, documentos: list) -> DocumentResult:
+        """Generate multiple documents in batch."""
+        try:
+            from foton_system.core.ops.op_doc_gen import OpGenerateBatchDocuments
+            op = OpGenerateBatchDocuments(actor="Agent_MCP")
+            result = op.execute(
+                client_name=client_name,
+                documentos=documentos
+            )
+            return DocumentResult(
+                success=result.get("status") == "BATCH_COMPLETED",
+                message="Lote processado",
+                batch_result=result
+            )
+        except (FileNotFoundError, ValueError) as e:
             return DocumentResult(success=False, message=str(e))
         except Exception as e:
             return DocumentResult(success=False, message=f"Erro: {e}")

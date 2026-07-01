@@ -1063,6 +1063,66 @@ def historico_documentos(cliente: str, limite: int = 10) -> str:
         return f"❌ Error: {e}"
 
 
+@mcp.tool()
+@_log_tool_call
+def gerar_documentos_lote(cliente: str, documentos: list) -> str:
+    """
+    Generates multiple documents in a single batch operation.
+    Phase 1: validates all templates. Phase 2: generates all (only if all pass).
+    PARAMETERS:
+      cliente: Client name (supports fuzzy match)
+      documentos: List of dicts, each with {template: str, dados_extras?: dict, tipo?: str}
+    CONTEXT: Use this to generate proposta + contrato + anexo simultaneously.
+    """
+    try:
+        factory = _get_factory()
+        doc_service = factory.get_document_service()
+
+        normalized = []
+        for doc in documentos:
+            if not isinstance(doc, dict):
+                return f"❌ Each item in 'documentos' must be a dict with 'template'."
+            template_name = doc.get("template")
+            if not template_name:
+                return f"❌ Each item in 'documentos' must have a 'template' field."
+            extra_data = doc.get("dados_extras", {})
+            if not isinstance(extra_data, dict):
+                extra_data = {}
+            normalized.append({
+                "template_name": template_name,
+                "extra_data": extra_data,
+            })
+
+        result = doc_service.generate_batch(cliente, normalized)
+
+        if not result.success:
+            return f"❌ Lote falhou: {result.message}"
+
+        batch = result.batch_result or {}
+        items = batch.get("items", [])
+        status = batch.get("status", "UNKNOWN")
+
+        if status == "BATCH_BLOCKED":
+            output = f"❌ Lote BLOQUEADO — pré-validação falhou:\n"
+            for item in items:
+                icon = "🔴" if item["status"] == "bloqueado" else "🟡"
+                output += f"  {icon} {item['template_name']} → {item['status']}\n"
+            output += "\nCorrija os templates com falha e tente novamente."
+            return output
+
+        output = f"✅ Lote concluído ({len(items)} documento(s)):\n"
+        for item in items:
+            icon = "✅" if item["status"] == "sucesso" else "❌"
+            output += f"  {icon} {item['template_name']} → {item['output_path']}\n"
+        return output
+
+    except ValueError as e:
+        return f"❌ {e}"
+    except Exception as e:
+        _logger.error(f"gerar_documentos_lote failed: {e}", exc_info=True)
+        return f"❌ Erro: {e}"
+
+
 # ==============================================================================
 # KNOWLEDGE / RAG TOOLS
 # ==============================================================================

@@ -17,6 +17,7 @@ class MenuDocsHandler:
             ("2", "Gerar Contrato (DOCX)"),
             ("3", "Validar Template (Pre-voo)"),
             ("4", "Histórico de Documentos"),
+            ("5", "Gerar Lote (Proposta + Contrato + Anexo)"),
             ("0", "Voltar")
         ]
         for key, label in options:
@@ -40,6 +41,8 @@ class MenuDocsHandler:
                 self.menu.validate_template_ui()
             elif choice == '4':
                 self.history_documents_ui()
+            elif choice == '5':
+                self.generate_batch_ui()
             elif choice in ('0', 'b', 'B'):
                 break
             else:
@@ -159,6 +162,80 @@ class MenuDocsHandler:
         except Exception as e:
             self.menu.print_error(f"\n  Erro ao gerar: {format_error_with_suggestion(e)}")
             input("\nPressione Enter para continuar...")
+
+    def generate_batch_ui(self):
+        from foton_system.modules.shared.infrastructure.config.config import Config
+        from foton_system.core.ops.op_doc_gen import OpGenerateBatchDocuments
+        from pathlib import Path
+        TUILayout.clear()
+        TUILayout.print_header("GERAR LOTE (PROPOSTA + CONTRATO + ANEXO)")
+        print("\n  Selecione a pasta do cliente...")
+        client_folder = self.menu.ui.select_directory("Selecione a Pasta do Cliente")
+        if not client_folder:
+            self.menu.print_warning("  Operação cancelada.")
+            return
+        client_path = Path(client_folder)
+        config = Config()
+        templates_dir = config.templates_path
+
+        proposta_pptx = None
+        contrato_docx = None
+        anexo_pptx = None
+        for f in templates_dir.iterdir():
+            name = f.name.upper()
+            if f.suffix == '.pptx' and 'PROPOSTA' in name and not proposta_pptx:
+                proposta_pptx = f.name
+            elif f.suffix == '.docx' and 'CONTRATO' in name and not contrato_docx:
+                contrato_docx = f.name
+            elif f.suffix == '.pptx' and 'ANEXO' in name and not anexo_pptx:
+                anexo_pptx = f.name
+
+        documentos = []
+        if proposta_pptx:
+            documentos.append({"template_name": proposta_pptx})
+        if contrato_docx:
+            documentos.append({"template_name": contrato_docx})
+        if anexo_pptx:
+            documentos.append({"template_name": anexo_pptx})
+
+        if not documentos:
+            self.menu.print_warning("  Nenhum template encontrado para lote automático.")
+            input("Pressione Enter para voltar...")
+            return
+
+        print(f"\n  Cliente: {client_path.name}")
+        print(f"  Documentos no lote ({len(documentos)}):")
+        for d in documentos:
+            print(f"    • {d['template_name']}")
+        confirm = input(f"\n  Confirmar geração em lote? (S/N): ").upper()
+        if confirm != 'S':
+            self.menu.print_warning("  Operação cancelada.")
+            return
+
+        op = OpGenerateBatchDocuments(actor="TUI_User")
+        try:
+            result = op.execute(
+                client_name=client_path.name,
+                documentos=documentos
+            )
+            items = result.get("items", [])
+            status = result.get("status", "UNKNOWN")
+            print()
+            if status == "BATCH_BLOCKED":
+                self.menu.print_warning(f"  Lote BLOQUEADO — {len(items)} documento(s):")
+                for item in items:
+                    icon = "🔴" if item["status"] == "bloqueado" else "🟡"
+                    self.menu.print_warning(f"  {icon} {item['template_name']} → {item['status']}")
+                self.menu.print_warning("\n  Corrija os templates e tente novamente.")
+            else:
+                self.menu.print_success(f"  ✅ Lote concluído ({len(items)} documento(s)):")
+                for item in items:
+                    icon = "✅" if item["status"] == "sucesso" else "❌"
+                    self.menu.print_info(f"  {icon} {item['template_name']} → {item['output_path']}")
+                self.menu.ui.open_folder(client_path)
+        except Exception as e:
+            self.menu.print_error(f"\n  Erro no lote: {e}")
+        input("\nPressione Enter para continuar...")
 
     def validate_template_ui(self):
         from foton_system.modules.shared.infrastructure.config.config import Config

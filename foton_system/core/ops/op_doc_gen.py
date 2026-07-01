@@ -8,6 +8,34 @@ from foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter 
 from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
 
+
+def _resolve_client_path(client_name):
+    base = Config().base_pasta_clientes
+    client_path = base / client_name
+    if not client_path.exists():
+        for p in base.iterdir():
+            if p.is_dir() and client_name.lower() in p.name.lower():
+                client_path = p
+                break
+    if not client_path.exists():
+        raise FileNotFoundError(f"Client folder for '{client_name}' not found.")
+    return client_path
+
+
+def _resolve_template_path(template_name):
+    template_dir = Config().templates_path
+    template_path = template_dir / template_name
+    if not template_path.exists():
+        if not template_name.endswith(('.docx', '.pptx')):
+            if (template_dir / f"{template_name}.docx").exists():
+                template_path = template_dir / f"{template_name}.docx"
+            elif (template_dir / f"{template_name}.pptx").exists():
+                template_path = template_dir / f"{template_name}.pptx"
+    if not template_path.exists():
+        raise FileNotFoundError(f"Template '{template_name}' not found in {template_dir}")
+    return template_path
+
+
 class OpGenerateDocument(BaseOp):
     """
     Standard Operation to generate a document from a template.
@@ -15,75 +43,39 @@ class OpGenerateDocument(BaseOp):
     """
 
     def validate(self, **kwargs) -> Dict[str, Any]:
-        """
-        Requires:
-        - client_name (str)
-        - template_name (str)
-        Optional:
-        - extra_data (dict)
-        """
         if not kwargs.get("client_name"):
             raise ValueError("Client Name is required.")
         if not kwargs.get("template_name"):
             raise ValueError("Template Name is required.")
-        
-        # Normalize
         kwargs["extra_data"] = kwargs.get("extra_data", {})
         if isinstance(kwargs["extra_data"], str):
              try:
                  kwargs["extra_data"] = json.loads(kwargs["extra_data"])
              except (json.JSONDecodeError, TypeError):
                  pass
-                 
         return kwargs
 
     def execute_logic(self, validated_data: Dict[str, Any]) -> Dict[str, Any]:
-        # 1. Setup Services
         docx_adapter = PythonDocxAdapter()
         pptx_adapter = PythonPPTXAdapter()
         service = DocumentService(docx_adapter, pptx_adapter)
-        
-        # 2. Resolve Client Path
-        # Logic duplicated from MCP/Install service - ideally moved to a helper
+
         client_name = validated_data["client_name"]
-        base = Config().base_pasta_clientes
-        # Simple resolution for now
-        client_path = base / client_name
-        
-        # If folder doesn't exist, try finding it by partial match or just accept it might fail in service
-        if not client_path.exists():
-             # Basic search strategy
-             for p in base.iterdir():
-                 if p.is_dir() and client_name.lower() in p.name.lower():
-                     client_path = p
-                     break
-        
-        if not client_path.exists():
-            raise FileNotFoundError(f"Client folder for '{client_name}' not found.")
+        client_path = _resolve_client_path(client_name)
 
-        # 3. Resolve Template
         template_name = validated_data["template_name"]
-        template_dir = Config().templates_path
-        template_path = template_dir / template_name
-        
-        if not template_path.exists():
-             # Try appending extension if missing
-             if not template_name.endswith(('.docx', '.pptx')):
-                 # Check both
-                 if (template_dir / f"{template_name}.docx").exists():
-                     template_path = template_dir / f"{template_name}.docx"
-                 elif (template_dir / f"{template_name}.pptx").exists():
-                     template_path = template_dir / f"{template_name}.pptx"
-                     
-        if not template_path.exists():
-             raise FileNotFoundError(f"Template '{template_name}' not found in {template_dir}")
+        template_path = _resolve_template_path(template_name)
 
-        # 4. Generate
-        output_name = f"GERADO_{template_path.name}"
-        output_path = client_path / output_name
-        
         doc_type = "pptx" if template_path.suffix == ".pptx" else "docx"
-        
+        template_stem = template_path.stem
+
+        output_name = service.build_standard_filename(
+            client_name=client_path.name,
+            template_stem=template_stem,
+            doc_type=doc_type
+        )
+        output_path = client_path / output_name
+
         service.generate_document(
             template_path=str(template_path),
             data_path=str(client_path),
@@ -98,6 +90,110 @@ class OpGenerateDocument(BaseOp):
             "client": client_path.name,
             "template": template_path.name
         }
+
+
+class OpGenerateBatchDocuments(BaseOp):
+    """
+    Batch document generation.
+    Phase 1: validate all items. Phase 2: generate all (only if all pass).
+    Returns consolidated report with per-document status.
+    """
+
+    def validate(self, **kwargs) -> Dict[str, Any]:
+        if not kwargs.get("client_name"):
+            raise ValueError("Client Name is required.")
+        documentos = kwargs.get("documentos", [])
+        if not isinstance(documentos, list) or not documentos:
+            raise ValueError("documentos must be a non-empty list of dicts.")
+        for i, doc in enumerate(documentos):
+            if not isinstance(doc, dict):
+                raise ValueError(f"documentos[{i}] must be a dict.")
+            if not doc.get("template_name"):
+                raise ValueError(f"documentos[{i}] missing 'template_name'.")
+            doc["extra_data"] = doc.get("extra_data", {})
+            if isinstance(doc["extra_data"], str):
+                try:
+                    doc["extra_data"] = json.loads(doc["extra_data"])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        return kwargs
+
+    def execute_logic(self, validated_data: Dict[str, Any]) -> Dict[str, Any]:
+        docx_adapter = PythonDocxAdapter()
+        pptx_adapter = PythonPPTXAdapter()
+        service = DocumentService(docx_adapter, pptx_adapter)
+
+        client_name = validated_data["client_name"]
+        client_path = _resolve_client_path(client_name)
+        documentos = validated_data["documentos"]
+
+        pre_flight_items = []
+        for doc in documentos:
+            template_name = doc["template_name"]
+            template_path = _resolve_template_path(template_name)
+            doc_type = "pptx" if template_path.suffix == ".pptx" else "docx"
+            template_stem = template_path.stem
+
+            output_name = service.build_standard_filename(
+                client_name=client_path.name,
+                template_stem=template_stem,
+                doc_type=doc_type
+            )
+            output_path = client_path / output_name
+
+            try:
+                validation = service.validate_template_keys(
+                    str(template_path), str(client_path), doc_type
+                )
+            except Exception as e:
+                validation = {"missing": ["_ERROR_"], "none_values": [], "resolved": [], "formulas": []}
+
+            pre_flight_items.append({
+                "template_name": template_name,
+                "doc_type": doc_type,
+                "output_path": str(output_path),
+                "template_path": str(template_path),
+                "validation_valid": not validation.get("missing") and not validation.get("none_values"),
+                "validation": validation,
+            })
+
+        all_valid = all(item["validation_valid"] for item in pre_flight_items)
+
+        if not all_valid:
+            results = []
+            for item in pre_flight_items:
+                status = "bloqueado" if not item["validation_valid"] else "bloqueado_por_dependencia"
+                results.append({
+                    "template_name": item["template_name"],
+                    "output_path": item["output_path"],
+                    "status": status,
+                })
+            return {"status": "BATCH_BLOCKED", "items": results}
+
+        results = []
+        for item in pre_flight_items:
+            try:
+                service.generate_document(
+                    template_path=item["template_path"],
+                    data_path=str(client_path),
+                    output_path=item["output_path"],
+                    doc_type=item["doc_type"],
+                    extra_data={}
+                )
+                results.append({
+                    "template_name": item["template_name"],
+                    "output_path": item["output_path"],
+                    "status": "sucesso",
+                })
+            except Exception as e:
+                results.append({
+                    "template_name": item["template_name"],
+                    "output_path": item["output_path"],
+                    "status": "erro",
+                    "error": str(e),
+                })
+
+        return {"status": "BATCH_COMPLETED", "items": results}
 
 if __name__ == "__main__":
     import argparse

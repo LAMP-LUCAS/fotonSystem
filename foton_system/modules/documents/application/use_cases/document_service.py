@@ -370,6 +370,35 @@ class DocumentService:
         folder_doc = self._config.folder_doc
         return service_path / folder_doc / "GERADOS" / tipo / template_name
 
+    def build_standard_filename(self, client_name, template_stem, doc_type, service_name=None):
+        if not client_name:
+            return f"GERADO_{template_stem}.{doc_type}"
+
+        def _sanitize(name):
+            name = name.upper().replace(' ', '_')
+            name = re.sub(r'[^A-Z0-9_À-ÜÃ-Õ]', '', name)
+            name = re.sub(r'_+', '_', name).strip('_')
+            return name
+
+        client_part = _sanitize(client_name)
+        tipo = "DOC"
+        stem_upper = template_stem.upper()
+        for prefix in ["PROPOSTA", "CONTRATO", "MEMORIAL", "RECIBO"]:
+            if stem_upper.startswith(prefix):
+                tipo = prefix
+                break
+
+        service_part = _sanitize(service_name) if service_name else ""
+        date_part = datetime.now().strftime('%Y-%m-%d')
+
+        parts = [client_part]
+        if service_part:
+            parts.append(service_part)
+        parts.append(tipo)
+        parts.append(date_part)
+
+        return "_".join(parts) + f".{doc_type}"
+
     def _log_generation(self, output_path, doc_type, template_path, data_path, extra_params=None):
         try:
             client_dir = Path(output_path).parent
@@ -413,6 +442,69 @@ class DocumentService:
         except Exception as e:
             logger.error(f"Erro ao ler histórico: {e}")
             return []
+
+    def generate_batch(self, client_name, client_dir, documentos):
+        """
+        Generate multiple documents in a batch operation.
+        Phase 1: validate all items. Phase 2: generate all (only if all pass).
+        Returns consolidated report list.
+        """
+        templates_dir = self._config.templates_path
+        report = []
+
+        for doc in documentos:
+            template_stem = doc.get('template_stem', '')
+            doc_type = doc.get('doc_type', 'pptx')
+            extra_data = doc.get('extra_data')
+
+            template_file = f"{template_stem}.{doc_type}"
+            template_path = templates_dir / template_file
+
+            output_name = self.build_standard_filename(
+                client_name, template_stem, doc_type
+            )
+            output_path = client_dir / output_name
+
+            validation = self.validate_template_keys(
+                str(template_path), str(client_dir), doc_type
+            )
+
+            report.append({
+                'template_stem': template_stem,
+                'doc_type': doc_type,
+                'output_path': str(output_path),
+                'status': 'pending',
+                'validation_valid': not validation.get('missing') and not validation.get('none_values')
+            })
+
+        all_valid = all(r['validation_valid'] for r in report)
+
+        if not all_valid:
+            for r in report:
+                if r.pop('validation_valid'):
+                    r['status'] = 'bloqueado_por_dependencia'
+                else:
+                    r['status'] = 'bloqueado'
+            return report
+
+        for r in report:
+            try:
+                template_file = f"{r['template_stem']}.{r['doc_type']}"
+                template_path = templates_dir / template_file
+
+                self.generate_document(
+                    template_path=str(template_path),
+                    data_path=str(client_dir),
+                    output_path=r['output_path'],
+                    doc_type=r['doc_type'],
+                    extra_data=None
+                )
+                r['status'] = 'sucesso'
+            except Exception as e:
+                r['status'] = 'erro'
+                r['error'] = str(e)
+
+        return report
 
     def _resolve_version_and_archive(self, client_dir, output_path, template_name):
         client_dir = Path(client_dir)
