@@ -25,20 +25,26 @@ SystemAudit ──> DualInterface ──> Resiliência ──> InfoNaming ──
 | **SystemAudit** | Mai/2026 | `650e964` `4bc8b15` ... | Auditoria arquitetural, segurança, resiliência, documentação | ✅ Cobertura de path traversal, circuit breaker, tip service, documentação |
 | **DualInterface** | Jun/2026 | `69a9edb` `ae8a4d2` `1aa4682` `fe11bae` | TUI bugs, dedup MCP↔domain, documentação dual-paradigma, flag `--tui` | ✅ 4 commits, 264 testes, zero regressão |
 
+## Sprints Concluídas (novo formato)
+
+| Sprint | Épico | Stories | Esforço | RULE-IDs |
+|--------|-------|---------|---------|----------|
+| **2026-SPRINT-7** | EPIC-003 — Documentos v1.1 | 4 | ~21h | 9 |
+
 ## Sprints Ativas
 
-| Sprint | Foco | Fases | Esforço |
-|--------|------|-------|---------|
-| **Resiliência** | Segurança (`eval`→parser), bare excepts, bugs, vapor, arquitetura, testes | 8 fases | ~21h |
-| **InfoNaming** | Sistema de nomenclatura configurável de arquivos INFO com placeholders | 7 fases | ~20h |
-| **DomainCRUD** | Domain Model (entidades, VOs), CRUD completo (soft delete), Pipeline sync | 3 fases | ~20-26h |
-| **2026-07-SPRINT-4** | Consolidação UX + rastreabilidade | 4 stories | ~11h |
+| Sprint | Foco | Stories | Esforço | Spec |
+|--------|------|---------|---------|------|
+| **2026-SPRINT-8** | EPIC-004 — RAG (Filtros + Contexto + Diagnóstico) | 2 | ~7h | `SPEC-RAG-v1.0` |
+| **Resiliência** | Segurança (`eval`→parser), bare excepts, bugs, vapor, arquitetura, testes | 8 fases | ~21h | — |
+| **InfoNaming** | Sistema de nomenclatura configurável de arquivos INFO com placeholders | 7 fases | ~20h | — |
+| **DomainCRUD** | Domain Model (entidades, VOs), CRUD completo (soft delete), Pipeline sync | 3 fases | ~20-26h | — |
+| **2026-07-SPRINT-4** | Consolidação UX + rastreabilidade | 4 stories | ~11h | — |
 
 ## Próximas Candidatas
 
 | Sprint | Foco | Esforço | Status | Doc |
 |--------|------|---------|--------|-----|
-| **EPIC-003 / Sprint 7** | Automação Comercial e Documentos (v1.1) — 9 RULE-IDs | ~21h | 📋 planejado | `docs/01_PROJECTS/EPIC-003/SprintPlan.md` |
 | **UX Agêntica** | JSON estruturado nas tools MCP, rate limiting, observabilidade | — | 🗓️ candidata | — |
 | **i18n** | Internacionalização das strings de interface | — | 🗓️ candidata | — |
 | **WebView Revival** | Feature parity TUI↔WebView, autosave, segurança | — | 🗓️ candidata | — |

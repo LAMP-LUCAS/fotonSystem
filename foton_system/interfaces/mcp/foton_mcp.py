@@ -1142,106 +1142,63 @@ def gerar_documentos_lote(cliente: str, documentos: list) -> str:
 # KNOWLEDGE / RAG TOOLS
 # ==============================================================================
 
-_RAG_WRAPPER = r"""import sys, json
-sys.path.insert(0, r"{PROJECT_ROOT}")
-sys.stdout.reconfigure(encoding='utf-8')
-from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
-op = OpQueryKnowledge(actor="Agent_MCP")
-res = op.execute(query=sys.argv[1])
-print(json.dumps(res, ensure_ascii=False))
-"""
-
 @mcp.tool()
 @_log_tool_call
-def consultar_conhecimento(pergunta: str) -> str:
+def consultar_conhecimento(pergunta: str, cliente: str = "", tipo_doc: str = "") -> str:
     """
     Semantic search (RAG) across past projects and reference materials.
+    PARAMETERS:
+      pergunta: Question in natural language
+      cliente: Optional — filter by client folder name
+      tipo_doc: Optional — filter by document type (INFO, dados, proposta, etc.)
     CONTEXT: Use this to find 'How did we solve X for client Y before?' or 'What are the rules for Z?'.
     """
     try:
-        # When frozen (PyInstaller), delegate to system Python which has chromadb globally
-        if getattr(sys, 'frozen', False):
-            import tempfile
-            project_root = _find_project_root()
-            system_python = _find_system_python()
-            code = _RAG_WRAPPER.replace("{PROJECT_ROOT}", str(project_root))
-            tmp_dir = Path(tempfile.mkdtemp(prefix="foton_rag_"))
-            script_path = tmp_dir / "_rag_run.py"
-            script_path.write_text(code, encoding='utf-8')
-            clean_env = {
-                "PATH": os.environ.get("PATH", ""),
-                "USERPROFILE": os.environ.get("USERPROFILE", ""),
-                "LOCALAPPDATA": os.environ.get("LOCALAPPDATA", ""),
-                "APPDATA": os.environ.get("APPDATA", ""),
-                "SYSTEMROOT": os.environ.get("SYSTEMROOT", ""),
-                "HOMEDRIVE": os.environ.get("HOMEDRIVE", ""),
-                "HOMEPATH": os.environ.get("HOMEPATH", ""),
-                "HF_HOME": str(Path.home() / ".cache" / "huggingface"),
-                "PYTHONIOENCODING": "utf-8",
-            }
-            _logger.debug(f"Running subprocess: {system_python} {script_path} {pergunta[:50]}")
-            _logger.debug(f"Project root: {project_root}")
-            _logger.debug(f"Script file exists: {script_path.exists()}, size: {script_path.stat().st_size if script_path.exists() else 0}")
-            try:
-                result = subprocess.run(
-                    [str(system_python), str(script_path), pergunta],
-                    stdin=subprocess.DEVNULL, capture_output=True,
-                    text=True, encoding='utf-8', timeout=120,
-                    env=clean_env, creationflags=subprocess.CREATE_NO_WINDOW
-                )
-            except OSError as e:
-                _logger.error(f"Subprocess OSError: {e}")
-                return f"❌ Knowledge query failed to start: {e}"
-            finally:
-                import shutil
-                shutil.rmtree(tmp_dir, ignore_errors=True)
-            _logger.debug(f"Subprocess done: rc={result.returncode}, out={len(result.stdout)}, err={len(result.stderr)}")
-            if result.returncode != 0:
-                full_stderr = result.stderr if result.stderr else "(empty)"
-                _logger.error(f"Subprocess failed (full): {full_stderr}")
-                return f"❌ Knowledge query error: {full_stderr[:500]}"
-            if not result.stdout:
-                return "❌ Knowledge query returned empty response."
-            try:
-                data = json.loads(result.stdout)
-            except json.JSONDecodeError as e:
-                _logger.error(f"JSON parse error: {e}, stdout={result.stdout[:200]}")
-                return f"❌ Knowledge query parse error: {e}"
-        else:
-            from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
-            op = OpQueryKnowledge(actor="Agent_MCP")
-            data = op.execute(query=pergunta)
+        from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
+        op = OpQueryKnowledge(actor="Agent_MCP")
+        kwargs = {"query": pergunta}
+        if cliente.strip():
+            kwargs["cliente"] = cliente.strip()
+        if tipo_doc.strip():
+            kwargs["tipo_doc"] = tipo_doc.strip()
+        data = op.execute(**kwargs)
 
         if data.get("status") == "EMPTY":
             return "📭 No relevant knowledge found."
 
         output = []
         for i, r in enumerate(data.get("results", []), 1):
-            output.append(f"--- [{i}] Source: {r['source']} (Similarity: {r['score']:.0%}) ---\n{r['document']}\n")
+            ctx = r.get("contexto", r["document"])
+            output.append(
+                f"--- [{i}] Source: {r['source']} (Similarity: {r['score']:.0%}) ---\n"
+                f"{ctx}\n"
+            )
 
         return "\n".join(output)
-    except subprocess.TimeoutExpired as e:
-        stderr_snippet = (e.stderr[-500:] if e.stderr else "(empty)").replace("\n", " | ")
-        _logger.error(f"Subprocess timed out. stderr tail: {stderr_snippet}")
-        return f"❌ Knowledge query timed out after 120s."
-    except (OSError, subprocess.SubprocessError) as e:
-        _logger.error(f"consultar_conhecimento subprocess error: {e}", exc_info=True)
-        return f"❌ Knowledge query failed: {e}"
+    except ValueError as e:
+        return f"❌ Invalid parameters: {e}"
     except Exception as e:
         return f"❌ Knowledge query error: {e}"
 
 
 @mcp.tool()
 @_log_tool_call
-def indexar_conhecimento(pasta_alvo: str = "") -> str:
+def indexar_conhecimento(pasta_alvo: str = "", cliente: str = "") -> str:
     """
     Updates the semantic database by indexing documents.
+    PARAMETERS:
+      pasta_alvo: Optional — specific folder path to index
+      cliente: Optional — client name for selective indexing (only this client's folder)
     PROTOCOL: Run this after adding many new files or manually updating INFO files to ensure RAG stays current.
     """
     try:
         from foton_system.core.ops.op_index_knowledge import OpIndexKnowledge
         op = OpIndexKnowledge(actor="Agent_MCP")
-        kwargs = {"target_path": pasta_alvo} if pasta_alvo.strip() else {}
+        kwargs = {}
+        if cliente.strip():
+            kwargs["cliente"] = cliente.strip()
+        elif pasta_alvo.strip():
+            kwargs["target_path"] = pasta_alvo.strip()
         result = op.execute(**kwargs)
         return f"✅ Knowledge base updated! Files: {result['files_scanned']}, Chunks: {result['chunks_created']}"
     except ValueError as e:
@@ -1250,6 +1207,27 @@ def indexar_conhecimento(pasta_alvo: str = "") -> str:
         return f"❌ File access error: {e}"
     except Exception as e:
         return f"❌ Indexing error: {e}"
+
+
+@mcp.tool()
+@_log_tool_call
+def diagnostico_conhecimento() -> str:
+    """
+    Diagnostic of the semantic knowledge base.
+    Returns: total chunks, circuit breaker status (CLOSED/OPEN), last indexation timestamp.
+    """
+    try:
+        from foton_system.core.memory.vector_store import VectorStore
+        store = VectorStore()
+        diag = store.diagnostic()
+        return (
+            f"📊 **RAG Knowledge Base Diagnostic**\n"
+            f"• Total chunks: {diag['total_chunks']}\n"
+            f"• Circuit breaker: {diag['circuit_breaker_status']}\n"
+            f"• Last indexation: {diag['ultima_indexacao']}"
+        )
+    except Exception as e:
+        return f"❌ Diagnostic error: {e}"
 
 
 # ==============================================================================

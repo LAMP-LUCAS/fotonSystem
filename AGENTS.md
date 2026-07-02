@@ -171,11 +171,12 @@ foton_system/
 | `importar_dados_servicos` | .md → DB |
 | `importar_dados_clientes` | INFO files → DB |
 
-### 🧠 RAG (2)
+### 🧠 RAG (3)
 | Ferramenta | Descrição |
 |---|---|
 | `indexar_conhecimento` | Indexa arquivos no ChromaDB |
 | `consultar_conhecimento` | Busca semântica em projetos passados |
+| `diagnostico_conhecimento` | Diagnóstico do índice (chunks, status CB, última indexação) |
 
 ### 🚀 Pipelines (2)
 | Ferramenta | Descrição |
@@ -211,7 +212,7 @@ foton_system/
 | EPIC-001 | Usabilidade TUI e Navegação | **completed** | SPEC-UX-v1.2 |
 | EPIC-002 | Domínio, CRUD e Sincronização | active | SPEC-DOMAIN-CRUD-v1.1 + SPEC-SYNC-v1.0 |
 | EPIC-003 | Automação Comercial e Documentos | **completed** | SPEC-DOCUMENTOS-v1.1 |
-| EPIC-004 | Recuperação Inteligente (RAG) | draft | — |
+| EPIC-004 | Recuperação Inteligente (RAG) | active | SPEC-RAG-v1.0 |
 | ~~EPIC-005~~ | ~~Arquitetura de Acesso~~ | **deprecated → ADR004** | — |
 | EPIC-006 | Inteligência Financeira | draft | SPEC-FINANCEIRO-v2.0 |
 | EPIC-007 | Cronograma e Marcos de Obra | draft | — |

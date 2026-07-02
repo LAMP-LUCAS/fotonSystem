@@ -7,6 +7,16 @@ e o versionamento segue [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added (EPIC-004 — Sprint 8: Recuperação Inteligente RAG)
+- **SPEC-RAG-v1.0** (STORY-028) — formalização do módulo RAG com 18 RULE-IDs
+- **Filtros + Contexto + Diagnóstico** (STORY-029, RULE-RAG-4.1/4.2/4.3/5.1/5.2/5.3/6.1/6.2)
+  - `consultar_conhecimento` agora aceita filtro `cliente` e `tipo_doc`
+  - Resultados incluem trecho de contexto (100 chars antes/depois)
+  - Nova MCP tool `diagnostico_conhecimento` — total chunks, status CB, última indexação
+  - Indexação seletiva por cliente (`indexar_conhecimento(cliente="X")`)
+  - TUI: atalho `g` para busca semântica global
+  - TUI: resultados formatados com score, fonte e contexto
+
 ### Added (EPIC-003 — Sprint 7: Automação Comercial e Documentos)
 - **Pré-validação Obrigatória + Placeholder Zero** (STORY-022, RULE-DOC-2.1/2.4/2.5)
   - `gerar_documento()` executa `validar_template` internamente e bloqueia geração se houver variáveis não resolvidas

@@ -231,13 +231,16 @@ class VectorStore:
             ids=ids
         )
 
-    def _do_query(self, query_text: str, n_results: int = 5) -> Dict[str, Any]:
-        """Actual ChromaDB query (unprotected)."""
+    def _do_query(self, query_text: str, n_results: int = 5, where: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Actual ChromaDB query (unprotected). Supports optional metadata filter."""
         query_embedding = self.embedder.encode([query_text]).tolist()
-        return self.collection.query(
-            query_embeddings=query_embedding,
-            n_results=n_results
-        )
+        kwargs: Dict[str, Any] = {
+            "query_embeddings": query_embedding,
+            "n_results": n_results
+        }
+        if where:
+            kwargs["where"] = where
+        return self.collection.query(**kwargs)
 
     def _do_delete(self, ids: List[str]) -> None:
         """Actual ChromaDB delete (unprotected)."""
@@ -269,7 +272,7 @@ class VectorStore:
         except CircuitBreakerOpenError:
             logger.warning("add_documents skipped — ChromaDB unavailable (circuit OPEN)")
 
-    def query(self, query_text: str, n_results: int = 5) -> Dict[str, Any]:
+    def query(self, query_text: str, n_results: int = 5, where: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Busca semântica na base de conhecimento.
         Protegido por circuit breaker — retorna vazio se indisponível.
@@ -277,12 +280,13 @@ class VectorStore:
         Args:
             query_text: Pergunta ou termo de busca em linguagem natural
             n_results: Quantidade máxima de resultados
+            where: Filtro opcional de metadados (ex: {"source": {"$contains": "ClienteX"}})
 
         Returns:
             Dicionário com 'documents', 'metadatas', 'distances' e 'ids'
         """
         try:
-            return self._breaker.call(self._do_query, query_text, n_results)
+            return self._breaker.call(self._do_query, query_text, n_results, where)
         except CircuitBreakerOpenError:
             logger.warning("query skipped — ChromaDB unavailable (circuit OPEN)")
             return {
@@ -306,3 +310,41 @@ class VectorStore:
         except CircuitBreakerOpenError:
             logger.warning("count skipped — ChromaDB unavailable (circuit OPEN)")
             return 0
+
+    def diagnostic(self) -> Dict[str, Any]:
+        """
+        Retorna diagnóstico completo da base de conhecimento.
+
+        Returns:
+            Dicionário com:
+                - total_chunks: Quantidade de chunks indexados
+                - circuit_breaker_status: "CLOSED" | "OPEN" | "HALF_OPEN"
+                - ultima_indexacao: Timestamp ISO da última indexação ou "N/A"
+        """
+        total = self.count()
+        cb_state = self._breaker.state
+        last_idx = "N/A"
+        index_marker = self.db_path / ".last_indexed"
+        if index_marker.exists():
+            try:
+                last_idx = index_marker.read_text(encoding="utf-8").strip()
+            except Exception:
+                pass
+        return {
+            "total_chunks": total,
+            "circuit_breaker_status": cb_state,
+            "ultima_indexacao": last_idx
+        }
+
+    @staticmethod
+    def mark_indexed() -> None:
+        """Marca o timestamp atual como última indexação."""
+        from datetime import datetime
+        try:
+            from foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service import BootstrapService
+            config_dir = BootstrapService.get_user_config_dir()
+            marker = config_dir / "memory_db" / ".last_indexed"
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.write_text(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), encoding="utf-8")
+        except Exception:
+            pass

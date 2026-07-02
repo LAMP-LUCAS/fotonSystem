@@ -1,7 +1,7 @@
 import hashlib
 import re
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from foton_system.core.ops.base_op import BaseOp
 from foton_system.core.memory.vector_store import VectorStore
 from foton_system.modules.shared.infrastructure.config.config import Config
@@ -14,19 +14,27 @@ class OpIndexKnowledge(BaseOp):
     
     def validate(self, **kwargs) -> Dict[str, Any]:
         """
-        Optional: 'target_path' to scan specific folder.
+        Optional: 'target_path' to scan specific folder, or 'cliente' for selective indexing.
         Default: Scans entire 'base_pasta_clientes'.
         """
-        path = kwargs.get("target_path")
-        if path:
-            p = Path(path)
+        cliente = kwargs.get("cliente", "").strip()
+        if cliente:
+            base = Config().base_pasta_clientes
+            p = base / cliente
             if not p.exists():
-                raise ValueError(f"Path {path} does not exist.")
+                raise ValueError(f"Cliente '{cliente}' não encontrado em {base}")
             kwargs["target_path_obj"] = p
+            kwargs["cliente"] = cliente
         else:
-             # Default to all clients
-             kwargs["target_path_obj"] = Config().base_pasta_clientes
-             
+            path = kwargs.get("target_path")
+            if path:
+                p = Path(path)
+                if not p.exists():
+                    raise ValueError(f"Path {path} does not exist.")
+                kwargs["target_path_obj"] = p
+            else:
+                kwargs["target_path_obj"] = Config().base_pasta_clientes
+
         return kwargs
 
     def _calculate_file_hash(self, file_path: Path) -> str:
@@ -133,6 +141,8 @@ class OpIndexKnowledge(BaseOp):
                     metadatas=metadatas_to_add[i:i+batch_size],
                     ids=ids_to_add[i:i+batch_size]
                 )
+
+        VectorStore.mark_indexed()
 
         return {
             "status": "INDEXED",

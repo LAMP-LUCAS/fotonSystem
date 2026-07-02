@@ -8,7 +8,7 @@ def parse_command(text: str) -> dict:
     elif text == '00':
         return {'action': 'home'}
     elif text == 'g':
-        return {'action': 'global_search'}
+        return {'action': 'rag_query'}
     elif text.isdigit():
         return {'action': 'numeric', 'value': int(text)}
     else:

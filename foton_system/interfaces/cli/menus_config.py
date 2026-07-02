@@ -408,38 +408,48 @@ class MenuConfigHandler:
 
     def _index_knowledge_ui(self):
         TUILayout.clear()
-        TUILayout.print_header("INDEXAR CONHECIMENTO")
-        print("\n  Escaneando documentos para RAG...")
+        TUILayout.print_header("INDEXAR CONHECIMENTO (RAG)")
+        cliente = input("\n  Cliente (ENTER para todos): ").strip()
+        scope = f"cliente '{cliente}'" if cliente else "todos os clientes"
+        print(f"\n  Escaneando documentos para {scope}...")
         if input("\n  Prosseguir? (S/N): ").upper() != 'S':
             return
         try:
-            _tracker = ProgressTracker(total=1, description="Indexando conhecimento")
-            _tracker.advance()
             from foton_system.core.ops.op_index_knowledge import OpIndexKnowledge
             op = OpIndexKnowledge(actor="User")
-            res = op.execute()
-            _tracker.finish()
-            self.menu.print_success(f"\n  Indexado: {res.get('files_scanned')} arquivos.")
+            kwargs = {"cliente": cliente} if cliente else {}
+            res = op.execute(**kwargs)
+            self.menu.print_success(
+                f"\n  ✅ Indexado: {res.get('files_scanned')} arquivos, "
+                f"{res.get('chunks_created')} chunks criados."
+            )
         except Exception as e:
             self.menu.print_error(f"Erro: {format_error_with_suggestion(e)}")
         input("\nEnter...")
 
     def _query_knowledge_ui(self):
         TUILayout.clear()
-        TUILayout.print_header("CONSULTAR CONHECIMENTO")
+        TUILayout.print_header("CONSULTAR CONHECIMENTO (RAG)")
         query = input("\n  Pergunta: ").strip()
         if not query:
             return
+        cliente = input("  Filtrar por cliente (ENTER para pular): ").strip()
+        tipo_doc = input("  Filtrar por tipo doc (INFO/dados/ENTER para pular): ").strip()
         try:
             from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
             op = OpQueryKnowledge(actor="User")
-            res = op.execute(query=query)
+            kwargs = {"query": query}
+            if cliente:
+                kwargs["cliente"] = cliente
+            if tipo_doc:
+                kwargs["tipo_doc"] = tipo_doc
+            res = op.execute(**kwargs)
             if res['status'] == 'EMPTY':
                 self.menu.print_warning("  Nada encontrado.")
             else:
                 for i, r in enumerate(res['results'], 1):
-                    print(f"\n  [{i}] {r['source']} ({r['score']:.0%})")
-                    print(f"  {r['document'][:200]}...")
+                    print(f"\n  [Score: {r['score']:.0%}] — Fonte: {r['source']}")
+                    print(f"  {r.get('contexto', r['document'][:200])}")
         except Exception as e:
             self.menu.print_error(f"Erro: {format_error_with_suggestion(e)}")
         input("\nEnter...")

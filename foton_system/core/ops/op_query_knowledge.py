@@ -6,9 +6,12 @@ Usa o VectorStore (ChromaDB) como backend.
 
 Uso via CLI:
     python -m foton_system.core.ops.op_query_knowledge "projetos residenciais"
+
+@story: STORY-029 @rule: RULE-RAG-4.1 @rule: RULE-RAG-4.2 @rule: RULE-RAG-4.3
 """
 
-from typing import Dict, Any, List
+import re
+from typing import Dict, Any, List, Optional
 from foton_system.core.ops.base_op import BaseOp
 
 
@@ -25,9 +28,11 @@ class OpQueryKnowledge(BaseOp):
         Args (via kwargs):
             query: Texto da pergunta (obrigatório)
             n_results: Quantidade máxima de resultados (default: 5)
+            cliente: Nome do cliente para filtrar (opcional)
+            tipo_doc: Tipo de documento (INFO, dados, etc.) (opcional)
 
         Returns:
-            Dicionário validado com 'query' e 'n_results'
+            Dicionário validado com 'query', 'n_results', 'cliente', 'tipo_doc'
 
         Raises:
             ValueError: Se a query estiver vazia
@@ -40,7 +45,49 @@ class OpQueryKnowledge(BaseOp):
         if not isinstance(n_results, int) or n_results < 1:
             n_results = 5
 
-        return {"query": query, "n_results": n_results}
+        cliente = kwargs.get("cliente", "").strip()
+        tipo_doc = kwargs.get("tipo_doc", "").strip()
+
+        return {
+            "query": query,
+            "n_results": n_results,
+            "cliente": cliente,
+            "tipo_doc": tipo_doc
+        }
+
+    def _build_where_filter(self, cliente: str, tipo_doc: str) -> Optional[Dict[str, Any]]:
+        """Monta filtro de metadados para consulta ChromaDB."""
+        where: Dict[str, Any] = {}
+        if cliente:
+            where["source"] = {"$contains": cliente}
+        if tipo_doc:
+            where["filename"] = {"$contains": tipo_doc}
+        return where if where else None
+
+    def _extract_contexto(self, document: str, query: str, context_chars: int = 100) -> str:
+        """
+        Extrai trecho de contexto (N chars antes/depois) delimitado por marcadores.
+        Se o documento for curto, retorna o documento inteiro com marcadores.
+        """
+        if len(document) <= context_chars * 2:
+            return f">>>{document}<<<"
+
+        # Tenta encontrar o termo mais relevante da query no documento
+        terms = re.findall(r'\w+', query.lower())
+        best_pos = 0
+        for term in terms:
+            pos = document.lower().find(term)
+            if pos > 0:
+                best_pos = pos
+                break
+
+        start = max(0, best_pos - context_chars)
+        end = min(len(document), best_pos + context_chars)
+        prefix = "" if start == 0 else "..."
+        suffix = "" if end == len(document) else "..."
+
+        snippet = document[start:end]
+        return f"{prefix}>>>{snippet}<<<{suffix}"
 
     def execute_logic(self, validated_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -50,7 +97,7 @@ class OpQueryKnowledge(BaseOp):
             Dicionário com:
                 - status: "FOUND" ou "EMPTY"
                 - query: Texto da consulta original
-                - results: Lista de dicts {document, source, score}
+                - results: Lista de dicts {document, source, score, contexto}
                 - total: Quantidade de resultados
         """
         from foton_system.core.memory.vector_store import VectorStore
@@ -58,8 +105,15 @@ class OpQueryKnowledge(BaseOp):
         store = VectorStore()
         query = validated_data["query"]
         n_results = validated_data["n_results"]
+        cliente = validated_data.get("cliente", "")
+        tipo_doc = validated_data.get("tipo_doc", "")
 
-        raw_results = store.query(query, n_results=n_results)
+        where = self._build_where_filter(cliente, tipo_doc)
+
+        query_kwargs: Dict[str, Any] = {"n_results": n_results}
+        if where is not None:
+            query_kwargs["where"] = where
+        raw_results = store.query(query, **query_kwargs)
 
         # Extrair resultados do formato ChromaDB
         documents = raw_results.get("documents", [[]])[0]
@@ -76,11 +130,13 @@ class OpQueryKnowledge(BaseOp):
 
         results: List[Dict[str, Any]] = []
         for doc, meta, dist in zip(documents, metadatas, distances):
+            contexto = self._extract_contexto(doc, query)
             results.append({
                 "document": doc,
                 "source": meta.get("filename", "Desconhecido"),
                 "source_path": meta.get("source", ""),
-                "score": round(1 - dist, 4)  # Converter distância cosseno em similaridade
+                "score": round(1 - dist, 4),
+                "contexto": contexto
             })
 
         return {
