@@ -1,5 +1,5 @@
 ---
-status: "ready"
+status: "done"
 sprint: "2026-SPRINT-7"
 ---
 
