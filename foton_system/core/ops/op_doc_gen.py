@@ -2,6 +2,8 @@ import json
 from typing import Dict, Any, List
 from pathlib import Path
 from foton_system.core.ops.base_op import BaseOp
+# @story: STORY-022 @rule: RULE-DOC-2.4 @rule: RULE-DOC-2.5
+# @story: STORY-025 @rule: RULE-DOC-3.2 @rule: RULE-DOC-3.5
 from foton_system.modules.documents.application.use_cases.document_service import DocumentService
 from foton_system.modules.documents.infrastructure.adapters.python_docx_adapter import PythonDocxAdapter
 from foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter import PythonPPTXAdapter
@@ -14,8 +16,9 @@ def _sanitize_name(name: str) -> str:
     """Sanitiza nome contra path traversal."""
     return Path(name).name
 
-
+# @story: STORY-025 @rule: RULE-DOC-3.2
 # @story: STORY-026 @rule: RULE-DOC-2.3
+
 def _resolve_client_path(client_name):
     safe_name = _sanitize_name(client_name)
     base = Config().base_pasta_clientes
@@ -48,9 +51,12 @@ def _resolve_template_path(template_name):
 
 class OpGenerateDocument(BaseOp):
     """
+    # @story: STORY-025 @rule: RULE-DOC-3.2
     Standard Operation to generate a document from a template.
     Orchestrates Data gathering -> Template selection -> Generation.
     """
+
+    telemetry_fields = ("client", "template", "output_path", "status")
 
     def validate(self, **kwargs) -> Dict[str, Any]:
         if not kwargs.get("client_name"):
@@ -104,10 +110,13 @@ class OpGenerateDocument(BaseOp):
 
 class OpGenerateBatchDocuments(BaseOp):
     """
+    # @story: STORY-025 @rule: RULE-DOC-3.5
     Batch document generation.
     Phase 1: validate all items. Phase 2: generate all (only if all pass).
     Returns consolidated report with per-document status.
     """
+
+    telemetry_fields = ("status",)
 
     def validate(self, **kwargs) -> Dict[str, Any]:
         if not kwargs.get("client_name"):

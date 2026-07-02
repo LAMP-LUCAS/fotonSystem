@@ -19,7 +19,10 @@ class BaseOp(ABC):
     """
     Abstract Base Class for all FOTON Standard Operating Procedures (POPs).
     Enforces validation, execution structure, and auditing.
+    Subclasses can set `telemetry_fields` to include result keys in telemetry metadata.
     """
+    
+    telemetry_fields: tuple = ()
     
     def __init__(self, actor: str = "System"):
         self.actor = actor
@@ -87,6 +90,11 @@ class BaseOp(ABC):
             elapsed = time.perf_counter() - start
             sucesso = status == "SUCCESS"
             increment_operations()
+            meta: dict = {"actor": self.actor, "client_id": client_id or "UNKNOWN"}
+            for field in self.telemetry_fields:
+                value = result.get(field) if isinstance(result, dict) else None
+                if value is not None:
+                    meta[field] = value
             _write_operation_record({
                 "timestamp": timestamp,
                 "session_id": session_id,
@@ -94,5 +102,5 @@ class BaseOp(ABC):
                 "operacao": self.op_name,
                 "sucesso": sucesso,
                 "duracao_ms": round(elapsed * 1000, 2),
-                "metadados": {"actor": self.actor, "client_id": client_id or "UNKNOWN"},
+                "metadados": meta,
             })

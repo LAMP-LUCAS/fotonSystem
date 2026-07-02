@@ -50,7 +50,7 @@ Evolução da engine de documentos com camada de confiança:
 
 ### 3.5 Preenchimento Interativo (mantido da v1.0)
 - **RULE-DOCUMENTOS-5.1:** `criar_arquivo_dados`: cria arquivo de dados customizado para um cliente via formulário interativo.
-- **RULE-DOCUMENTOS-5.2:** TUIFormView: navegação campo-a-campo com comandos `n` (próximo), `p` (anterior), `v` (visualizar), `s` (salvar), `a` (abortar), `c` (confirmar).
+- **RULE-DOCUMENTOS-5.2:** TUIFormView: navegação campo-a-campo com comandos `/n` (próximo), `/p` (anterior), `/v` (visualizar), `/s` (salvar), `/a` (salvar como), `/c` (cancelar). O prefixo `/` segue o padrão de comandos do sistema.
 - **RULE-DOCUMENTOS-5.3:** Campos calculados são exibidos com tag "CALC" e não podem ser editados.
 
 ## 4. Relações
