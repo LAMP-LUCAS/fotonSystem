@@ -26,6 +26,11 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+# Garante que a raiz do projeto está no sys.path para imports relativos
+_project_root = Path(__file__).resolve().parent.parent
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+
 # ─── Config ─────────────────────────────────────────────────────────────────
 METRICS_REL_DIR = Path(".opencode") / "metrics"
 BASELINE_PREFIX = "performance_baseline"
@@ -230,28 +235,32 @@ class JsonOutputAdapter(OutputPort):
     def _display_baseline(self, baseline: Dict[str, Any]):
         ops = baseline.get("operacoes", {})
         total = baseline.get("total_registros", 0)
-        print(f"\n{'═' * 70}")
+        sep = "=" * 70
+        dash = "-" * 70
+        print(f"\n{sep}")
         print(f"  BASELINE DE PERFORMANCE  |  {total} registros analisados")
-        print(f"{'═' * 70}")
-        print(f"{'Operação':<30} {'#':>5} {'Média(ms)':>10} {'P50(ms)':>9} {'P95(ms)':>9} {'Min(ms)':>8} {'Max(ms)':>8}")
-        print(f"{'─' * 70}")
+        print(f"{sep}")
+        print(f"{'Operacao':<30} {'#':>5} {'Media(ms)':>10} {'P50(ms)':>9} {'P95(ms)':>9} {'Min(ms)':>8} {'Max(ms)':>8}")
+        print(f"{dash}")
         for op, stats in sorted(ops.items()):
             print(
                 f"{op:<30} {stats['count']:>5} "
                 f"{stats['avg_ms']:>10.2f} {stats['p50_ms']:>9.2f} {stats['p95_ms']:>9.2f} "
                 f"{stats['min_ms']:>8.2f} {stats['max_ms']:>8.2f}"
             )
-        print(f"{'─' * 70}")
+        print(f"{dash}")
 
     def _display_diff(self, diff_data: Dict[str, Any]):
         ops = diff_data.get("operacoes", {})
         dias = diff_data.get("dias_entre_baselines", 0)
-        print(f"\n{'═' * 80}")
-        print(f"  COMPARATIVO vs BASELINE ANTERIOR  |  {dias} dia(s) entre medições")
-        print(f"{'═' * 80}")
+        sep2 = "=" * 80
+        dash2 = "-" * 80
+        print(f"\n{sep2}")
+        print(f"  COMPARATIVO vs BASELINE ANTERIOR  |  {dias} dia(s) entre medicoes")
+        print(f"{sep2}")
         for op, entry in sorted(ops.items()):
             status = entry.get("status", "")
-            tag = " 🆕" if status == "nova" else " 🗑️" if status == "removida" else ""
+            tag = " [NOVA]" if status == "nova" else " [REMOVIDA]" if status == "removida" else ""
             print(f"\n  {op}{tag}")
             curr = entry.get("atual", {})
             prev = entry.get("anterior", {})
@@ -259,18 +268,18 @@ class JsonOutputAdapter(OutputPort):
 
             if curr:
                 print(f"    Atual:    {curr.get('count', 0)} ops | "
-                      f"média {curr.get('avg_ms', 0):.1f}ms | "
+                      f"media {curr.get('avg_ms', 0):.1f}ms | "
                       f"p95 {curr.get('p95_ms', 0):.1f}ms")
             if prev:
                 print(f"    Anterior: {prev.get('count', 0)} ops | "
-                      f"média {prev.get('avg_ms', 0):.1f}ms | "
+                      f"media {prev.get('avg_ms', 0):.1f}ms | "
                       f"p95 {prev.get('p95_ms', 0):.1f}ms")
             if delta:
-                print(f"    Δ média:  {delta.get('avg_ms', 'N/A')} | "
-                      f"Δ p95:    {delta.get('p95_ms', 'N/A')}")
+                print(f"    D media:  {delta.get('avg_ms', 'N/A')} | "
+                      f"D p95:    {delta.get('p95_ms', 'N/A')}")
             if entry.get("count_delta", 0) != 0:
-                print(f"    Δ volume: {entry['count_delta']:+d} operações")
-        print(f"\n{'─' * 80}")
+                print(f"    D volume: {entry['count_delta']:+d} operacoes")
+        print(f"\n{dash2}")
 
 
 # ─── Utilitário para localizar baseline anterior ─────────────────────────────
