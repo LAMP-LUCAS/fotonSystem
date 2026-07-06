@@ -48,10 +48,17 @@ class MenuSystem:
         self._finance_handler = MenuFinanceHandler(self)
         self._docs_handler = MenuDocsHandler(self)
         self._config_handler = MenuConfigHandler(self)
+        self._rag_handler = None
+
+    def _get_rag_handler(self):
+        if self._rag_handler is None:
+            from foton_system.interfaces.cli.menus_rag import MenuRagHandler
+            self._rag_handler = MenuRagHandler(self)
+        return self._rag_handler
 
     def __getattr__(self, name):
         try:
-            handlers = (self._clients_handler, self._finance_handler, self._docs_handler, self._config_handler)
+            handlers = (self._clients_handler, self._finance_handler, self._docs_handler, self._config_handler, self._get_rag_handler())
         except AttributeError:
             raise AttributeError(f"'MenuSystem' object has no attribute '{name}'")
         for handler in handlers:

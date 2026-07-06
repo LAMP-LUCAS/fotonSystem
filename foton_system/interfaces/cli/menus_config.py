@@ -40,6 +40,8 @@ class MenuConfigHandler:
         TUILayout.print_menu_option("5", "Abrir Pasta do Sistema (Workspace)")
         TUILayout.print_menu_option("6", "Pesquisa de Satisfação (NPS)")
         TUILayout.print_menu_option("7", "Exportar Dados de Uso")
+        TUILayout.print_menu_option("---", "RAG")
+        TUILayout.print_menu_option("8", "RAG / Modelo de Embedding")
         TUILayout.print_menu_option("0", "Voltar")
         try:
             tip = self.menu.tip_service.get_random_tip("SANDBOX")
@@ -78,6 +80,8 @@ class MenuConfigHandler:
                 self._pesquisa_nps_ui()
             elif choice == '7':
                 self._exportar_dados_uso_ui()
+            elif choice == '8':
+                self.menu.handle_rag_config()
             elif choice in ('0', 'b', 'B'):
                 break
             else:
