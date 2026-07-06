@@ -678,6 +678,7 @@ class VectorStoreManager:
         if not documents:
             return
         self._lazy_init()
+        from foton_system.core.rag.model_router import ModelRouter
         for tag in self._active_tags:
             instance = self._instances.get(tag)
             if instance:
@@ -704,6 +705,7 @@ class VectorStoreManager:
                 return {"documents": [[]], "metadatas": [[]], "distances": [[]], "ids": [[]]}
             return {"documents": [[]], "metadatas": [[]], "distances": [[]], "ids": [[]]}
 
+        from foton_system.core.rag.model_router import ModelRouter
         all_results: List[Dict[str, Any]] = []
         for tag in self._active_tags:
             instance = self._instances.get(tag)
@@ -776,6 +778,7 @@ class VectorStoreManager:
                 return instance.query(query_text, n_results, where)
             return {"documents": [[]], "metadatas": [[]], "distances": [[]], "ids": [[]]}
 
+        from foton_system.core.rag.model_router import ModelRouter
         all_results: List[Dict[str, Any]] = []
         for tag in self._active_tags:
             instance = self._instances.get(tag)

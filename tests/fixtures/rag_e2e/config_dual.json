@@ -1,0 +1,13 @@
+{
+  "rag": {
+    "mode": "dual",
+    "models": {
+      "primary": "minilm",
+      "fallback": ["minilm"]
+    },
+    "pipeline": {
+      "type": "simple",
+      "nodes": ["embed", "search", "format"]
+    }
+  }
+}
