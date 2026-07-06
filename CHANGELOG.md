@@ -17,6 +17,11 @@ e o versionamento segue [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - TUI: atalho `g` para busca semântica global
   - TUI: resultados formatados com score, fonte e contexto
 
+### Added (EPIC-004 — Sprint 9: RAG Pipeline Inteligente v2.0)
+- **SPEC-RAG-v2.0** — arquitetura multi-modelo com 6 novas camadas e 26 RULE-IDs
+- **Planejamento completo:** 12 stories (STORY-030 a STORY-041) mapeando Hardware Profiler, Model Registry, Model Router, VectorStoreManager, Pipeline Nodes, Download Manager, TUI Config, Migração, Testes E2E, Benchmarking, Documentação e Encerramento de dívidas
+- Sprint 8 concluída e revisada. Sprint 9 iniciada em 2026-07-05
+
 ### Added (EPIC-003 — Sprint 7: Automação Comercial e Documentos)
 - **Pré-validação Obrigatória + Placeholder Zero** (STORY-022, RULE-DOC-2.1/2.4/2.5)
   - `gerar_documento()` executa `validar_template` internamente e bloqueia geração se houver variáveis não resolvidas
