@@ -1164,14 +1164,14 @@ def consultar_conhecimento(pergunta: str, cliente: str = "", tipo_doc: str = "")
         data = op.execute(**kwargs)
 
         if data.get("status") == "EMPTY":
-            return "📭 No relevant knowledge found."
+            return "📭 Nenhum conhecimento relevante encontrado."
 
         output = []
         for i, r in enumerate(data.get("results", []), 1):
             ctx = r.get("contexto", r["document"])
-            output.append(
-                f"--- [{i}] Source: {r['source']} (Similarity: {r['score']:.0%}) ---\n"
-                f"{ctx}\n"
+                output.append(
+                    f"--- [{i}] Fonte: {r['source']} (Score: {r['score']:.0%}) ---\n"
+                    f"{ctx}\n"
             )
 
         return "\n".join(output)
@@ -1217,15 +1217,17 @@ def diagnostico_conhecimento() -> str:
     Returns: total chunks, circuit breaker status (CLOSED/OPEN), last indexation timestamp.
     """
     try:
-        from foton_system.core.memory.vector_store import VectorStore
-        store = VectorStore()
+        from foton_system.core.memory.vector_store import VectorStoreManager
+        store = VectorStoreManager()
         diag = store.diagnostic()
-        return (
-            f"📊 **RAG Knowledge Base Diagnostic**\n"
-            f"• Total chunks: {diag['total_chunks']}\n"
-            f"• Circuit breaker: {diag['circuit_breaker_status']}\n"
-            f"• Last indexation: {diag['ultima_indexacao']}"
-        )
+        lines = [f"📊 **RAG Knowledge Base Diagnostic** (mode: {diag['mode']})"]
+        for tag, info in diag.get("stores", {}).items():
+            lines.append(
+                f"  • **{tag}**: {info['total_chunks']} chunks, "
+                f"CB: {info['circuit_breaker_status']}, "
+                f"last: {info['ultima_indexacao']}"
+            )
+        return "\n".join(lines)
     except Exception as e:
         return f"❌ Diagnostic error: {e}"
 

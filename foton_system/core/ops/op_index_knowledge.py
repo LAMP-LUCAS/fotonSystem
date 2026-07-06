@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from foton_system.core.ops.base_op import BaseOp
-from foton_system.core.memory.vector_store import VectorStore
+from foton_system.core.memory.vector_store import VectorStore, VectorStoreManager
 from foton_system.modules.shared.infrastructure.config.config import Config
 
 class OpIndexKnowledge(BaseOp):
@@ -75,7 +75,7 @@ class OpIndexKnowledge(BaseOp):
 
     def execute_logic(self, validated_data: Dict[str, Any]) -> Dict[str, Any]:
         target_path = validated_data["target_path_obj"]
-        store = VectorStore()
+        store = VectorStoreManager()
         
         indexed_count = 0
         skipped_count = 0
@@ -142,7 +142,7 @@ class OpIndexKnowledge(BaseOp):
                     ids=ids_to_add[i:i+batch_size]
                 )
 
-        VectorStore.mark_indexed()
+        VectorStoreManager.mark_indexed()
 
         return {
             "status": "INDEXED",

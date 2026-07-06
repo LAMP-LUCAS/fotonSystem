@@ -100,9 +100,9 @@ class OpQueryKnowledge(BaseOp):
                 - results: Lista de dicts {document, source, score, contexto}
                 - total: Quantidade de resultados
         """
-        from foton_system.core.memory.vector_store import VectorStore
+        from foton_system.core.memory.vector_store import VectorStoreManager
 
-        store = VectorStore()
+        store = VectorStoreManager()
         query = validated_data["query"]
         n_results = validated_data["n_results"]
         cliente = validated_data.get("cliente", "")

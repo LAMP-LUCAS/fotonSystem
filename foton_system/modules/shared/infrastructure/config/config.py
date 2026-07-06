@@ -13,6 +13,7 @@ _SETTINGS_SCHEMA: Dict[str, type] = {
     "missing_variable_placeholder": str,
     "folder_conventions": dict,
     "info_file_patterns": dict,
+    "rag": dict,
 }
 
 
@@ -141,4 +142,13 @@ class Config:
     @property
     def ui_mode(self) -> str:
         return str(self.get('ui_mode', 'auto'))
+
+    @property
+    def rag_config(self) -> dict:
+        default = {
+            "mode": "minilm",
+            "models": {"primary": "minilm", "fallback": []},
+            "pipeline": {"type": "simple", "nodes": ["embed", "search", "format"]},
+        }
+        return dict(self.get('rag', default))
 

@@ -136,7 +136,7 @@ class TestOpQueryKnowledgeFilters(unittest.TestCase):
         self.assertEqual(result["cliente"], "ClienteX")
         self.assertEqual(result["tipo_doc"], "INFO")
 
-    @patch('foton_system.core.memory.vector_store.VectorStore')
+    @patch('foton_system.core.memory.vector_store.VectorStoreManager')
     def test_execute_logic_passes_where_to_store(self, MockVectorStore):
         """execute_logic should build where filter from cliente/tipo_doc."""
         mock_store = MagicMock()
@@ -162,7 +162,7 @@ class TestOpQueryKnowledgeFilters(unittest.TestCase):
         self.assertIn("source", call_kwargs["where"])
         self.assertIn("filename", call_kwargs["where"])
 
-    @patch('foton_system.core.memory.vector_store.VectorStore')
+    @patch('foton_system.core.memory.vector_store.VectorStoreManager')
     def test_execute_logic_no_filters_omits_where(self, MockVectorStore):
         """execute_logic should not pass where when no filters."""
         mock_store = MagicMock()
@@ -189,7 +189,7 @@ class TestOpQueryKnowledgeFilters(unittest.TestCase):
 class TestOpQueryKnowledgeContexto(unittest.TestCase):
     """Tests for context snippet in results (RULE-RAG-4.3)."""
 
-    @patch('foton_system.core.memory.vector_store.VectorStore')
+    @patch('foton_system.core.memory.vector_store.VectorStoreManager')
     def test_results_include_contexto_field(self, MockVectorStore):
         """Results should include 'contexto' field."""
         mock_store = MagicMock()
@@ -212,7 +212,7 @@ class TestOpQueryKnowledgeContexto(unittest.TestCase):
         self.assertIn("contexto", result["results"][0])
         self.assertIsInstance(result["results"][0]["contexto"], str)
 
-    @patch('foton_system.core.memory.vector_store.VectorStore')
+    @patch('foton_system.core.memory.vector_store.VectorStoreManager')
     def test_contexto_markers_present(self, MockVectorStore):
         """Contexto should contain visual markers around relevant portion."""
         mock_store = MagicMock()
@@ -236,7 +236,7 @@ class TestOpQueryKnowledgeContexto(unittest.TestCase):
         self.assertIn(">>>", ctx)
         self.assertIn("<<<", ctx)
 
-    @patch('foton_system.core.memory.vector_store.VectorStore')
+    @patch('foton_system.core.memory.vector_store.VectorStoreManager')
     def test_contexto_includes_original_document_fallback(self, MockVectorStore):
         """For short chunks, contexto should include the full document text."""
         mock_store = MagicMock()
@@ -291,16 +291,24 @@ class TestOpIndexKnowledgeSeletivo(unittest.TestCase):
 class TestDiagnosticMCPTool(unittest.TestCase):
     """Tests for diagnostico_conhecimento MCP tool (RULE-RAG-6.1)."""
 
-    @patch('foton_system.core.memory.vector_store.VectorStore')
-    def test_diagnostico_returns_expected_format(self, MockVectorStore):
+    @patch('foton_system.core.memory.vector_store.VectorStoreManager')
+    def test_diagnostico_returns_expected_format(self, MockVectorStoreManager):
         """diagnostico_conhecimento should return formatted diagnostic string."""
         mock_store = MagicMock()
         mock_store.diagnostic.return_value = {
-            "total_chunks": 42,
-            "circuit_breaker_status": "CLOSED",
-            "ultima_indexacao": "2026-07-02 10:00:00"
+            "mode": "minilm",
+            "stores": {
+                "minilm": {
+                    "total_chunks": 42,
+                    "circuit_breaker_status": "CLOSED",
+                    "ultima_indexacao": "2026-07-02 10:00:00",
+                    "model_tag": "minilm",
+                    "model_name": "MiniLM",
+                    "collection_name": "foton_minilm_384d",
+                }
+            }
         }
-        MockVectorStore.return_value = mock_store
+        MockVectorStoreManager.return_value = mock_store
 
         from foton_system.interfaces.mcp.foton_mcp import diagnostico_conhecimento
         result = diagnostico_conhecimento()
