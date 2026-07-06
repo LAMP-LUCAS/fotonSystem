@@ -16,7 +16,7 @@ A partir de junho/2026, o índice inclui matriz de interdependência entre épic
 | EPIC-001 | Usabilidade da Interface TUI e Navegação | 2026-06-24 | **completed** |
 | EPIC-002 | Domínio, CRUD e Pipeline de Sincronização | 2026-06-25 | active |
 | EPIC-003 | Automação Comercial e Geração de Documentos | 2026-06-25 | draft |
-| EPIC-004 | Recuperação Inteligente de Conhecimento (RAG) | 2026-06-25 | draft |
+| EPIC-004 | RAG Pipeline Inteligente — Multi-Modelo e Grapho de Inferência | 2026-07-02 | **active** |
 | ~~EPIC-005~~ | ~~Arquitetura de Acesso e Integração Contínua~~ | 2026-06-25 | **deprecated** → ADR004 |
 | EPIC-006 | Inteligência Financeira por Projeto | 2026-06-25 | draft |
 | EPIC-007 | Controle de Cronograma e Marcos de Obra | 2026-06-25 | draft |
