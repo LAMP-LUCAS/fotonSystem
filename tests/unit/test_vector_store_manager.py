@@ -49,7 +49,7 @@ class TestVectorStoreInstance(unittest.TestCase):
 
         entry = ModelEntry(
             id="minilm",
-            name="paraphrase-multilingual-MiniLM-L12-v2",
+            name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
             type="embedding",
             dimensions=384,
             ram_required_gb=1.0,
@@ -121,7 +121,7 @@ class TestVectorStoreInstance(unittest.TestCase):
 
         entry = ModelEntry(
             id="minilm",
-            name="paraphrase-multilingual-MiniLM-L12-v2",
+            name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
             type="embedding",
             dimensions=384,
             ram_required_gb=1.0,

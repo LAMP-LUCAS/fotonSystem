@@ -50,6 +50,15 @@ class TestModelRegistrySingleton(unittest.TestCase):
         model = registry.get("minilm")
         self.assertEqual(model.type, "embedding")
 
+    def test_minilm_name_includes_org_prefix(self):
+        from foton_system.core.rag.model_registry import ModelRegistry
+        registry = ModelRegistry()
+        model = registry.get("minilm")
+        self.assertIn("sentence-transformers/", model.name,
+                      "O nome do modelo deve conter o prefixo 'sentence-transformers/' "
+                      "para que o is_installed() encontre o cache HF correto "
+                      "(models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2)")
+
     def test_bgem3_requires_more_ram(self):
         from foton_system.core.rag.model_registry import ModelRegistry
         registry = ModelRegistry()

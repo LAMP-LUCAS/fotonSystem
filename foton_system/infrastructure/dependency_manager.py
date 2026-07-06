@@ -45,8 +45,15 @@ class DependencyManager:
             return False
 
     @staticmethod
-    def install_plugin(plugin_name: str, packages: List[str]) -> bool:
-        """Cria um VENV e instala os pacotes solicitados."""
+    def install_plugin(plugin_name: str, packages: List[str], extra_args: Optional[List[str]] = None) -> bool:
+        """Cria um VENV e instala os pacotes solicitados.
+
+        Args:
+            plugin_name: Nome do plugin para o diretório do VENV.
+            packages: Lista de pacotes pip a instalar.
+            extra_args: Argumentos extras para o comando pip
+                        (ex: ["--extra-index-url", "https://download.pytorch.org/whl/cu118"]).
+        """
         env_path = DependencyManager.get_plugin_env_path(plugin_name)
         env_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -63,6 +70,8 @@ class DependencyManager:
             
             # 3. Instalar pacotes
             cmd = [str(python_exe), "-m", "pip", "install", "--upgrade"] + packages
+            if extra_args:
+                cmd.extend(extra_args)
             subprocess.run(cmd, check=True)
             
             print(f"✅ Plugin '{plugin_name}' instalado com sucesso!")

@@ -1,5 +1,5 @@
 ---
-status: "draft"
+status: "completed"
 sprint: "2026-SPRINT-9"
 ---
 

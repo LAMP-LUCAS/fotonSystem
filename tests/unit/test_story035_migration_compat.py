@@ -111,7 +111,7 @@ class TestMigrationRunner(unittest.TestCase):
             name="foton_minilm_384d",
             metadata={
                 "hnsw:space": "cosine",
-                "model_name": "paraphrase-multilingual-MiniLM-L12-v2",
+                "model_name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
                 "model_tag": "minilm",
                 "dimensions": "384",
                 "created_at": unittest.mock.ANY,
@@ -175,6 +175,76 @@ class TestMigrationRunner(unittest.TestCase):
             log_messages = [args[0][0] for args in mock_log.call_args_list]
             has_progress = any("Migrando" in msg or "criada" in msg or "concluída" in msg for msg in log_messages)
             self.assertTrue(has_progress)
+
+
+class TestMigrationRunnerEmptyCollection(unittest.TestCase):
+    """Migração com coleção legada vazia (0 chunks)"""
+
+    def setUp(self):
+        from foton_system.core.rag.migration import MigrationChecker
+
+        self.empty_data = {
+            "ids": [],
+            "embeddings": [],
+            "documents": [],
+            "metadatas": [],
+        }
+
+        self.mock_legacy_collection = MagicMock()
+        self.mock_legacy_collection.get.return_value = self.empty_data
+
+        self.mock_new_collection = MagicMock()
+        self.mock_backup_collection = MagicMock()
+
+        self.mock_client = MagicMock()
+
+        def get_or_create_side_effect(name, **kwargs):
+            if "legada" in name:
+                return self.mock_backup_collection
+            return self.mock_new_collection
+
+        self.mock_client.get_or_create_collection.side_effect = get_or_create_side_effect
+        self.mock_client.get_collection.return_value = self.mock_legacy_collection
+
+        self.checker = MigrationChecker.__new__(MigrationChecker)
+        self.checker.db_path = MagicMock()
+        self.checker._client = self.mock_client
+
+    def test_migration_empty_collection_does_not_call_add_on_new(self):
+        """BUGFIX: Coleção vazia não deve chamar add() com embeddings vazios"""
+        self.checker.run_migration(self.mock_client)
+
+        self.mock_new_collection.add.assert_not_called()
+
+    def test_migration_empty_collection_creates_new_collection(self):
+        """BUGFIX: Mesmo vazia, a nova coleção deve ser criada com metadata"""
+        self.checker.run_migration(self.mock_client)
+
+        self.mock_client.get_or_create_collection.assert_any_call(
+            name="foton_minilm_384d",
+            metadata={
+                "hnsw:space": "cosine",
+                "model_name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+                "model_tag": "minilm",
+                "dimensions": "384",
+                "created_at": unittest.mock.ANY,
+            },
+        )
+
+    def test_migration_empty_collection_creates_backup(self):
+        """BUGFIX: Backup deve ser criado mesmo com coleção vazia"""
+        self.checker.run_migration(self.mock_client)
+
+        self.mock_client.get_or_create_collection.assert_any_call(
+            name="foton_knowledge_base_legada",
+            metadata=unittest.mock.ANY,
+        )
+
+    def test_migration_empty_collection_deletes_original(self):
+        """BUGFIX: Coleção original deve ser deletada mesmo se vazia"""
+        self.checker.run_migration(self.mock_client)
+
+        self.mock_client.delete_collection.assert_called_once_with("foton_knowledge_base")
 
 
 class TestMigrationMessage(unittest.TestCase):

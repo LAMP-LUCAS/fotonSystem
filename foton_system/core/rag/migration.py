@@ -61,7 +61,7 @@ class MigrationChecker:
 
         1. Lê todos os dados + embeddings da coleção legada
         2. Cria 'foton_minilm_384d' com metadata do modelo
-        3. Copia dados para a nova coleção
+        3. Copia dados para a nova coleção (se houver chunks)
         4. Cria backup 'foton_knowledge_base_legada'
         5. Remove a coleção original
         """
@@ -79,19 +79,22 @@ class MigrationChecker:
             name="foton_minilm_384d",
             metadata={
                 "hnsw:space": "cosine",
-                "model_name": "paraphrase-multilingual-MiniLM-L12-v2",
+                "model_name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
                 "model_tag": "minilm",
                 "dimensions": "384",
                 "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
             },
         )
-        new_collection.add(
-            embeddings=data["embeddings"],
-            documents=data["documents"],
-            metadatas=data["metadatas"],
-            ids=data["ids"],
-        )
-        logger.info("Nova coleção 'foton_minilm_384d' criada com %d chunks.", count)
+        if count > 0:
+            new_collection.add(
+                embeddings=data["embeddings"],
+                documents=data["documents"],
+                metadatas=data["metadatas"],
+                ids=data["ids"],
+            )
+            logger.info("Nova coleção 'foton_minilm_384d' criada com %d chunks.", count)
+        else:
+            logger.info("Coleção legada vazia — 'foton_minilm_384d' criada sem dados.")
 
         backup = c.get_or_create_collection(
             name="foton_knowledge_base_legada",
@@ -100,13 +103,16 @@ class MigrationChecker:
                 "note": "Backup automático da coleção original — migração STORY-035",
             },
         )
-        backup.add(
-            embeddings=data["embeddings"],
-            documents=data["documents"],
-            metadatas=data["metadatas"],
-            ids=data["ids"],
-        )
-        logger.info("Backup 'foton_knowledge_base_legada' criado.")
+        if count > 0:
+            backup.add(
+                embeddings=data["embeddings"],
+                documents=data["documents"],
+                metadatas=data["metadatas"],
+                ids=data["ids"],
+            )
+            logger.info("Backup 'foton_knowledge_base_legada' criado.")
+        else:
+            logger.info("Coleção legada vazia — backup 'foton_knowledge_base_legada' criado sem dados.")
 
         c.delete_collection("foton_knowledge_base")
         logger.info("Coleção original 'foton_knowledge_base' removida.")

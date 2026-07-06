@@ -25,7 +25,7 @@ class ModelEntry:
 _DEFAULT_MODELS = [
     ModelEntry(
         id="minilm",
-        name="paraphrase-multilingual-MiniLM-L12-v2",
+        name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
         type="embedding",
         dimensions=384,
         ram_required_gb=1.0,
@@ -83,7 +83,8 @@ class ModelRegistry:
             "HF_HOME",
             os.path.join(os.path.expanduser("~"), ".cache", "huggingface")
         )
-        model_path = Path(hf_home) / "hub" / entry.name.replace("/", "--")
+        hub_name = "models--" + entry.name.replace("/", "--")
+        model_path = Path(hf_home) / "hub" / hub_name
         installed = model_path.exists()
         logger.debug(f"Modelo '{model_id}' em {model_path}: {'instalado' if installed else 'ausente'}")
         return installed

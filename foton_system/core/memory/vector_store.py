@@ -213,7 +213,10 @@ class VectorStore:
             logger.info("Usuário optou por não instalar o AI Pack.")
             raise ImportError("AI Pack não instalado.")
 
-        if not DependencyManager.install_plugin("ai_pack", AI_PACK_PACKAGES):
+        extra_args = None
+        if sys.platform == "win32":
+            extra_args = ["--extra-index-url", "https://download.pytorch.org/whl/cu118"]
+        if not DependencyManager.install_plugin("ai_pack", AI_PACK_PACKAGES, extra_args):
             raise RuntimeError("Falha ao instalar pacotes de IA.")
 
     def _do_add_documents(
