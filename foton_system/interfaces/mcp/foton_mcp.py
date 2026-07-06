@@ -1169,9 +1169,9 @@ def consultar_conhecimento(pergunta: str, cliente: str = "", tipo_doc: str = "")
         output = []
         for i, r in enumerate(data.get("results", []), 1):
             ctx = r.get("contexto", r["document"])
-                output.append(
-                    f"--- [{i}] Fonte: {r['source']} (Score: {r['score']:.0%}) ---\n"
-                    f"{ctx}\n"
+            output.append(
+                f"--- [{i}] Fonte: {r['source']} (Score: {r['score']:.0%}) ---\n"
+                f"{ctx}\n"
             )
 
         return "\n".join(output)
@@ -1220,12 +1220,28 @@ def diagnostico_conhecimento() -> str:
         from foton_system.core.memory.vector_store import VectorStoreManager
         store = VectorStoreManager()
         diag = store.diagnostic()
-        lines = [f"📊 **RAG Knowledge Base Diagnostic** (mode: {diag['mode']})"]
-        for tag, info in diag.get("stores", {}).items():
+
+        stores = diag.get("stores", {})
+        if not stores:
+            return "📊 **RAG Knowledge Base Diagnostic**\n  Nenhuma coleção encontrada."
+
+        mode = diag.get("mode", "")
+        if mode and mode != "minilm":
+            lines = [f"📊 **RAG Knowledge Base Diagnostic** (mode: {mode})"]
+        else:
+            lines = ["📊 **RAG Knowledge Base Diagnostic**"]
+
+        for tag, info in stores.items():
+            model_name = info.get("model_name", tag)
+            collection_name = info.get("collection_name", "N/A")
+            dims = info.get("dimensions", "")
+            dims_str = f"{dims}d" if dims else "N/A"
             lines.append(
-                f"  • **{tag}**: {info['total_chunks']} chunks, "
-                f"CB: {info['circuit_breaker_status']}, "
-                f"last: {info['ultima_indexacao']}"
+                f"  • **{tag}**: {collection_name}"
+                f" ({model_name}, {dims_str})"
+                f" — {info['total_chunks']} chunks,"
+                f" CB: {info['circuit_breaker_status']},"
+                f" last: {info['ultima_indexacao']}"
             )
         return "\n".join(lines)
     except Exception as e:

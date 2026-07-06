@@ -559,6 +559,7 @@ class VectorStoreInstance:
             "model_tag": self.model_tag,
             "model_name": self.model_entry.name,
             "collection_name": self.collection_name,
+            "dimensions": self.model_entry.dimensions,
             "total_chunks": total,
             "circuit_breaker_status": cb_state,
             "ultima_indexacao": last_idx,
