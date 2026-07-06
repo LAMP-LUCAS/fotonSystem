@@ -131,7 +131,8 @@ class TestMCPConsultarConhecimento(unittest.TestCase):
         
         from foton_system.interfaces.mcp.foton_mcp import consultar_conhecimento
         result = consultar_conhecimento("test")
-        self.assertIn('No relevant knowledge found', result)
+        self.assertIn('Nenhum conhecimento relevante encontrado', result)
+        self.assertIn('duracao_ms=', result)
 
 if __name__ == '__main__':
     unittest.main()

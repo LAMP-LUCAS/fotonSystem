@@ -7,12 +7,17 @@ Usa o VectorStore (ChromaDB) como backend.
 Uso via CLI:
     python -m foton_system.core.ops.op_query_knowledge "projetos residenciais"
 
-@story: STORY-029 @rule: RULE-RAG-4.1 @rule: RULE-RAG-4.2 @rule: RULE-RAG-4.3
+@story: STORY-041 @rule: RULE-RAG-4.1 @rule: RULE-RAG-4.2 @rule: RULE-RAG-4.3
 """
 
+import hashlib
+import logging
 import re
+import time
 from typing import Dict, Any, List, Optional
 from foton_system.core.ops.base_op import BaseOp
+
+_logger = logging.getLogger("op_query_knowledge")
 
 
 class OpQueryKnowledge(BaseOp):
@@ -113,7 +118,20 @@ class OpQueryKnowledge(BaseOp):
         query_kwargs: Dict[str, Any] = {"n_results": n_results}
         if where is not None:
             query_kwargs["where"] = where
+
+        query_start = time.perf_counter()
         raw_results = store.query(query, **query_kwargs)
+        query_time_ms = (time.perf_counter() - query_start) * 1000
+
+        query_hash = hashlib.md5(query.encode()).hexdigest()[:8]
+        from foton_system.modules.shared.infrastructure.config.config import Config
+        cfg = Config()
+        _logger.info(
+            "[RAG_PERF] consulta=%s duration_ms=%.0f modelo=%s pipeline=%s",
+            query_hash, query_time_ms,
+            cfg.rag_embedding_mode,
+            cfg.rag_pipeline_type,
+        )
 
         # Extrair resultados do formato ChromaDB
         documents = raw_results.get("documents", [[]])[0]

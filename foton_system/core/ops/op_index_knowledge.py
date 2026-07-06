@@ -107,6 +107,8 @@ class OpIndexKnowledge(BaseOp):
                 chunks = self._chunk_text(content)
                 current_hash = self._calculate_file_hash(file_path)
                 
+                lines = content.splitlines(keepends=True)
+                char_pos = 0
                 for i, chunk in enumerate(chunks):
                     # Robust ID: Path + Chunk Index
                     # Flatten path relative to base for cleaner ID
@@ -116,6 +118,16 @@ class OpIndexKnowledge(BaseOp):
                         rel_path = file_path.name
 
                     chunk_id = f"{rel_path}::chunk_{i}"
+
+                    # Calculate line range: find chunk start in remaining content
+                    chunk_start = content.find(chunk, char_pos)
+                    if chunk_start == -1:
+                        chunk_start = char_pos
+                    chunk_end = chunk_start + len(chunk)
+
+                    linha_inicio = content[:chunk_start].count('\n') + 1
+                    linha_fim = content[:chunk_end].count('\n') + 1
+                    char_pos = chunk_end
                     
                     docs_to_add.append(chunk)
                     ids_to_add.append(chunk_id)
@@ -123,7 +135,9 @@ class OpIndexKnowledge(BaseOp):
                         "source": str(file_path),
                         "filename": file_path.name,
                         "hash": current_hash,
-                        "chunk_index": i
+                        "chunk_index": i,
+                        "linha_inicio": linha_inicio,
+                        "linha_fim": linha_fim,
                     })
                     
                 indexed_count += 1

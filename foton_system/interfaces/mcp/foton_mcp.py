@@ -17,7 +17,6 @@ from pathlib import Path
 import sys
 import os
 import json
-import subprocess
 import time
 import logging
 import logging.handlers
@@ -58,19 +57,6 @@ def _find_project_root() -> Path:
         if (parent / "foton_system" / "__init__.py").exists():
             return parent
     return p.parents[3]
-
-def _find_system_python() -> Path:
-    """Retorna o caminho do Python do sistema (não o frozen) para subprocess RAG."""
-    candidates = [
-        Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Python" / "Python312" / "python.exe",
-        Path.home() / "AppData" / "Local" / "Programs" / "Python" / "Python312" / "python.exe",
-        Path("C:\\Program Files") / "Python312" / "python.exe",
-        Path("C:\\Python312") / "python.exe",
-    ]
-    for c in candidates:
-        if c.exists():
-            return c
-    return candidates[0]
 
 # --- LOGGING SETUP (file only, never stdout) ---
 from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
@@ -1153,6 +1139,7 @@ def consultar_conhecimento(pergunta: str, cliente: str = "", tipo_doc: str = "")
       tipo_doc: Optional — filter by document type (INFO, dados, proposta, etc.)
     CONTEXT: Use this to find 'How did we solve X for client Y before?' or 'What are the rules for Z?'.
     """
+    mcp_start = time.perf_counter()
     try:
         from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
         op = OpQueryKnowledge(actor="Agent_MCP")
@@ -1163,8 +1150,10 @@ def consultar_conhecimento(pergunta: str, cliente: str = "", tipo_doc: str = "")
             kwargs["tipo_doc"] = tipo_doc.strip()
         data = op.execute(**kwargs)
 
+        duracao_ms = round((time.perf_counter() - mcp_start) * 1000, 1)
+
         if data.get("status") == "EMPTY":
-            return "📭 Nenhum conhecimento relevante encontrado."
+            return f"📭 Nenhum conhecimento relevante encontrado. (duracao_ms={duracao_ms})"
 
         output = []
         for i, r in enumerate(data.get("results", []), 1):
@@ -1174,6 +1163,7 @@ def consultar_conhecimento(pergunta: str, cliente: str = "", tipo_doc: str = "")
                 f"{ctx}\n"
             )
 
+        output.append(f"\n⏱ duracao_ms={duracao_ms}")
         return "\n".join(output)
     except ValueError as e:
         return f"❌ Invalid parameters: {e}"

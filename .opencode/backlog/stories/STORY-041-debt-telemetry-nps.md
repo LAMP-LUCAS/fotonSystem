@@ -19,7 +19,7 @@ Quatro sub-tarefas independentes para fechar gaps identificados no Sprint Review
 
 ## Regras
 
-- **RAG-2.3 (herdado, sem teste):** Metadados dos chunks — fonte, header, linha — devem ser verificados em teste.
+- **RAG-2.3 (herdado, sem teste):** Metadados dos chunks — source, filename, hash, chunk_index, linha_inicio, linha_fim — devem ser verificados em teste.
 - **RAG-2.4 (herdado, sem teste):** Batch upsert de múltiplos chunks em uma chamada.
 - **RAG-3.1 (herdado):** Subprocess mode — **remover** da spec e do código. Substituído pelo ModelRouter da v2.0.
 - **RAG-5.2 (herdado, sem teste):** Formatação TUI com `>>>...<<<`, score percentual, alinhamento.
@@ -28,13 +28,13 @@ Quatro sub-tarefas independentes para fechar gaps identificados no Sprint Review
 ## Critérios de Aceite
 
 ### A — Subprocess Mode
-- [ ] Função `_find_system_python()` removida de `op_query_knowledge.py`
+- [ ] Função `_find_system_python()` removida de `foton_mcp.py`
 - [ ] RAG-3.1 removido da seção 3.0 em SPEC-RAG-v2.0.md
 - [ ] Nenhum teste quebrado com a remoção
 - [ ] Consulta RAG via MCP continua funcionando sem o código
 
 ### B — Testes Faltantes
-- [ ] Teste RAG-2.3: chunk indexado contém metadados `fonte`, `header`, `linha_inicio`, `linha_fim`
+- [ ] Teste RAG-2.3: chunk indexado contém metadados `source`, `filename`, `hash`, `chunk_index`, `linha_inicio`, `linha_fim`
 - [ ] Teste RAG-2.4: `add_documents()` com lote de 5 chunks insere todos em uma chamada
 - [ ] Teste RAG-5.2: formatação TUI exibe `[Score: XX%] — Fonte: path` + `>>>contexto<<<`
 
@@ -52,12 +52,12 @@ Quatro sub-tarefas independentes para fechar gaps identificados no Sprint Review
 
 ## Arquivos
 
-- `foton_system/core/ops/op_query_knowledge.py` — remover `_find_system_python()` + adicionar telemetria
+- `foton_system/interfaces/mcp/foton_mcp.py` — remover `_find_system_python()`
 - `foton_system/interfaces/mcp/foton_mcp.py` — retornar `duracao_ms` em `consultar_conhecimento`
 - `specs/MOD-RAG/SPEC-RAG-v2.0.md` — remover RAG-3.1 da herança
 - `tests/unit/test_op_index_knowledge.py` — testes RAG-2.3 e RAG-2.4
 - `tests/unit/test_rag_filters.py` — teste RAG-5.2
-- `scripts/performance_baseline.py` — novo
+- `scripts/performance_baseline.py` — estendido (flag `--mode` + carga ativa)
 - `docs/prd/epics/EPIC-004.md` — adicionar campo NPS
 - `.opencode/templates/NPS_RAG.md` — novo
 

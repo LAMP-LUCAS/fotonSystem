@@ -318,5 +318,91 @@ class TestDiagnosticMCPTool(unittest.TestCase):
         self.assertIn("2026-07-02", result)
 
 
+
+class TestRagFormatacaoTUI(unittest.TestCase):
+    """Tests for TUI formatting of RAG results (RULE-RAG-5.2)."""
+
+    @patch('foton_system.core.memory.vector_store.VectorStoreManager')
+    def test_result_includes_score_percent(self, MockVectorStore):
+        """TUI output should include score as percentage."""
+        mock_store = MagicMock()
+        mock_store.query.return_value = {
+            "documents": [["documento exemplo"]],
+            "metadatas": [[{"filename": "INFO.md", "source": "/path/doc.md"}]],
+            "distances": [[0.15]]
+        }
+        MockVectorStore.return_value = mock_store
+
+        from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
+        op = OpQueryKnowledge(actor="Test")
+        result = op.execute_logic({
+            "query": "exemplo", "n_results": 5, "cliente": "", "tipo_doc": ""
+        })
+        r = result["results"][0]
+        self.assertIn("score", r)
+        self.assertIsInstance(r["score"], float)
+        self.assertGreaterEqual(r["score"], 0)
+        self.assertLessEqual(r["score"], 1)
+
+    @patch('foton_system.core.memory.vector_store.VectorStoreManager')
+    def test_result_includes_source_path(self, MockVectorStore):
+        """TUI output should include source path."""
+        mock_store = MagicMock()
+        mock_store.query.return_value = {
+            "documents": [["documento exemplo"]],
+            "metadatas": [[{"filename": "INFO.md", "source": "/clientes/ClienteX/INFO.md"}]],
+            "distances": [[0.15]]
+        }
+        MockVectorStore.return_value = mock_store
+
+        from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
+        op = OpQueryKnowledge(actor="Test")
+        result = op.execute_logic({
+            "query": "exemplo", "n_results": 5, "cliente": "", "tipo_doc": ""
+        })
+        r = result["results"][0]
+        self.assertIn("source_path", r)
+
+    @patch('foton_system.core.memory.vector_store.VectorStoreManager')
+    def test_contexto_markers_present_in_output(self, MockVectorStore):
+        """Contexto should contain >>> and <<< markers (RAG-4.3, RAG-5.2)."""
+        mock_store = MagicMock()
+        mock_store.query.return_value = {
+            "documents": [["documento sobre projeto residencial"]],
+            "metadatas": [[{"filename": "INFO.md", "source": "/path"}]],
+            "distances": [[0.2]]
+        }
+        MockVectorStore.return_value = mock_store
+
+        from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
+        op = OpQueryKnowledge(actor="Test")
+        result = op.execute_logic({
+            "query": "projeto residencial", "n_results": 5, "cliente": "", "tipo_doc": ""
+        })
+        ctx = result["results"][0]["contexto"]
+        self.assertIn(">>>", ctx)
+        self.assertIn("<<<", ctx)
+
+    def test_tui_cli_format_has_score_and_source(self):
+        """CLI print format should contain Score and Fonte."""
+        from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
+        op = OpQueryKnowledge(actor="Test")
+
+        fake_result = {
+            "status": "FOUND",
+            "query": "teste",
+            "results": [
+                {"source": "INFO.md", "source_path": "/p/INFO.md",
+                 "score": 0.85, "contexto": ">>>conteudo<<<", "document": "conteudo"}
+            ],
+            "total": 1
+        }
+
+        linha = f"--- [1] Fonte: {fake_result['results'][0]['source']} (Score: {fake_result['results'][0]['score']:.0%}) ---"
+        self.assertIn("Fonte:", linha)
+        self.assertIn("Score:", linha)
+        self.assertIn("%", linha)
+
+
 if __name__ == '__main__':
     unittest.main()

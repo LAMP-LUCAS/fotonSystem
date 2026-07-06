@@ -296,6 +296,55 @@ def _next_baseline_path(metrics_dir: Path) -> Path:
     return metrics_dir / f"{BASELINE_PREFIX}_{today}.json"
 
 
+# ─── Active Benchmark Adapter ─────────────────────────────────────────────────
+
+class ActiveBenchmarkAdapter:
+    """Executa consultas RAG ativamente e retorna registros de performance."""
+
+    DEFAULT_QUERIES = [
+        "projetos residenciais em Sao Paulo",
+        "orcamento de reforma",
+        "contrato de prestacao de servicos",
+        "normas ABNT para arquitetura",
+        "projeto de iluminacao",
+        "especificacao de materiais",
+        "cronograma de obra",
+        "laudo tecnico",
+        "planta baixa aprovacao",
+        "memorial descritivo",
+    ]
+
+    def __init__(self, mode: str = "minilm"):
+        self.mode = mode
+
+    def run_benchmark(self, n_queries: int = 10) -> List[Dict[str, Any]]:
+        from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
+        from datetime import datetime, timezone
+
+        queries = self.DEFAULT_QUERIES[:n_queries]
+        records = []
+        op = OpQueryKnowledge(actor="PerfBaseline")
+
+        for q in queries:
+            start = time.perf_counter()
+            sucesso = True
+            try:
+                op.execute(query=q)
+            except Exception:
+                sucesso = False
+            elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
+
+            records.append({
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "operacao": "OpQueryKnowledge",
+                "sucesso": sucesso,
+                "duracao_ms": elapsed_ms,
+                "metadados": {"query_hash": q[:40], "mode": self.mode},
+            })
+
+        return records
+
+
 # ─── Main ────────────────────────────────────────────────────────────────────
 
 def main():
@@ -314,6 +363,18 @@ def main():
         "--log-path", type=str, default=None,
         help="Caminho customizado para operation_log.jsonl (opcional)"
     )
+    parser.add_argument(
+        "--active", action="store_true",
+        help="Modo carga ativa: executa consultas RAG e mede performance"
+    )
+    parser.add_argument(
+        "--mode", type=str, default="minilm", choices=["minilm", "bgem3", "dual"],
+        help="Modo de embedding RAG para carga ativa (default: minilm)"
+    )
+    parser.add_argument(
+        "--queries", type=int, default=10,
+        help="Número de consultas na carga ativa (default: 10)"
+    )
     args = parser.parse_args()
 
     # Resolve diretório de métricas a partir da raiz do projeto
@@ -321,19 +382,26 @@ def main():
     project_root = script_dir.parent
     metrics_dir = project_root / METRICS_REL_DIR
 
-    # ── Adapters ────────────────────────────────────────────────────────
-    data_adapter = JsonlDataAdapter(
-        log_path=Path(args.log_path) if args.log_path else None
-    )
+    # ── Modo Carga Ativa ────────────────────────────────────────────────
+    if args.active:
+        print(f"[baseline] Modo carga ativa: {args.queries} consultas (mode={args.mode})")
+        bench = ActiveBenchmarkAdapter(mode=args.mode)
+        records = bench.run_benchmark(n_queries=args.queries)
+        print(f"[baseline] {len(records)} consultas executadas.")
+    else:
+        # ── Adapters ────────────────────────────────────────────────────
+        data_adapter = JsonlDataAdapter(
+            log_path=Path(args.log_path) if args.log_path else None
+        )
+        # ── Leitura ─────────────────────────────────────────────────────
+        print(f"[baseline] Lendo registros de telemetria...")
+        records = data_adapter.read_records(days=args.days)
+        if not records:
+            print("[baseline] Nenhum registro encontrado.")
+            sys.exit(0)
+
     analysis = StatsAnalysisAdapter()
     output = JsonOutputAdapter(metrics_dir)
-
-    # ── Leitura ─────────────────────────────────────────────────────────
-    print(f"[baseline] Lendo registros de telemetria...")
-    records = data_adapter.read_records(days=args.days)
-    if not records:
-        print("[baseline] Nenhum registro encontrado.")
-        sys.exit(0)
 
     print(f"[baseline] {len(records)} registro(s) carregados.")
 

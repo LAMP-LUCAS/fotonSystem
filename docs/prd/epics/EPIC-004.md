@@ -108,7 +108,7 @@ Arquiteturar o RAG como um **grafo de inferência configurável**, onde cada eta
 - 100% das coleções ChromaDB com metadata de modelo (rastreabilidade total)
 - Zero crashes por falta de RAM — hardware profiler bloqueia modelos inviáveis
 - NPS do módulo RAG ≥ 8 (pesquisa pós-implementação)
-  - **Primeira coleta:** Pendente (STORY-041)
+  - **Primeira coleta:** 2026-07-06 (STORY-041)
   - **Periodicidade:** Semestral
   - **Template:** `.opencode/templates/NPS_RAG.md`
 
@@ -129,3 +129,4 @@ Arquiteturar o RAG como um **grafo de inferência configurável**, onde cada eta
 | 2026-07-02 | EPIC-004 revisado para v2.0 — arquitetura multi-modelo + pipeline node graph |
 | 2026-07-03 | Implementado: STORY-028 (SPEC), STORY-029 (filtros + contexto + diagnóstico) |
 | 2026-07-05 | Planejamento v2.0 completo: 12 stories (STORY-030 a STORY-041), SPEC-RAG-v2.0, SprintPlan revisado |
+| 2026-07-06 | STORY-041: Template NPS criado, `primeira_coleta_nps` registrada |
