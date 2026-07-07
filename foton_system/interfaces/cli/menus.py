@@ -181,10 +181,6 @@ class MenuSystem:
                     continue
                 elif cmd['action'] == 'home':
                     continue
-                elif cmd['action'] == 'rag_query':
-                    increment_operations()
-                    self._query_knowledge_ui()
-                    continue
                 elif cmd['action'] == 'global_search':
                     increment_operations()
                     self.global_search_ui()

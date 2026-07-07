@@ -40,7 +40,7 @@ Evoluir o RAG de MVP técnico para ferramenta de uso diário: filtros de busca, 
 - **RULE-RAG-4.3 (NOVA):** Resultados exibem trecho de contexto: 100 caracteres antes e depois do trecho mais relevante de cada chunk, delimitado por marcadores visuais.
 
 ### 3.5 Interface e Diagnóstico (NOVO v1.0)
-- **RULE-RAG-5.1:** TUI: atalho dedicado `g` (global search) no menu principal para acesso rápido à consulta semântica.
+- **RULE-RAG-5.1 (REVISADO):** TUI: atalho `g` no menu principal pertence à SPEC-UX (RULE-UX-8.9) e dispara exclusivamente `global_search` (busca global por clientes). A consulta semântica RAG é acessível via submenu (Configurações > RAG > Consultar Conhecimento).
 - **RULE-RAG-5.2:** TUI: resultado da consulta exibido com formatação: `[Score: XX%] Fonte: caminho/arquivo.md`, seguido do trecho com contexto.
 - **RULE-RAG-5.3:** Indexação manual disponível na TUI com feedback de progresso (arquivos escaneados, chunks criados).
 - **RULE-RAG-6.1 (NOVA):** Ferramenta de diagnóstico: `diagnostico_conhecimento` — retorna total de chunks, status do circuit breaker (CLOSED/OPEN), última indexação.

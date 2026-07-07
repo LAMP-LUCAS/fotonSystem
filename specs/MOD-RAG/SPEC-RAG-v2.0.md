@@ -30,7 +30,7 @@ Arquiteturar o RAG em 6 camadas independentes, cada uma com responsabilidade ún
 - **RULE-RAG-3.1** — ~~Subprocess mode~~ — **removido** (obsoleto na v2.0 in-process; ver STORY-041)
 - **RULE-RAG-3.2 a 3.4** — Consulta (score, resultado, fallback) — mantidos
 - **RULE-RAG-4.1 a 4.3** — Filtros (cliente, tipo_doc, contexto) — mantidos
-- **RULE-RAG-5.1 a 5.3** — Interface TUI (atalho g, formatação, indexação) — mantidos
+- **RULE-RAG-5.1 (REVISADO):** Interface TUI — atalho `g` revisado: pertence à SPEC-UX (RULE-UX-8.9). RAG acessível via submenu. RULE-RAG-5.2 e 5.3 mantidos.
 - **RULE-RAG-6.1 a 6.2** — Diagnóstico + indexação seletiva — mantidos
 
 ### 3.1 Hardware Profiler (NOVO)

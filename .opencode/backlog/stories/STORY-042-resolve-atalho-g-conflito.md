@@ -1,5 +1,5 @@
 ---
-status: "pending"
+status: "done"
 sprint: "2026-SPRINT-6"
 ---
 
@@ -25,15 +25,15 @@ A função RAG deve ser acessada via submenu de RAG ou via atalho alternativo no
 
 ## Critérios de Aceite
 
-- [ ] `g` no menu principal chama `global_search()` — inalterado
-- [ ] `g` em submenus NÃO-RAG não conflita (comportamento inalterado)
-- [ ] RAG `_query_knowledge_ui` não é mais acionável via `g` no menu principal
-- [ ] RAG permanece acessível via seu submenu (Configurações > RAG > Consultar Conhecimento)
-- [ ] `global_search` continua funcionando: busca por alias, nome, código ou NIF
-- [ ] Resultados numerados com drill-down para ficha do cliente
-- [ ] SPEC-RAG-v1.0 atualizada (RULE-RAG-8.4 revisada)
-- [ ] Testes: `test_menu_g_shortcut` + `test_rag_g_shortcut_removed`
-- [ ] Zero regressão na suite existente
+- [x] `g` no menu principal chama `global_search()` — inalterado
+- [x] `g` em submenus NÃO-RAG não conflita (comportamento inalterado)
+- [x] RAG `_query_knowledge_ui` não é mais acionável via `g` no menu principal
+- [x] RAG permanece acessível via seu submenu (Configurações > RAG > Consultar Conhecimento)
+- [x] `global_search` continua funcionando: busca por alias, nome, código ou NIF
+- [x] Resultados numerados com drill-down para ficha do cliente
+- [x] SPEC-RAG-v1.0 atualizada (RULE-RAG-8.4 revisada)
+- [x] Testes: `test_parse_command_global_search` + `test_run_g_triggers_global_search` passando
+- [x] Zero regressão na suite existente (98/98 testes CLI)
 
 ## Arquivos Afetados
 
