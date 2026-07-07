@@ -82,6 +82,76 @@ class DependencyManager:
             return False
 
     @staticmethod
+    def upgrade_torch_to_cuda() -> dict:
+        """Instala torch com suporte CUDA no VENV do AI Pack.
+
+        No Windows+py312, a ultima versao com CUDA e 2.5.1+cu121.
+        Instala apenas no VENV isolado para nao corromper o Python global.
+
+        Returns:
+            dict com chaves: success, message, venv_path.
+        """
+        env_path = DependencyManager.get_plugin_env_path("ai_pack")
+        if not env_path.exists():
+            msg = "VENV do AI Pack nao encontrado. Instale o pacote de IA primeiro."
+            logger.warning(msg)
+            return {"success": False, "message": msg, "venv_path": None}
+
+        python_exe = DependencyManager._get_python_executable(env_path)
+        cuda_index = "https://download.pytorch.org/whl/cu121"
+
+        print("\n[!] Instalando torch com suporte CUDA no VENV do AI Pack...")
+        print(f"    VENV: {env_path}")
+        print(f"    Index: {cuda_index}")
+        print("    Download de ~2.4GB (torch 2.5.1+cu121 para Win+py312).\n")
+
+        cmd = [
+            str(python_exe), "-m", "pip", "install", "--force-reinstall",
+            "--index-url", cuda_index,
+            "torch",
+        ]
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, timeout=600)
+        except subprocess.TimeoutExpired:
+            msg = "Timeout no download. Rede lenta ou conexao instavel."
+            logger.error(msg)
+            return {"success": False, "message": msg, "venv_path": str(env_path)}
+        except subprocess.CalledProcessError as e:
+            err = e.stderr.decode(errors="replace")[:500]
+            logger.error("Falha pip no VENV: %s", err)
+            return {"success": False, "message": f"Erro pip: {err}", "venv_path": str(env_path)}
+
+        check_cmd = [
+            str(python_exe), "-c",
+            "import torch; v=torch.__version__; "
+            "c=torch.cuda.is_available(); "
+            "n=torch.cuda.get_device_name(0) if c else 'N/A'; "
+            "cu=torch.version.cuda or 'N/A'; "
+            "print(f'{v}|{c}|{n}|{cu}')"
+        ]
+        try:
+            result = subprocess.run(check_cmd, check=True, capture_output=True,
+                                    text=True, timeout=30)
+            version, cuda_avail, device, cu_ver = result.stdout.strip().split("|")
+            if cuda_avail == "True":
+                msg = f"torch {version} com CUDA {cu_ver} ativo no VENV. GPU: {device}"
+                logger.info(msg)
+                print(f"[OK] {msg}")
+                return {"success": True, "message": msg, "venv_path": str(env_path)}
+            else:
+                msg = (f"torch {version} instalado no VENV, "
+                       "mas CUDA nao disponivel. Verifique drivers NVIDIA.")
+                logger.warning(msg)
+                print(f"[!] {msg}")
+                return {"success": False, "message": msg, "venv_path": str(env_path)}
+        except Exception as e:
+            msg = f"Falha ao verificar torch no VENV: {e}"
+            logger.error(msg)
+            print(f"[!] {msg}")
+            print("    O torch foi instalado. Reinicie o programa para ativar CUDA.")
+            return {"success": False, "message": msg, "venv_path": str(env_path)}
+
+    @staticmethod
     def _get_python_executable(env_path: Path) -> Path:
         """Retorna o caminho do executável python dentro do VENV (Windows/Linux)."""
         if os.name == 'nt':

@@ -71,6 +71,8 @@ class MenuRagHandler:
                 print("    GPU: CUDA {}, VRAM: {:.1f}GB".format(hw.cuda_version, hw.vram_gb))
             elif hw.has_mps:
                 print("    GPU: MPS (Apple Silicon)")
+            elif hw.has_nvidia_gpu:
+                print("    GPU: {} (nvidia-smi)".format(hw.nvidia_gpu_name))
             else:
                 print("    GPU: Nao detectada")
             rec = recommended_mode(hw)
@@ -255,5 +257,29 @@ class MenuRagHandler:
                 ))
                 print("      Status: {}".format(status))
                 print()
+            from foton_system.core.rag.hardware_profiler import HardwareProfiler
+            hw = HardwareProfiler().detect()
+            if hw.has_nvidia_gpu and not hw.has_cuda:
+                print()
+                self.menu.print_warning(
+                    "  GPU NVIDIA detectada ({}), mas torch e CPU-only.".format(hw.nvidia_gpu_name)
+                )
+                self.menu.print_info(
+                    "  O suporte CUDA acelera significativamente as operacoes RAG."
+                )
+                if self.menu.confirm_action("Atualizar torch para versao CUDA?"):
+                    from foton_system.infrastructure.dependency_manager import DependencyManager
+                    result = DependencyManager.upgrade_torch_to_cuda()
+                    if result["success"]:
+                        self.menu.print_success(
+                            "  torch com CUDA instalado no VENV do AI Pack!"
+                        )
+                        self.menu.print_info(
+                            "  Reinicie o programa se for usar o torch do VENV."
+                        )
+                    else:
+                        self.menu.print_error(
+                            "  Falha: {}".format(result["message"])
+                        )
         except Exception as e:
             self.menu.print_error("  Erro ao listar modelos: {}".format(e))

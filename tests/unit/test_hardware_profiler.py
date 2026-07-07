@@ -264,5 +264,153 @@ class TestFeasibilityReport(unittest.TestCase):
         self.assertEqual(report.warnings, [])
 
 
+class TestNvidiaSmiDetection(unittest.TestCase):
+    """Tests for _detect_nvidia_smi() — RULE-RAG-7.5."""
+
+    @patch('foton_system.core.rag.hardware_profiler.subprocess.run')
+    def test_nvidia_smi_detects_gpu(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = (
+            "GPU-00000000-0000-0000-0000-000000000000, "
+            "NVIDIA GeForce RTX 3050 Laptop GPU, "
+            "610.47, "
+            "4096\n"
+        )
+        mock_run.return_value = mock_result
+
+        from foton_system.core.rag.hardware_profiler import _detect_nvidia_smi
+        found, name, driver, vram = _detect_nvidia_smi()
+
+        self.assertTrue(found)
+        self.assertEqual(name, "NVIDIA GeForce RTX 3050 Laptop GPU")
+        self.assertEqual(driver, "610.47")
+        self.assertAlmostEqual(vram, 4.0)
+
+    @patch('foton_system.core.rag.hardware_profiler.subprocess.run')
+    def test_nvidia_smi_not_found(self, mock_run):
+        mock_run.side_effect = FileNotFoundError("nvidia-smi not found")
+
+        from foton_system.core.rag.hardware_profiler import _detect_nvidia_smi
+        found, name, driver, vram = _detect_nvidia_smi()
+
+        self.assertFalse(found)
+        self.assertEqual(name, "")
+        self.assertEqual(driver, "")
+        self.assertEqual(vram, 0.0)
+
+    @patch('foton_system.core.rag.hardware_profiler.subprocess.run')
+    def test_nvidia_smi_malformed_output(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "garbage, data\n"
+        mock_run.return_value = mock_result
+
+        from foton_system.core.rag.hardware_profiler import _detect_nvidia_smi
+        found, name, driver, vram = _detect_nvidia_smi()
+
+        self.assertFalse(found)
+
+
+class TestHardwareProfileNvidiaFields(unittest.TestCase):
+    """Tests for nvidia fields in HardwareProfile — RULE-RAG-7.5."""
+
+    def test_profile_accepts_nvidia_fields(self):
+        from foton_system.core.rag.hardware_profiler import HardwareProfile
+        profile = HardwareProfile(
+            cpu_cores=8, ram_total_gb=16, ram_available_gb=8,
+            has_cuda=False, cuda_version="", has_mps=False, vram_gb=0,
+            disk_free_gb=100,
+            has_nvidia_gpu=True,
+            nvidia_gpu_name="RTX 3050",
+            nvidia_driver_version="610.47",
+        )
+        self.assertTrue(profile.has_nvidia_gpu)
+        self.assertEqual(profile.nvidia_gpu_name, "RTX 3050")
+        self.assertEqual(profile.nvidia_driver_version, "610.47")
+
+    def test_profile_defaults_nvidia_to_false(self):
+        from foton_system.core.rag.hardware_profiler import HardwareProfile
+        profile = HardwareProfile(
+            cpu_cores=8, ram_total_gb=16, ram_available_gb=8,
+            has_cuda=False, cuda_version="", has_mps=False, vram_gb=0,
+            disk_free_gb=100,
+        )
+        self.assertFalse(profile.has_nvidia_gpu)
+        self.assertEqual(profile.nvidia_gpu_name, "")
+        self.assertEqual(profile.nvidia_driver_version, "")
+
+    @patch('foton_system.core.rag.hardware_profiler.subprocess.run')
+    def test_detect_includes_nvidia_fields(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.stdout = (
+            "GPU-xxx, NVIDIA GeForce RTX 3050 Laptop GPU, 610.47, 4096\n"
+        )
+        mock_run.return_value = mock_result
+
+        from foton_system.core.rag.hardware_profiler import (
+            HardwareProfiler, _detect_cuda
+        )
+        with patch('foton_system.core.rag.hardware_profiler._detect_nvidia_smi',
+                    return_value=(True, "NVIDIA GeForce RTX 3050 Laptop GPU",
+                                  "610.47", 4.0)):
+            with patch('foton_system.core.rag.hardware_profiler._detect_cuda',
+                        return_value=(False, "", 0.0)):
+                with patch('foton_system.core.rag.hardware_profiler._detect_mps',
+                            return_value=False):
+                    with patch('foton_system.core.rag.hardware_profiler.psutil') as mock_psutil:
+                        with patch('foton_system.core.rag.hardware_profiler.shutil') as mock_shutil:
+                            mock_psutil.cpu_count.return_value = 8
+                            mem = MagicMock()
+                            mem.total = 16 * 1024 ** 3
+                            mem.available = 8 * 1024 ** 3
+                            mock_psutil.virtual_memory.return_value = mem
+                            disk = MagicMock()
+                            disk.free = 50 * 1024 ** 3
+                            mock_shutil.disk_usage.return_value = disk
+
+                            profiler = HardwareProfiler()
+                            profiler._cache = None
+                            profiler._cache_time = 0
+                            profile = profiler.detect()
+
+        self.assertTrue(profile.has_nvidia_gpu)
+        self.assertIn("3050", profile.nvidia_gpu_name)
+        self.assertEqual(profile.nvidia_driver_version, "610.47")
+
+
+class TestUpgradeTorchToCuda(unittest.TestCase):
+    """Tests for DependencyManager.upgrade_torch_to_cuda() — RULE-RAG-7.6."""
+
+    def test_upgrade_returns_dict_with_success_key(self):
+        from foton_system.infrastructure.dependency_manager import DependencyManager
+        result = DependencyManager.upgrade_torch_to_cuda()
+        self.assertIn("success", result)
+        self.assertIn("message", result)
+        self.assertIn("venv_path", result)
+
+    @patch('foton_system.infrastructure.dependency_manager.DependencyManager.get_plugin_env_path')
+    def test_upgrade_returns_false_when_venv_missing(self, mock_path):
+        mock_path.return_value.exists.return_value = False
+
+        from foton_system.infrastructure.dependency_manager import DependencyManager
+        result = DependencyManager.upgrade_torch_to_cuda()
+        self.assertFalse(result["success"])
+        self.assertIsNone(result["venv_path"])
+
+    @patch('foton_system.infrastructure.dependency_manager.DependencyManager.get_plugin_env_path')
+    @patch('foton_system.infrastructure.dependency_manager.DependencyManager._get_python_executable')
+    @patch('foton_system.infrastructure.dependency_manager.subprocess.run')
+    def test_upgrade_timeout(self, mock_run, mock_python, mock_path):
+        mock_path.return_value.exists.return_value = True
+        mock_python.return_value = "python.exe"
+        mock_run.side_effect = __import__('subprocess').TimeoutExpired("cmd", 600)
+
+        from foton_system.infrastructure.dependency_manager import DependencyManager
+        result = DependencyManager.upgrade_torch_to_cuda()
+        self.assertFalse(result["success"])
+        self.assertIn("Timeout", result["message"])
+
+
 if __name__ == '__main__':
     unittest.main()
