@@ -239,14 +239,14 @@ class MenuDocsHandler:
             if status == "BATCH_BLOCKED":
                 self.menu.print_warning(f"  Lote BLOQUEADO — {len(items)} documento(s):")
                 for item in items:
-                    icon = "🔴" if item["status"] == "bloqueado" else "🟡"
-                    self.menu.print_warning(f"  {icon} {item['template_name']} → {item['status']}")
+                    icon = "[!]" if item["status"] == "bloqueado" else "[~]"
+                    self.menu.print_warning(f"  {icon} {item['template_name']} -> {item['status']}")
                 self.menu.print_warning("\n  Corrija os templates e tente novamente.")
             else:
-                self.menu.print_success(f"  ✅ Lote concluído ({len(items)} documento(s)):")
+                self.menu.print_success(f"  [v] Lote concluído ({len(items)} documento(s)):")
                 for item in items:
-                    icon = "✅" if item["status"] == "sucesso" else "❌"
-                    self.menu.print_info(f"  {icon} {item['template_name']} → {item['output_path']}")
+                    icon = "[v]" if item["status"] == "sucesso" else "[X]"
+                    self.menu.print_info(f"  {icon} {item['template_name']} -> {item['output_path']}")
                 self.menu.ui.open_folder(client_path)
         except Exception as e:
             self.menu.print_error(f"\n  Erro no lote: {e}")
@@ -334,7 +334,7 @@ class MenuDocsHandler:
                 return
             self.menu.print_success(f"  {len(entries)} registro(s) encontrado(s):\n")
             for i, e in enumerate(entries[:20], 1):
-                status_icon = "✅" if e.get('status') == 'sucesso' else "❌"
+                status_icon = "[v]" if e.get('status') == 'sucesso' else "[X]"
                 versao = e.get('versao', 1)
                 data_hora = e.get('data_hora', '?')[:19]
                 nome = e.get('nome_arquivo', '?')

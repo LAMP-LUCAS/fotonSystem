@@ -190,13 +190,13 @@ class MenuConfigHandler:
                 prev_avg = sum(prev) / len(prev) if prev else 0
                 diff = last_3_avg - prev_avg
                 if diff > 0.5:
-                    trend = "📈"
+                    trend = "[+]"
                 elif diff < -0.5:
-                    trend = "📉"
+                    trend = "[-]"
                 else:
-                    trend = "➡️"
+                    trend = "[=]"
             else:
-                trend = "➡️"
+                trend = "[=]"
             TUILayout.print_menu_option("+", f"Tendência: {trend}")
             last_5 = all_responses[-5:]
             if last_5 and len(scores) > 1:

@@ -565,7 +565,7 @@ class TestNps(unittest.TestCase):
             handler = MenuConfigHandler(self.menu)
             handler._pesquisa_nps_ui()
         printed = "".join(c.args[0] for c in mp.call_args_list if c.args)
-        self.assertTrue("📈" in printed or "📉" in printed or "➡️" in printed)
+        self.assertTrue("[+]" in printed or "[-]" in printed or "[=]" in printed)
 
     def test_nps_history_table_displayed(self):
         """Last 5 responses table must appear."""
@@ -656,6 +656,57 @@ class TestNps(unittest.TestCase):
                 self.menu.run()
             printed = "".join([call.args[0] for call in mock_print.call_args_list if call.args])
         self.assertIn("Exportar Dados de Uso", printed)
+
+
+    # ----- STORY-045: RULE-UX-8.11 cp1252 compatibility -----
+    def test_cp1252_compatibility_menus_config(self):
+        """Every char in menus_config.py must be cp1252-safe (zero emoji)."""
+        import inspect
+        import foton_system.interfaces.cli.menus_config as mod
+        source = inspect.getsource(mod)
+        for line_no, line in enumerate(source.split('\n'), 1):
+            for char in line:
+                try:
+                    char.encode("cp1252")
+                except UnicodeEncodeError:
+                    self.fail(f"Char U+{ord(char):04X} at menus_config.py:{line_no} "
+                              f"is not cp1252-safe ({line.strip()[:50]})")
+
+    def test_cp1252_compatibility_menus_docs(self):
+        """Every char in menus_docs.py must be cp1252-safe (zero emoji)."""
+        import inspect
+        import foton_system.interfaces.cli.menus_docs as mod
+        source = inspect.getsource(mod)
+        for line_no, line in enumerate(source.split('\n'), 1):
+            for char in line:
+                try:
+                    char.encode("cp1252")
+                except UnicodeEncodeError:
+                    self.fail(f"Char U+{ord(char):04X} at menus_docs.py:{line_no} "
+                              f"is not cp1252-safe ({line.strip()[:50]})")
+
+    def test_nps_trend_ascii(self):
+        """NPS trend must use ASCII-safe [+] / [-] / [=] instead of emojis."""
+        from foton_system.interfaces.cli.menus_config import MenuConfigHandler
+        import tempfile, pathlib, json
+        tmp = pathlib.Path(tempfile.mkdtemp())
+        nps_file = tmp / "nps_responses.jsonl"
+        for s in [5, 7, 9]:
+            with open(nps_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps({"score": s, "timestamp": "2026-01-01T00:00:00",
+                                    "classification": "x", "comentario": "",
+                                    "session_count": 1, "operation_count": 0,
+                                    "session_id": "x", "interface": "TUI"}) + "\n")
+        session_data = {"total_sessoes_all_time": 1, "total_operacoes_all_time": 0,
+                        "session_id": "x", "interface": "TUI"}
+        (tmp / "session.json").write_text(json.dumps(session_data), encoding="utf-8")
+        with patch('builtins.input', side_effect=['10', '', '', '']), \
+             patch('builtins.print') as mp, \
+             patch('foton_system.modules.shared.infrastructure.bootstrap.bootstrap_service.BootstrapService.get_user_config_dir', return_value=tmp):
+            handler = MenuConfigHandler(self.menu)
+            handler._pesquisa_nps_ui()
+        printed = "".join(c.args[0] for c in mp.call_args_list if c.args)
+        self.assertIn("[+]", printed)
 
 
 if __name__ == '__main__':
