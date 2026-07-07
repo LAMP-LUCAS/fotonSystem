@@ -1,5 +1,6 @@
 from colorama import Fore, Style
 from foton_system.interfaces.cli.views.tui_layout import TUILayout
+from foton_system.interfaces.cli.helpers.error_suggestions import format_error_with_suggestion
 
 
 class MenuRagHandler:
@@ -232,6 +233,36 @@ class MenuRagHandler:
             )
         except Exception as e:
             self.menu.print_error("  Erro na indexacao: {}".format(e))
+
+    def _index_knowledge_ui(self):
+        self.reindex_knowledge_base()
+
+    def _query_knowledge_ui(self):
+        TUILayout.clear()
+        TUILayout.print_header("CONSULTAR CONHECIMENTO (RAG)")
+        query = input("\n  Pergunta: ").strip()
+        if not query:
+            return
+        cliente = input("  Filtrar por cliente (ENTER para pular): ").strip()
+        tipo_doc = input("  Filtrar por tipo doc (INFO/dados/ENTER para pular): ").strip()
+        try:
+            from foton_system.core.ops.op_query_knowledge import OpQueryKnowledge
+            op = OpQueryKnowledge(actor="User")
+            kwargs = {"query": query}
+            if cliente:
+                kwargs["cliente"] = cliente
+            if tipo_doc:
+                kwargs["tipo_doc"] = tipo_doc
+            res = op.execute(**kwargs)
+            if res['status'] == 'EMPTY':
+                self.menu.print_warning("  Nada encontrado.")
+            else:
+                for i, r in enumerate(res['results'], 1):
+                    print(f"\n  [Score: {r['score']:.0%}] — Fonte: {r['source']}")
+                    print(f"  {r.get('contexto', r['document'][:200])}")
+        except Exception as e:
+            self.menu.print_error(f"Erro: {format_error_with_suggestion(e)}")
+        input("\nEnter...")
 
     def show_model_status(self):
         TUILayout.clear()

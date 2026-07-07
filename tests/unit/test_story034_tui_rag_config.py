@@ -381,7 +381,26 @@ class TestMenuRagIntegration:
             'handle_rag_config', 'display_rag_menu',
             'show_diagnostics', 'show_change_mode_menu',
             'reindex_knowledge_base', 'show_model_status',
+            '_index_knowledge_ui', '_query_knowledge_ui',
         ]
         rag_handler = MenuRagHandler(MagicMock())
         for m in methods:
             assert hasattr(rag_handler, m), "Missing method: {}".format(m)
+
+    def test_rag_ui_not_in_menus_config(self):
+        """MenuConfigHandler should NOT have _index_knowledge_ui or _query_knowledge_ui."""
+        from foton_system.interfaces.cli.menus_config import MenuConfigHandler
+        from unittest.mock import MagicMock
+
+        handler = MenuConfigHandler(MagicMock())
+        assert not hasattr(handler, '_index_knowledge_ui'), "DEVE ser removido de MenuConfigHandler"
+        assert not hasattr(handler, '_query_knowledge_ui'), "DEVE ser removido de MenuConfigHandler"
+
+    def test_rag_ui_in_menus_rag(self):
+        """MenuRagHandler should have _index_knowledge_ui and _query_knowledge_ui."""
+        from foton_system.interfaces.cli.menus_rag import MenuRagHandler
+        from unittest.mock import MagicMock
+
+        handler = MenuRagHandler(MagicMock())
+        assert hasattr(handler, '_index_knowledge_ui')
+        assert hasattr(handler, '_query_knowledge_ui')
