@@ -1,7 +1,7 @@
 # Spec: Interface de Usuário (TUI) — Experiência e Navegação
 
-**Data:** 2026-06-28
-**Versão:** 1.2
+**Data:** 2026-07-06
+**Versão:** 1.3
 **Responsável:** Time Core
 
 ## 1. Problema
@@ -71,6 +71,19 @@ Padronizar a experiência TUI em 6 eixos:
 - **RULE-UX-8.7:** MCP `listar_clientes` deve aceitar parâmetros opcionais `pagina` (int, default 1) e `itens_por_pagina` (int, default 20) — backward compatibility mantida.
 - **RULE-UX-8.8:** Confirmação padronizada (S/N) em todas as ações destrutivas via `confirm_action()`, com variação visual `dangerous=True` para operações irreversíveis.
 
+### 3.9 Correção de Regressões (v1.3)
+
+> Regras adicionadas em 2026-07-06 para corrigir regressões identificadas na auditoria do EPIC-004.
+
+- **RULE-UX-8.9:** O atalho `g` no menu principal DEVE disparar exclusivamente `global_search`. Qualquer outro módulo (ex: RAG) que deseje usar `g` DEVE fazê-lo em seu próprio contexto de submenu, sem conflitar com o menu principal. A SPEC-RAG deve ser atualizada para remover o mapeamento conflitante de `g`.
+- **RULE-UX-8.10:** Todo handler de menu DEVE usar `format_error_with_suggestion()` em TODOS os `except:` blocks. É proibido `except:` sem formatação de erro contextualizada. Três níveis de severidade:
+  - Erros conhecidos (FileNotFoundError, PermissionError, etc.) → sugestão específica
+  - Erros de negócio (ValueError, KeyError) → sugestão de configuração
+  - Erros genéricos (Exception) → "Caso o erro persista, contate o suporte"
+- **RULE-UX-8.11:** Toda string de interface DEVE ser ASCII-safe (proibido `\N{...}` ou caracteres Unicode que quebrem em cp1252). Acentos do português (á, é, í, ó, ú, ç, ã, õ) são permitidos e recomendados. Alternativas para ícones: `[!]` (aviso), `[X]` (erro), `[v]` (sucesso), `[>]` (progresso), `[*]` (destaque).
+- **RULE-UX-8.12:** `show_diagnostics` (ou qualquer tela de diagnóstico/informação do sistema) DEVE exibir breadcrumb indicando o caminho hierárquico, em conformidade com RULE-UX-1.1.
+- **RULE-UX-8.13:** Todo arquivo de menu DEVE usar exclusivamente f-strings para formatação de strings. `str.format()` é proibido em novos códigos e DEVE ser migrado onde existente.
+
 ### 3.9 Pesquisa de Satisfação (NPS)
 
 - **RULE-UX-9.1:** O menu Configurações deve conter a opção "Pesquisa de Satisfação (NPS)" que:
@@ -96,3 +109,4 @@ Padronizar a experiência TUI em 6 eixos:
 | 1.0 | 2026-06-24 | Versão inicial (22 RULE-IDs, seções 3.1 a 3.9) |
 | 1.1 | 2026-06-25 | Migração das RULE-UX-8.x do EPIC-002 (8 novas regras: menus modulares, ProgressTracker, error_suggestions, subgrupos, busca global, parse_command, paginação MCP, confirmação perigosa) |
 | 1.2 | 2026-06-28 | RULE-UX-9.1 expandida: comentário, contexto automático (session/operation/interface), tendência visual. RULE-UX-9.2 adicionada: exportação para email (arquivo .zip local + instrução). Relacionamento com SPEC-TELEMETRY-v1.0 |
+| 1.3 | 2026-07-06 | RULE-UX-8.9 a 8.13 adicionadas: correção de regressões (conflito atalho `g`, error_suggestions obrigatório, ASCII-safe, breadcrumb em diagnóstico, f-strings obrigatórias). Relacionamento com SPEC-UI-COMPONENTS.md |
