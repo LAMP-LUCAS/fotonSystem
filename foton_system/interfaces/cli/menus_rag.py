@@ -212,6 +212,7 @@ class MenuRagHandler:
     def reindex_knowledge_base(self):
         TUILayout.clear()
         TUILayout.print_header("RE-INDEXAR BASE DE CONHECIMENTO")
+        self.menu.print_breadcrumb(["Sistema", "Reindexar"])
 
         cliente = input("\n  Cliente (ENTER para todos): ").strip()
         scope = f"cliente '{cliente}'" if cliente else "todos os clientes"
@@ -237,6 +238,7 @@ class MenuRagHandler:
     def _query_knowledge_ui(self):
         TUILayout.clear()
         TUILayout.print_header("CONSULTAR CONHECIMENTO (RAG)")
+        self.menu.print_breadcrumb(["Sistema", "Consultar"])
         query = input("\n  Pergunta: ").strip()
         if not query:
             return
@@ -264,6 +266,7 @@ class MenuRagHandler:
     def show_model_status(self):
         TUILayout.clear()
         TUILayout.print_header("STATUS DOS MODELOS")
+        self.menu.print_breadcrumb(["Sistema", "Diagnostico", "Modelos"])
 
         try:
             from foton_system.core.rag.model_registry import ModelRegistry

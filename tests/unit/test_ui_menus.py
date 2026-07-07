@@ -709,5 +709,74 @@ class TestNps(unittest.TestCase):
         self.assertIn("[+]", printed)
 
 
+# ----- STORY-046 / RULE-UX-1.1 / RULE-UX-8.12: breadcrumb em telas RAG -----
+
+class TestRagBreadcrumb(unittest.TestCase):
+    """@story: STORY-046 @rule: RULE-UX-1.1, RULE-UX-8.12"""
+
+    def test_show_model_status_breadcrumb(self):
+        """show_model_status must call print_breadcrumb (RULE-UX-1.1)."""
+        from foton_system.interfaces.cli.menus_rag import MenuRagHandler
+        mock_menu = MagicMock()
+        handler = MenuRagHandler(mock_menu)
+        with patch('foton_system.core.rag.model_registry.ModelRegistry') as MockReg:
+            mock_reg = MagicMock()
+            mock_reg.list_models.return_value = []
+            MockReg.return_value = mock_reg
+            handler.show_model_status()
+            mock_menu.print_breadcrumb.assert_called_once_with(
+                ["Sistema", "Diagnostico", "Modelos"]
+            )
+
+    def test_reindex_knowledge_base_breadcrumb(self):
+        """reindex_knowledge_base must call print_breadcrumb (RULE-UX-1.1)."""
+        from foton_system.interfaces.cli.menus_rag import MenuRagHandler
+        mock_menu = MagicMock()
+        handler = MenuRagHandler(mock_menu)
+        with patch('builtins.input', return_value=''), \
+             patch.object(mock_menu, 'confirm_action', return_value=False):
+            handler.reindex_knowledge_base()
+            mock_menu.print_breadcrumb.assert_called_once_with(
+                ["Sistema", "Reindexar"]
+            )
+
+    def test_query_knowledge_ui_breadcrumb(self):
+        """_query_knowledge_ui must call print_breadcrumb (RULE-UX-1.1)."""
+        from foton_system.interfaces.cli.menus_rag import MenuRagHandler
+        mock_menu = MagicMock()
+        handler = MenuRagHandler(mock_menu)
+        with patch('builtins.input', return_value=''):
+            handler._query_knowledge_ui()
+            mock_menu.print_breadcrumb.assert_called_once_with(
+                ["Sistema", "Consultar"]
+            )
+
+
+class TestBreadcrumbExhaustive(unittest.TestCase):
+    """@story: STORY-046 @rule: RULE-UX-1.1 — varredura exaustiva de breadcrumb"""
+
+    def test_all_ui_functions_have_breadcrumb(self):
+        """RULE-UX-1.1: Every function in menus_rag.py with print_header must also call print_breadcrumb."""
+        import inspect
+        import foton_system.interfaces.cli.menus_rag as mod
+        source = inspect.getsource(mod)
+        lines = source.split('\n')
+
+        for i, line in enumerate(lines):
+            if not line.strip().startswith('def '):
+                continue
+            base_indent = len(line) - len(line.lstrip())
+            body = []
+            for j in range(i + 1, len(lines)):
+                if lines[j].strip() and lines[j].strip().startswith('def ') and len(lines[j]) - len(lines[j].lstrip()) <= base_indent:
+                    break
+                body.append(lines[j])
+            body_text = '\n'.join(body)
+            if 'TUILayout.print_header(' in body_text and 'print_breadcrumb(' not in body_text:
+                self.fail(
+                    f"Line {i+1}: {line.strip()} has print_header but no print_breadcrumb"
+                )
+
+
 if __name__ == '__main__':
     unittest.main()
