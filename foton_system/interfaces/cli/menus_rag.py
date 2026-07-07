@@ -21,7 +21,7 @@ class MenuRagHandler:
 
         options = [
             ("1", "Diagnostico do Sistema (Hardware + Colecoes)"),
-            ("2", "Modo de Embedding: [{}]".format(current)),
+            ("2", f"Modo de Embedding: [{current}]"),
             ("3", "Re-indexar Base para Modelo Ativo"),
             ("4", "Status dos Modelos Instalados"),
             ("0", "Voltar"),
@@ -34,7 +34,7 @@ class MenuRagHandler:
         except Exception:
             pass
         TUILayout.print_footer()
-        return input("{}>> {}Escolha: {}".format(Fore.CYAN, Fore.WHITE, Style.RESET_ALL)).strip()
+        return input(f"{Fore.CYAN}>> {Fore.WHITE}Escolha: {Style.RESET_ALL}").strip()
 
     def handle_rag_config(self):
         while True:
@@ -53,11 +53,12 @@ class MenuRagHandler:
             elif choice in ('0', 'b', 'B'):
                 break
             else:
-                self.menu.print_error("Opcao invalida.")
+                self.menu.print_error("Opção inválida.")
 
     def show_diagnostics(self):
         TUILayout.clear()
         TUILayout.print_header("DIAGNOSTICO DO SISTEMA RAG")
+        self.menu.print_breadcrumb(["Sistema", "Diagnostico"])
 
         try:
             from foton_system.core.rag.hardware_profiler import HardwareProfiler, recommended_mode
@@ -65,41 +66,41 @@ class MenuRagHandler:
             hw = profiler.detect()
 
             self.menu.print_info("  [Hardware Detectado]")
-            print("    CPU: {} cores".format(hw.cpu_cores))
-            print("    RAM: {:.1f}GB total, {:.1f}GB disponivel".format(hw.ram_total_gb, hw.ram_available_gb))
-            print("    Disco livre: {:.1f}GB".format(hw.disk_free_gb))
+            print(f"    CPU: {hw.cpu_cores} cores")
+            print(f"    RAM: {hw.ram_total_gb:.1f}GB total, {hw.ram_available_gb:.1f}GB disponivel")
+            print(f"    Disco livre: {hw.disk_free_gb:.1f}GB")
             if hw.has_cuda:
-                print("    GPU: CUDA {}, VRAM: {:.1f}GB".format(hw.cuda_version, hw.vram_gb))
+                print(f"    GPU: CUDA {hw.cuda_version}, VRAM: {hw.vram_gb:.1f}GB")
             elif hw.has_mps:
                 print("    GPU: MPS (Apple Silicon)")
             elif hw.has_nvidia_gpu:
-                print("    GPU: {} (nvidia-smi)".format(hw.nvidia_gpu_name))
+                print(f"    GPU: {hw.nvidia_gpu_name} (nvidia-smi)")
             else:
                 print("    GPU: Nao detectada")
             rec = recommended_mode(hw)
-            print("    Modo recomendado: {}".format(rec))
+            print(f"    Modo recomendado: {rec}")
             print()
         except Exception as e:
-            self.menu.print_error("  Erro ao detectar hardware: {}".format(e))
+            self.menu.print_error(f"  Erro ao detectar hardware: {format_error_with_suggestion(e)}")
 
         try:
             from foton_system.core.memory.vector_store import VectorStoreManager
             store = VectorStoreManager()
             diag = store.diagnostic()
 
-            self.menu.print_info("  [Colecoes Ativas - Modo: {}]".format(diag.get("mode", "?")))
+            self.menu.print_info(f"  [Colecoes Ativas - Modo: {diag.get('mode', '?')}]")
             stores = diag.get("stores", {})
             if not stores:
                 self.menu.print_warning("    Nenhuma colecao ativa encontrada")
             for tag, info in stores.items():
-                print("    {}{}{}:".format(Fore.CYAN, tag, Style.RESET_ALL))
-                print("      Modelo: {}".format(info.get("model_name", "?")))
-                print("      Colecao: {}".format(info.get("collection_name", "?")))
-                print("      Chunks: {}".format(info.get("total_chunks", 0)))
-                print("      Circuit Breaker: {}".format(info.get("circuit_breaker_status", "?")))
-                print("      Ultima indexacao: {}".format(info.get("ultima_indexacao", "Nunca")))
+                print(f"    {Fore.CYAN}{tag}{Style.RESET_ALL}:")
+                print(f"      Modelo: {info.get('model_name', '?')}")
+                print(f"      Colecao: {info.get('collection_name', '?')}")
+                print(f"      Chunks: {info.get('total_chunks', 0)}")
+                print(f"      Circuit Breaker: {info.get('circuit_breaker_status', '?')}")
+                print(f"      Ultima indexacao: {info.get('ultima_indexacao', 'Nunca')}")
         except Exception as e:
-            self.menu.print_error("  Erro ao consultar diagnostic: {}".format(e))
+            self.menu.print_error(f"  Erro ao consultar diagnostic: {format_error_with_suggestion(e)}")
 
     def show_change_mode_menu(self):
         from foton_system.modules.shared.infrastructure.config.config import Config
@@ -113,20 +114,20 @@ class MenuRagHandler:
         TUILayout.print_header("MODO DE EMBEDDING")
         self.menu.print_breadcrumb(["Configuracoes", "RAG", "Modo de Embedding"])
 
-        print("  Modo atual: {}\n".format(mode_label.get(current_mode, current_mode)))
+        print(f"  Modo atual: {mode_label.get(current_mode, current_mode)}\n")
         print("  Escolha o modo desejado:")
         print("    1 - MiniLM (leve, 384 dims, ~1GB RAM)")
         print("    2 - BGE-M3 (preciso, 1024 dims, ~4.5GB RAM)")
         print("    3 - Ambos (redundancia, ~5.5GB RAM)")
         print("    0 - Cancelar\n")
 
-        choice = input("{}>> {}Modo: {}".format(Fore.CYAN, Fore.WHITE, Style.RESET_ALL)).strip()
+        choice = input(f"{Fore.CYAN}>> {Fore.WHITE}Modo: {Style.RESET_ALL}").strip()
         if choice == '0':
             return
 
         new_mode = mode_map.get(choice)
         if not new_mode:
-            self.menu.print_error("  Opcao invalida.")
+            self.menu.print_error("  Opção inválida.")
             input("  Enter...")
             return
 
@@ -147,11 +148,11 @@ class MenuRagHandler:
             if warnings:
                 self.menu.print_warning("  [!] Avisos de viabilidade:")
                 for w in warnings:
-                    print("      - {}".format(w))
+                    print(f"      - {w}")
                 if not self.menu.confirm_action("Deseja continuar mesmo assim?", dangerous=True):
                     return
         except Exception as e:
-            self.menu.print_error("  Erro na validacao: {}".format(e))
+            self.menu.print_error(f"  Erro na validacao: {format_error_with_suggestion(e)}")
             return
 
         from foton_system.core.rag.model_registry import ModelRegistry
@@ -161,17 +162,17 @@ class MenuRagHandler:
         need_install = [m for m in models_to_check.get(new_mode, []) if not registry.is_installed(m)]
 
         if need_install:
-            self.menu.print_info("  Modelos a instalar: {}".format(", ".join(need_install)))
+            self.menu.print_info(f"  Modelos a instalar: {', '.join(need_install)}")
             from foton_system.core.rag.download_manager import DownloadManager
             for model_id in need_install:
                 entry = registry.get(model_id)
                 if entry:
                     size = entry.disk_required_gb
-                    self.menu.print_info("  {}: ~{:.1f}GB para download".format(model_id, size))
+                    self.menu.print_info(f"  {model_id}: ~{size:.1f}GB para download")
 
-                if not self.menu.confirm_action("Baixar modelo '{}'?".format(model_id)):
+                if not self.menu.confirm_action(f"Baixar modelo '{model_id}'?"):
                     self.menu.print_warning(
-                        "  Modelo {} nao instalado. Modo pode nao funcionar.".format(model_id)
+                        f"  Modelo {model_id} nao instalado. Modo pode nao funcionar."
                     )
                     continue
 
@@ -180,18 +181,16 @@ class MenuRagHandler:
                 def progress_callback(downloaded, total):
                     if total > 0:
                         pct = (downloaded / total) * 100
-                        print("\r    Progresso: {:.1f}MB / {:.1f}MB ({:.0f}%)".format(
-                            downloaded / 1024 / 1024, total / 1024 / 1024, pct
-                        ), end="")
+                        print(f"\r    Progresso: {downloaded / 1024 / 1024:.1f}MB / {total / 1024 / 1024:.1f}MB ({pct:.0f}%)", end="")
                     else:
-                        print("\r    Baixando... {:.1f}MB".format(downloaded / 1024 / 1024), end="")
+                        print(f"\r    Baixando... {downloaded / 1024 / 1024:.1f}MB", end="")
 
                 report = DownloadManager.ensure_model(model_id, registry, hw_profiler, progress_callback)
                 print()
                 if report.success:
-                    self.menu.print_success("  Modelo {} instalado com sucesso!".format(model_id))
+                    self.menu.print_success(f"  Modelo {model_id} instalado com sucesso!")
                 else:
-                    self.menu.print_error("  Falha ao instalar {}: {}".format(model_id, report.error))
+                    self.menu.print_error(f"  Falha ao instalar {model_id}: {report.error}")
                     return
 
         rag_settings = dict(config.rag_config)
@@ -205,7 +204,7 @@ class MenuRagHandler:
 
         config.set("rag", rag_settings)
         config.save()
-        self.menu.print_success("  Modo alterado para: {}".format(mode_label[new_mode]))
+        self.menu.print_success(f"  Modo alterado para: {mode_label[new_mode]}")
 
         if self.menu.confirm_action("Deseja re-indexar a base para o novo modo agora?"):
             self.reindex_knowledge_base()
@@ -215,8 +214,8 @@ class MenuRagHandler:
         TUILayout.print_header("RE-INDEXAR BASE DE CONHECIMENTO")
 
         cliente = input("\n  Cliente (ENTER para todos): ").strip()
-        scope = "cliente '{}'".format(cliente) if cliente else "todos os clientes"
-        self.menu.print_info("  Escaneando documentos para {}...".format(scope))
+        scope = f"cliente '{cliente}'" if cliente else "todos os clientes"
+        self.menu.print_info(f"  Escaneando documentos para {scope}...")
 
         if not self.menu.confirm_action("Prosseguir com a indexacao?"):
             return
@@ -227,12 +226,10 @@ class MenuRagHandler:
             kwargs = {"cliente": cliente} if cliente else {}
             res = op.execute(**kwargs)
             self.menu.print_success(
-                "\n  Indexado: {} arquivos, {} chunks criados.".format(
-                    res.get("files_scanned", 0), res.get("chunks_created", 0)
-                )
+                f"\n  Indexado: {res.get('files_scanned', 0)} arquivos, {res.get('chunks_created', 0)} chunks criados."
             )
         except Exception as e:
-            self.menu.print_error("  Erro na indexacao: {}".format(e))
+            self.menu.print_error(f"  Erro na indexacao: {format_error_with_suggestion(e)}")
 
     def _index_knowledge_ui(self):
         self.reindex_knowledge_base()
@@ -277,23 +274,20 @@ class MenuRagHandler:
             for model in models:
                 installed = registry.is_installed(model.id)
                 if installed:
-                    status = "{}Instalado{}".format(Fore.GREEN, Style.RESET_ALL)
+                    status = f"{Fore.GREEN}Instalado{Style.RESET_ALL}"
                 else:
-                    status = "{}Nao instalado{}".format(Fore.YELLOW, Style.RESET_ALL)
-                print("    {}{}{}: {}".format(Fore.CYAN, model.id, Style.RESET_ALL, model.name))
-                print("      Tipo: {} | Dimensoes: {}".format(model.type, model.dimensions))
-                print("      RAM: {:.1f}GB | Disco: {:.1f}GB | GPU: {}".format(
-                    model.ram_required_gb, model.disk_required_gb,
-                    "Sim" if model.requires_gpu else "Nao"
-                ))
-                print("      Status: {}".format(status))
+                    status = f"{Fore.YELLOW}Nao instalado{Style.RESET_ALL}"
+                print(f"    {Fore.CYAN}{model.id}{Style.RESET_ALL}: {model.name}")
+                print(f"      Tipo: {model.type} | Dimensoes: {model.dimensions}")
+                print(f"      RAM: {model.ram_required_gb:.1f}GB | Disco: {model.disk_required_gb:.1f}GB | GPU: {'Sim' if model.requires_gpu else 'Nao'}")
+                print(f"      Status: {status}")
                 print()
             from foton_system.core.rag.hardware_profiler import HardwareProfiler
             hw = HardwareProfiler().detect()
             if hw.has_nvidia_gpu and not hw.has_cuda:
                 print()
                 self.menu.print_warning(
-                    "  GPU NVIDIA detectada ({}), mas torch e CPU-only.".format(hw.nvidia_gpu_name)
+                    f"  GPU NVIDIA detectada ({hw.nvidia_gpu_name}), mas torch e CPU-only."
                 )
                 self.menu.print_info(
                     "  O suporte CUDA acelera significativamente as operacoes RAG."
@@ -310,7 +304,7 @@ class MenuRagHandler:
                         )
                     else:
                         self.menu.print_error(
-                            "  Falha: {}".format(result["message"])
+                            f"  Falha: {result['message']}"
                         )
         except Exception as e:
-            self.menu.print_error("  Erro ao listar modelos: {}".format(e))
+            self.menu.print_error(f"  Erro ao listar modelos: {format_error_with_suggestion(e)}")

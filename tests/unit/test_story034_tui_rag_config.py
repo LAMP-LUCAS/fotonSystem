@@ -404,3 +404,111 @@ class TestMenuRagIntegration:
         handler = MenuRagHandler(MagicMock())
         assert hasattr(handler, '_index_knowledge_ui')
         assert hasattr(handler, '_query_knowledge_ui')
+
+
+class TestMenuRagConformidadeUX:
+    """Tests for STORY-044: UX conformity (R4/R5/R6/R7)."""
+
+    @patch('foton_system.interfaces.cli.menus_rag.format_error_with_suggestion')
+    def test_menus_rag_error_suggestions(self, mock_format):
+        """All except blocks should use format_error_with_suggestion (R4/RULE-UX-8.3)."""
+        from foton_system.interfaces.cli.menus_rag import MenuRagHandler
+
+        mock_menu = MagicMock()
+        handler = MenuRagHandler(mock_menu)
+
+        mock_format.return_value = "erro tratado"
+        mock_profile = MagicMock()
+        mock_profile.cpu_cores = 4
+        mock_profile.ram_total_gb = 8.0
+        mock_profile.ram_available_gb = 4.0
+        mock_profile.has_cuda = False
+        mock_profile.has_mps = False
+        mock_profile.disk_free_gb = 30.0
+
+        with patch('foton_system.core.rag.hardware_profiler.HardwareProfiler.detect',
+                   side_effect=Exception("hw fail")):
+            with patch('foton_system.core.memory.vector_store.VectorStoreManager') as MockVSM:
+                mock_vsm = MagicMock()
+                mock_vsm.diagnostic.return_value = {"mode": "minilm", "stores": {}}
+                MockVSM.return_value = mock_vsm
+                handler.show_diagnostics()
+                assert mock_format.called, "show_diagnostics hardware except nao usou format_error_with_suggestion"
+
+        mock_format.reset_mock()
+        with patch('foton_system.core.rag.hardware_profiler.HardwareProfiler.detect',
+                   return_value=mock_profile):
+            with patch('foton_system.core.memory.vector_store.VectorStoreManager') as MockVSM:
+                mock_vsm = MagicMock()
+                mock_vsm.diagnostic.side_effect = Exception("diag fail")
+                MockVSM.return_value = mock_vsm
+                handler.show_diagnostics()
+                assert mock_format.called, "show_diagnostics colecoes except nao usou format_error_with_suggestion"
+
+        mock_format.reset_mock()
+        with patch('foton_system.core.rag.model_registry.ModelRegistry') as MockReg:
+            mock_reg = MagicMock()
+            mock_reg.list_models.side_effect = Exception("list fail")
+            MockReg.return_value = mock_reg
+            handler.show_model_status()
+            assert mock_format.called, "show_model_status except nao usou format_error_with_suggestion"
+
+    def test_menus_rag_ptbr(self):
+        """Strings should be in proper PT-BR with accents (R5/RULE-UX-4.1)."""
+        import ast, builtins
+
+        source_path = None
+        import foton_system.interfaces.cli.menus_rag as mod
+        source_path = mod.__file__
+
+        with builtins.open(source_path, 'r', encoding='utf-8') as f:
+            source = f.read()
+
+        assert "Opcao invalida" not in source, \
+            "Encontrado 'Opcao invalida' sem acento (deve ser 'Opção inválida')"
+        assert "Opção inválida" in source or "Opção invalida" not in source
+
+    def test_menus_rag_fstrings(self):
+        """No .format() calls should remain in menus_rag.py (R6/RULE-UX-8.13)."""
+        import builtins
+
+        from foton_system.interfaces.cli import menus_rag
+        source_path = menus_rag.__file__
+
+        with builtins.open(source_path, 'r', encoding='utf-8') as f:
+            source = f.read()
+
+        lines = source.split('\n')
+        format_lines = []
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            if '.format(' in stripped and not stripped.startswith('#'):
+                format_lines.append((i, stripped))
+
+        assert not format_lines, \
+            f"{len(format_lines)} chamadas .format() encontradas:\n" + \
+            "\n".join(f"  L{n}: {s}" for n, s in format_lines)
+
+    def test_show_diagnostics_breadcrumb(self):
+        """show_diagnostics should call print_breadcrumb (R7/RULE-UX-1.1)."""
+        from foton_system.interfaces.cli.menus_rag import MenuRagHandler
+
+        mock_menu = MagicMock()
+        handler = MenuRagHandler(mock_menu)
+
+        mock_profile = MagicMock()
+        mock_profile.cpu_cores = 4
+        mock_profile.ram_total_gb = 8.0
+        mock_profile.ram_available_gb = 4.0
+        mock_profile.has_cuda = False
+        mock_profile.has_mps = False
+        mock_profile.disk_free_gb = 30.0
+
+        with patch('foton_system.core.rag.hardware_profiler.HardwareProfiler.detect',
+                   return_value=mock_profile):
+            with patch('foton_system.core.memory.vector_store.VectorStoreManager') as MockVSM:
+                mock_vsm = MagicMock()
+                mock_vsm.diagnostic.return_value = {"mode": "minilm", "stores": {}}
+                MockVSM.return_value = mock_vsm
+                handler.show_diagnostics()
+                mock_menu.print_breadcrumb.assert_called_once_with(["Sistema", "Diagnostico"])
