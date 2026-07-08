@@ -2,6 +2,11 @@ import unittest
 from unittest.mock import MagicMock, patch, call
 from typing import Any, Callable
 from foton_system.interfaces.cli.menus import MenuSystem
+from foton_system.interfaces.cli.menus_clients import MenuClientsHandler
+from foton_system.interfaces.cli.menus_finance import MenuFinanceHandler
+from foton_system.interfaces.cli.menus_docs import MenuDocsHandler
+from foton_system.interfaces.cli.menus_config import MenuConfigHandler
+from foton_system.interfaces.cli.menus_rag import MenuRagHandler
 from foton_system.interfaces.cli.views.tui_layout import TUILayout
 
 class TestMenuUI(unittest.TestCase):
@@ -775,6 +780,167 @@ class TestBreadcrumbExhaustive(unittest.TestCase):
             if 'TUILayout.print_header(' in body_text and 'print_breadcrumb(' not in body_text:
                 self.fail(
                     f"Line {i+1}: {line.strip()} has print_header but no print_breadcrumb"
+                )
+
+
+class TestMenuSystemExplicitHandlers(unittest.TestCase):
+    def setUp(self):
+        patcher_repo = patch('foton_system.modules.clients.infrastructure.repositories.excel_client_repository.ExcelClientRepository')
+        patcher_docx = patch('foton_system.modules.documents.infrastructure.adapters.python_docx_adapter.PythonDocxAdapter')
+        patcher_pptx = patch('foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter.PythonPPTXAdapter')
+        patcher_rag = patch('foton_system.interfaces.cli.menus_rag.MenuRagHandler')
+        self.mock_repo = patcher_repo.start()
+        patcher_docx.start()
+        patcher_pptx.start()
+        self.mock_rag = patcher_rag.start()
+        self.menu = MenuSystem()
+        self._patchers = [patcher_repo, patcher_docx, patcher_pptx, patcher_rag]
+
+    def tearDown(self):
+        for p in self._patchers:
+            p.stop()
+
+    def test_all_handlers_are_public_attributes(self):
+        self.assertTrue(hasattr(self.menu, 'client_handler'))
+        self.assertTrue(hasattr(self.menu, 'finance_handler'))
+        self.assertTrue(hasattr(self.menu, 'docs_handler'))
+        self.assertTrue(hasattr(self.menu, 'config_handler'))
+        self.assertTrue(hasattr(self.menu, 'rag_handler'))
+
+    def test_handler_types_are_correct(self):
+        from foton_system.interfaces.cli.menus_clients import MenuClientsHandler
+        from foton_system.interfaces.cli.menus_finance import MenuFinanceHandler
+        from foton_system.interfaces.cli.menus_docs import MenuDocsHandler
+        from foton_system.interfaces.cli.menus_config import MenuConfigHandler
+        self.assertIsInstance(self.menu.client_handler, MenuClientsHandler)
+        self.assertIsInstance(self.menu.finance_handler, MenuFinanceHandler)
+        self.assertIsInstance(self.menu.docs_handler, MenuDocsHandler)
+        self.assertIsInstance(self.menu.config_handler, MenuConfigHandler)
+        self.assertIsInstance(self.menu.rag_handler, MenuRagHandler)
+
+    def test_handlers_receive_menu_system_reference(self):
+        self.assertIs(self.menu.client_handler.menu, self.menu)
+        self.assertIs(self.menu.finance_handler.menu, self.menu)
+        self.assertIs(self.menu.docs_handler.menu, self.menu)
+        self.assertIs(self.menu.config_handler.menu, self.menu)
+        self.assertIs(self.menu.rag_handler.menu, self.menu)
+
+    def test_no_private_handler_attrs(self):
+        self.assertFalse(hasattr(self.menu, '_clients_handler'))
+        self.assertFalse(hasattr(self.menu, '_finance_handler'))
+        self.assertFalse(hasattr(self.menu, '_docs_handler'))
+        self.assertFalse(hasattr(self.menu, '_config_handler'))
+
+
+class TestMenuSystemNoGetattr(unittest.TestCase):
+    def test_getattr_removed(self):
+        self.assertNotIn('__getattr__', dir(MenuSystem))
+
+    def test_attribute_error_still_raised_for_unknown(self):
+        menu = object.__new__(MenuSystem)
+        with self.assertRaises(AttributeError):
+            _ = menu.nonexistent_method_xyz
+
+    def test_getattr_not_in_class_dict(self):
+        self.assertNotIn('__getattr__', MenuSystem.__dict__)
+
+
+class TestMenuSystemForwardings(unittest.TestCase):
+    def setUp(self):
+        patcher_repo = patch('foton_system.modules.clients.infrastructure.repositories.excel_client_repository.ExcelClientRepository')
+        patcher_docx = patch('foton_system.modules.documents.infrastructure.adapters.python_docx_adapter.PythonDocxAdapter')
+        patcher_pptx = patch('foton_system.modules.documents.infrastructure.adapters.python_pptx_adapter.PythonPPTXAdapter')
+        patcher_rag = patch('foton_system.interfaces.cli.menus_rag.MenuRagHandler')
+        self.mock_repo = patcher_repo.start()
+        patcher_docx.start()
+        patcher_pptx.start()
+        self.mock_rag = patcher_rag.start()
+        self.menu = MenuSystem()
+        self._patchers = [patcher_repo, patcher_docx, patcher_pptx, patcher_rag]
+
+    def tearDown(self):
+        for p in self._patchers:
+            p.stop()
+
+    def test_forwarding_to_client_handler(self):
+        with patch.object(self.menu.client_handler, 'handle_clients') as mock_fn:
+            self.menu.handle_clients()
+            mock_fn.assert_called_once()
+
+    def test_forwarding_to_finance_handler(self):
+        with patch.object(self.menu.finance_handler, 'handle_finance') as mock_fn:
+            self.menu.handle_finance()
+            mock_fn.assert_called_once()
+
+    def test_forwarding_to_docs_handler(self):
+        with patch.object(self.menu.docs_handler, 'handle_documents') as mock_fn:
+            self.menu.handle_documents()
+            mock_fn.assert_called_once()
+
+    def test_forwarding_to_config_handler(self):
+        with patch.object(self.menu.config_handler, 'handle_settings') as mock_fn:
+            self.menu.handle_settings()
+            mock_fn.assert_called_once()
+
+    def test_forwarding_to_rag_handler(self):
+        with patch.object(self.menu.rag_handler, 'handle_rag_config') as mock_fn:
+            self.menu.handle_rag_config()
+            mock_fn.assert_called_once()
+
+    def test_forwarding_read_client_info_ui(self):
+        with patch.object(self.menu.client_handler, 'read_client_info_ui') as mock_fn:
+            self.menu.read_client_info_ui('test-client')
+            mock_fn.assert_called_once_with('test-client')
+
+    def test_forwarding_generate_document_ui(self):
+        with patch.object(self.menu.docs_handler, 'generate_document_ui') as mock_fn:
+            self.menu.generate_document_ui('CONTRATO')
+            mock_fn.assert_called_once_with('CONTRATO')
+
+    def test_forwarding_with_default_param(self):
+        with patch.object(self.menu.config_handler, 'update_setting_ui') as mock_fn:
+            self.menu.update_setting_ui('cfg', 'key', 'title')
+            mock_fn.assert_called_once_with('cfg', 'key', 'title', False)
+
+    def test_forwarding_with_kwargs(self):
+        with patch.object(self.menu.config_handler, 'update_setting_ui') as mock_fn:
+            self.menu.update_setting_ui('cfg', 'key', 'title', True)
+            mock_fn.assert_called_once_with('cfg', 'key', 'title', True)
+
+    def test_existing_tests_still_work(self):
+        """Verifica que caminhos existentes de chamada continuam funcionando."""
+        with patch('builtins.input', return_value='0'):
+            self.menu.handle_clients()
+            self.menu.handle_services()
+            self.menu.handle_finance()
+
+    def test_display_clients_menu_forwarded(self):
+        with patch.object(self.menu.client_handler, 'display_clients_menu', return_value='0'):
+            result = self.menu.display_clients_menu()
+            self.assertEqual(result, '0')
+
+
+class TestMenuSystemComprehensiveCoverage(unittest.TestCase):
+    def test_all_handler_methods_have_forwarding(self):
+        import inspect
+        handler_methods = {
+            'client_handler': MenuClientsHandler,
+            'finance_handler': MenuFinanceHandler,
+            'docs_handler': MenuDocsHandler,
+            'config_handler': MenuConfigHandler,
+        }
+        # MenuRagHandler methods not forwarded (called directly within handler):
+        #   display_rag_menu, reindex_knowledge_base, show_change_mode_menu,
+        #   show_diagnostics, show_model_status, progress_callback
+        # Private methods called via self.method() within the handler itself
+        # do NOT need forwarding. Only check public methods.
+        for attr_name, handler_class in handler_methods.items():
+            for name, method in inspect.getmembers(handler_class, predicate=inspect.isfunction):
+                if name == '__init__' or name.startswith('_'):
+                    continue
+                self.assertIn(
+                    name, dir(MenuSystem),
+                    f'{name} is in {handler_class.__name__} but has no forwarding on MenuSystem'
                 )
 
 

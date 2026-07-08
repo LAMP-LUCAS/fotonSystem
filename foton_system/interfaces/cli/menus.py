@@ -20,6 +20,7 @@ from foton_system.interfaces.cli.menus_clients import MenuClientsHandler
 from foton_system.interfaces.cli.menus_finance import MenuFinanceHandler
 from foton_system.interfaces.cli.menus_docs import MenuDocsHandler
 from foton_system.interfaces.cli.menus_config import MenuConfigHandler
+from foton_system.interfaces.cli.menus_rag import MenuRagHandler
 from foton_system.interfaces.cli.command_parser import parse_command
 from foton_system.core.ops.session_tracker import increment_operations
 
@@ -29,6 +30,12 @@ logger = setup_logger()
 
 
 class MenuSystem:
+    client_handler: MenuClientsHandler
+    finance_handler: MenuFinanceHandler
+    docs_handler: MenuDocsHandler
+    config_handler: MenuConfigHandler
+    rag_handler: MenuRagHandler
+
     def __init__(self, ui_provider: Optional[UIProvider] = None):
         self.porter = get_porter()
         self.ui = ui_provider or get_ui_provider('auto')
@@ -44,27 +51,156 @@ class MenuSystem:
 
         self._ensure_database_exists()
 
-        self._clients_handler = MenuClientsHandler(self)
-        self._finance_handler = MenuFinanceHandler(self)
-        self._docs_handler = MenuDocsHandler(self)
-        self._config_handler = MenuConfigHandler(self)
-        self._rag_handler = None
+        self.client_handler = MenuClientsHandler(self)
+        self.finance_handler = MenuFinanceHandler(self)
+        self.docs_handler = MenuDocsHandler(self)
+        self.config_handler = MenuConfigHandler(self)
+        self.rag_handler = MenuRagHandler(self)
 
-    def _get_rag_handler(self):
-        if self._rag_handler is None:
-            from foton_system.interfaces.cli.menus_rag import MenuRagHandler
-            self._rag_handler = MenuRagHandler(self)
-        return self._rag_handler
+    # -- client_handler forwarding methods --
 
-    def __getattr__(self, name):
-        try:
-            handlers = (self._clients_handler, self._finance_handler, self._docs_handler, self._config_handler, self._get_rag_handler())
-        except AttributeError:
-            raise AttributeError(f"'MenuSystem' object has no attribute '{name}'")
-        for handler in handlers:
-            if hasattr(handler, name):
-                return getattr(handler, name)
-        raise AttributeError(f"'MenuSystem' object has no attribute '{name}'")
+    def handle_clients(self):
+        return self.client_handler.handle_clients()
+
+    def handle_services(self):
+        return self.client_handler.handle_services()
+
+    def display_clients_menu(self):
+        return self.client_handler.display_clients_menu()
+
+    def display_services_menu(self):
+        return self.client_handler.display_services_menu()
+
+    def create_client_ui(self):
+        return self.client_handler.create_client_ui()
+
+    def read_client_info_ui(self, client_name=None):
+        return self.client_handler.read_client_info_ui(client_name)
+
+    def update_client_info_ui(self):
+        return self.client_handler.update_client_info_ui()
+
+    def fill_missing_codes_ui(self):
+        return self.client_handler.fill_missing_codes_ui()
+
+    def remove_client_ui(self):
+        return self.client_handler.remove_client_ui()
+
+    def restore_client_ui(self):
+        return self.client_handler.restore_client_ui()
+
+    def pipeline_sync_ui(self):
+        return self.client_handler.pipeline_sync_ui()
+
+    def search_client_ui(self):
+        return self.client_handler.search_client_ui()
+
+    def list_all_clients_ui(self):
+        return self.client_handler.list_all_clients_ui()
+
+    def handle_client_servicos_menu(self):
+        return self.client_handler.handle_client_servicos_menu()
+
+    def list_client_servicos_ui(self):
+        return self.client_handler.list_client_servicos_ui()
+
+    def create_client_servico_ui(self):
+        return self.client_handler.create_client_servico_ui()
+
+    def validar_codigos_servicos_ui(self):
+        return self.client_handler.validar_codigos_servicos_ui()
+
+    def corrigir_codigos_servicos_ui(self):
+        return self.client_handler.corrigir_codigos_servicos_ui()
+
+    def handle_client_sync_menu(self):
+        return self.client_handler.handle_client_sync_menu()
+
+    def handle_service_sync_menu(self):
+        return self.client_handler.handle_service_sync_menu()
+
+    # -- finance_handler forwarding methods --
+
+    def handle_finance(self):
+        return self.finance_handler.handle_finance()
+
+    def display_finance_menu(self):
+        return self.finance_handler.display_finance_menu()
+
+    def registrar_financeiro_ui(self):
+        return self.finance_handler.registrar_financeiro_ui()
+
+    def consultar_financeiro_ui(self):
+        return self.finance_handler.consultar_financeiro_ui()
+
+    def resumo_financeiro_ui(self):
+        return self.finance_handler.resumo_financeiro_ui()
+
+    # -- docs_handler forwarding methods --
+
+    def handle_documents(self):
+        return self.docs_handler.handle_documents()
+
+    def handle_webview_interface(self):
+        return self.docs_handler.handle_webview_interface()
+
+    def display_documents_menu(self):
+        return self.docs_handler.display_documents_menu()
+
+    def generate_document_ui(self, doc_type):
+        return self.docs_handler.generate_document_ui(doc_type)
+
+    def generate_batch_ui(self):
+        return self.docs_handler.generate_batch_ui()
+
+    def validate_template_ui(self):
+        return self.docs_handler.validate_template_ui()
+
+    def history_documents_ui(self):
+        return self.docs_handler.history_documents_ui()
+
+    # -- config_handler forwarding methods --
+
+    def handle_productivity(self):
+        return self.config_handler.handle_productivity()
+
+    def handle_settings(self):
+        return self.config_handler.handle_settings()
+
+    def handle_installation(self):
+        return self.config_handler.handle_installation()
+
+    def handle_watcher(self):
+        return self.config_handler.handle_watcher()
+
+    def display_productivity_menu(self):
+        return self.config_handler.display_productivity_menu()
+
+    def display_settings_menu(self, config):
+        return self.config_handler.display_settings_menu(config)
+
+    def start_pomodoro_ui(self):
+        return self.config_handler.start_pomodoro_ui()
+
+    def handle_admin_tools(self):
+        return self.config_handler.handle_admin_tools()
+
+    def _open_workspace_folder(self, config):
+        return self.config_handler._open_workspace_folder(config)
+
+    def update_setting_ui(self, config, key, title, is_file=False):
+        return self.config_handler.update_setting_ui(config, key, title, is_file)
+
+    # -- rag_handler forwarding methods --
+
+    def handle_rag_config(self):
+        return self.rag_handler.handle_rag_config()
+
+    def _index_knowledge_ui(self):
+        return self.rag_handler._index_knowledge_ui()
+
+    def _query_knowledge_ui(self):
+        return self.rag_handler._query_knowledge_ui()
 
     def _get_logger(self):
         return logger

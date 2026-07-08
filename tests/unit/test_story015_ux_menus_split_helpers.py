@@ -111,7 +111,8 @@ class TestMenuSplit:
         from foton_system.interfaces.cli.menus import MenuSystem
         with patch('foton_system.interfaces.cli.menus.ExcelClientRepository'), \
              patch('foton_system.interfaces.cli.menus.PythonDocxAdapter'), \
-             patch('foton_system.interfaces.cli.menus.PythonPPTXAdapter'):
+             patch('foton_system.interfaces.cli.menus.PythonPPTXAdapter'), \
+             patch('foton_system.interfaces.cli.menus.MenuRagHandler'):
             menu = MenuSystem()
         assert hasattr(menu, 'run')
         assert hasattr(menu, 'display_main_menu')
@@ -122,56 +123,62 @@ class TestMenuSplit:
         from foton_system.interfaces.cli.menus import MenuSystem
         with patch('foton_system.interfaces.cli.menus.ExcelClientRepository'), \
              patch('foton_system.interfaces.cli.menus.PythonDocxAdapter'), \
-             patch('foton_system.interfaces.cli.menus.PythonPPTXAdapter'):
+             patch('foton_system.interfaces.cli.menus.PythonPPTXAdapter'), \
+             patch('foton_system.interfaces.cli.menus.MenuRagHandler'):
             menu = MenuSystem()
-        assert hasattr(menu, '_clients_handler')
-        assert hasattr(menu, '_finance_handler')
-        assert hasattr(menu, '_docs_handler')
-        assert hasattr(menu, '_config_handler')
+        assert hasattr(menu, 'client_handler')
+        assert hasattr(menu, 'finance_handler')
+        assert hasattr(menu, 'docs_handler')
+        assert hasattr(menu, 'config_handler')
+        assert hasattr(menu, 'rag_handler')
 
-    def test_getattr_delegates_to_clients_handler(self):
+    def test_handlers_forward_to_client_handler(self):
         from foton_system.interfaces.cli.menus import MenuSystem
         from foton_system.interfaces.cli.menus_clients import MenuClientsHandler
         with patch('foton_system.interfaces.cli.menus.ExcelClientRepository'), \
              patch('foton_system.interfaces.cli.menus.PythonDocxAdapter'), \
-             patch('foton_system.interfaces.cli.menus.PythonPPTXAdapter'):
+             patch('foton_system.interfaces.cli.menus.PythonPPTXAdapter'), \
+             patch('foton_system.interfaces.cli.menus.MenuRagHandler'):
             menu = MenuSystem()
-        assert isinstance(menu._clients_handler, MenuClientsHandler)
-        assert menu.handle_clients == menu._clients_handler.handle_clients
-        assert menu.search_client_ui == menu._clients_handler.search_client_ui
+        assert isinstance(menu.client_handler, MenuClientsHandler)
+        assert menu.handle_clients is not None
+        assert menu.search_client_ui is not None
 
-    def test_getattr_delegates_to_finance_handler(self):
+    def test_handlers_forward_to_finance_handler(self):
         from foton_system.interfaces.cli.menus import MenuSystem
         from foton_system.interfaces.cli.menus_finance import MenuFinanceHandler
         with patch('foton_system.interfaces.cli.menus.ExcelClientRepository'), \
              patch('foton_system.interfaces.cli.menus.PythonDocxAdapter'), \
-             patch('foton_system.interfaces.cli.menus.PythonPPTXAdapter'):
+             patch('foton_system.interfaces.cli.menus.PythonPPTXAdapter'), \
+             patch('foton_system.interfaces.cli.menus.MenuRagHandler'):
             menu = MenuSystem()
-        assert isinstance(menu._finance_handler, MenuFinanceHandler)
-        assert menu.handle_finance == menu._finance_handler.handle_finance
-        assert menu.registrar_financeiro_ui == menu._finance_handler.registrar_financeiro_ui
+        assert isinstance(menu.finance_handler, MenuFinanceHandler)
+        assert menu.handle_finance is not None
+        assert menu.registrar_financeiro_ui is not None
 
-    def test_getattr_delegates_to_docs_handler(self):
+    def test_handlers_forward_to_docs_handler(self):
         from foton_system.interfaces.cli.menus import MenuSystem
         from foton_system.interfaces.cli.menus_docs import MenuDocsHandler
         with patch('foton_system.interfaces.cli.menus.ExcelClientRepository'), \
              patch('foton_system.interfaces.cli.menus.PythonDocxAdapter'), \
-             patch('foton_system.interfaces.cli.menus.PythonPPTXAdapter'):
+             patch('foton_system.interfaces.cli.menus.PythonPPTXAdapter'), \
+             patch('foton_system.interfaces.cli.menus.MenuRagHandler'):
             menu = MenuSystem()
-        assert isinstance(menu._docs_handler, MenuDocsHandler)
-        assert menu.handle_documents == menu._docs_handler.handle_documents
-        assert menu.generate_document_ui == menu._docs_handler.generate_document_ui
+        assert isinstance(menu.docs_handler, MenuDocsHandler)
+        assert menu.handle_documents is not None
+        assert menu.generate_document_ui is not None
 
-    def test_getattr_delegates_to_config_handler(self):
+    def test_handlers_forward_to_config_handler(self):
         from foton_system.interfaces.cli.menus import MenuSystem
         from foton_system.interfaces.cli.menus_config import MenuConfigHandler
         with patch('foton_system.interfaces.cli.menus.ExcelClientRepository'), \
              patch('foton_system.interfaces.cli.menus.PythonDocxAdapter'), \
-             patch('foton_system.interfaces.cli.menus.PythonPPTXAdapter'):
+             patch('foton_system.interfaces.cli.menus.PythonPPTXAdapter'), \
+             patch('foton_system.interfaces.cli.menus.MenuRagHandler'):
             menu = MenuSystem()
-        assert isinstance(menu._config_handler, MenuConfigHandler)
-        assert menu.handle_settings == menu._config_handler.handle_settings
-        assert menu.handle_watcher == menu._config_handler.handle_watcher
+        assert isinstance(menu.config_handler, MenuConfigHandler)
+        assert menu.handle_settings is not None
+        assert menu.handle_watcher is not None
 
     def test_submodules_importable(self):
         from foton_system.interfaces.cli import menus_clients
