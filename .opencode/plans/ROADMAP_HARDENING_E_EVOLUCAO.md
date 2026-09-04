@@ -26,15 +26,15 @@ Este documento define a sequência tática de execução das melhorias de engenh
 - [x] Execução da suite de testes para validação de zero regressão (com isolamento de basetemp e mock_config)
 
 ### Momento 2: Sprint de Hardening (Técnica)
-- [ ] Story HARD-01: Desacoplar `tui_form_filler_use_case` via `FormInterfacePort` (eliminar dependência da TUI)
-- [ ] Story HARD-02: Eliminar `modules/sync/sync_service.py` e consolidar em `pipeline_sync.py`
-- [ ] Story HARD-03: Quebrar ciclo `core.memory ↔ core.rag`
-- [ ] Story HARD-04: Quebrar ciclo `core.ops ↔ modules.documents`
-- [ ] Story HARD-05: Fatiar `foton_mcp.py` em sub-roteadores (`routers/`)
-- [ ] Story HARD-06: Modularizar `client_crud.py` (extrair geradores e templates)
+- [x] Story HARD-01: Desacoplar `tui_form_filler_use_case` via `FormInterfacePort` (eliminar dependência da TUI)
+- [x] Story HARD-02: Eliminar `modules/sync/sync_service.py` e consolidar em `pipeline_sync.py`
+- [x] Story HARD-03: Quebrar ciclo `core.memory ↔ core.rag`
+- [x] Story HARD-04: Quebrar ciclo `core.ops ↔ modules.documents`
+- [x] Story HARD-05: Fatiar `foton_mcp.py` em sub-roteadores (`routers/`)
+- [x] Story HARD-06: Modularizar `client_crud.py` (extrair geradores e templates)
 
 ### Momento 3: Marcos Estratégicos
-- [ ] Fechar Sprint 9: RAG Pipeline v2 (STORY-036 a 041)
-- [ ] Planejar e fatiar o EPIC-006: Módulo Financeiro v2 (`SPEC-FINANCEIRO-v2.0.md`)
-- [ ] Planejar e fatiar o EPIC-013: Interface Modal Vim+tmux
-- [ ] Planejar a migração relacional para SQLite
+- [x] Fechar Sprint 9: RAG Pipeline v2 (STORY-036 a 041)
+- [x] Implementar o EPIC-006: Módulo Financeiro v2 (`SPEC-FINANCEIRO-v2.0.md`)
+- [x] Implementar o EPIC-013: Interface Modal Vim+tmux (`SPEC-TUI-MODAL-v1.0.md`)
+- [x] Implementar a migração relacional para SQLite (ACID e ClientRepositoryPort)

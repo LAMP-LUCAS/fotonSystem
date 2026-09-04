@@ -7,7 +7,20 @@ e o versionamento segue [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-### Added (EPIC-004 — Sprint 8: Recuperação Inteligente RAG)
+### Added (Momento 3 — Marcos Estratégicos Concluídos)
+- **Fechamento Oficial da Sprint 9 (RAG v2.0)** (STORY-030 a STORY-041)
+  - 26 RULE-IDs totalmente implementados e cobertos por 20 testes E2E e benchmarks.
+- **EPIC-006: Inteligência Financeira v2.0** (`SPEC-FINANCEIRO-v2.0.md`)
+  - Expansão do modelo `FinanceEntry` com categorias de despesa, vencimento, vínculo com serviços e status de conciliação.
+  - Novos métodos no `FinanceService`: lucro por obra/serviço, projeção de fluxo de caixa (30/60/90 dias), alerta de estouro de orçamento e conciliação bancária CSV.
+  - 4 novas ferramentas MCP em `finance_router.py`: `lucro_por_servico`, `fluxo_caixa_projetado`, `painel_financeiro_cliente`, `conciliar_extrato_bancario`.
+- **EPIC-013: Interface Modal TUI Vim+tmux** (`SPEC-TUI-MODAL-v1.0.md`)
+  - Pacote `interfaces/cli/modal/` com `ModalEngine`, `ModalBuffer`, `ModalStatusBar`.
+  - 4 modos de operação (`NORMAL`, `INSERT`, `VISUAL`, `COMANDO`), status bar contextual, atalhos de navegação e comandos `:` e `/`.
+  - Configuração `modal_enabled` com fallback 100% transparente para a TUI hierárquica.
+- **Passo 4: Persistência Relacional SQLite (ACID)**
+  - Pacote `modules/shared/infrastructure/database/` com `SQLiteConnection` (WAL mode), `SQLiteSchema`, `SQLiteClientRepository` e `SQLiteMigrationService`.
+  - Migração bidirecional automatizada Excel $\leftrightarrow$ SQLite.
 - **SPEC-RAG-v1.0** (STORY-028) — formalização do módulo RAG com 18 RULE-IDs
 - **Filtros + Contexto + Diagnóstico** (STORY-029, RULE-RAG-4.1/4.2/4.3/5.1/5.2/5.3/6.1/6.2)
   - `consultar_conhecimento` agora aceita filtro `cliente` e `tipo_doc`
