@@ -7,20 +7,42 @@ e o versionamento segue [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-### Added (Momento 3 — Marcos Estratégicos Concluídos)
-- **Fechamento Oficial da Sprint 9 (RAG v2.0)** (STORY-030 a STORY-041)
-  - 26 RULE-IDs totalmente implementados e cobertos por 20 testes E2E e benchmarks.
+## [1.5.0] - 2026-09-04
+
+### Added (Momento 3 — Marcos Estratégicos)
+- **Sprint 9: RAG v2.0 Pipeline Multi-Modelo** (STORY-030 a STORY-041)
+  - 26 RULE-IDs totalmente implementados com Hardware Profiler, Model Registry, Model Router, VectorStoreManager, Pipeline Nodes, Download Manager e testes E2E.
 - **EPIC-006: Inteligência Financeira v2.0** (`SPEC-FINANCEIRO-v2.0.md`)
-  - Expansão do modelo `FinanceEntry` com categorias de despesa, vencimento, vínculo com serviços e status de conciliação.
+  - Expansão do modelo `FinanceEntry` com categorias de despesa, parcelamento, vencimento, vínculo com serviços e status de conciliação.
   - Novos métodos no `FinanceService`: lucro por obra/serviço, projeção de fluxo de caixa (30/60/90 dias), alerta de estouro de orçamento e conciliação bancária CSV.
   - 4 novas ferramentas MCP em `finance_router.py`: `lucro_por_servico`, `fluxo_caixa_projetado`, `painel_financeiro_cliente`, `conciliar_extrato_bancario`.
 - **EPIC-013: Interface Modal TUI Vim+tmux** (`SPEC-TUI-MODAL-v1.0.md`)
   - Pacote `interfaces/cli/modal/` com `ModalEngine`, `ModalBuffer`, `ModalStatusBar`.
   - 4 modos de operação (`NORMAL`, `INSERT`, `VISUAL`, `COMANDO`), status bar contextual, atalhos de navegação e comandos `:` e `/`.
-  - Configuração `modal_enabled` com fallback 100% transparente para a TUI hierárquica.
-- **Passo 4: Persistência Relacional SQLite (ACID)**
+  - Configuração `modal_enabled` com fallback transparente para a TUI hierárquica.
+- **Persistência Relacional SQLite (ACID)**
   - Pacote `modules/shared/infrastructure/database/` com `SQLiteConnection` (WAL mode), `SQLiteSchema`, `SQLiteClientRepository` e `SQLiteMigrationService`.
-  - Migração bidirecional automatizada Excel $\leftrightarrow$ SQLite.
+  - Migração bidirecional automatizada Excel $\leftrightarrow$ SQLite e persistência ACID.
+
+### Changed (Momento 2 — Sprint de Hardening e Desacoplamento)
+- **Eliminação dos 5 Ciclos de Dependência entre Módulos:**
+  - Extraído `core/interfaces/vector_store_interface.py` quebrando ciclo RAG $\leftrightarrow$ VectorStore.
+  - Extraído `core/interfaces/document_content_interface.py` quebrando ciclo Document $\leftrightarrow$ VectorStore.
+  - Isolado `PathManager` e abstrações de caminho quebrando ciclo Clients $\leftrightarrow$ Documents.
+  - Criado `BaseFinanceRepository` em shared quebrando ciclo Finance $\leftrightarrow$ Clients.
+  - Inversão de dependência em `tui_form_filler_use_case.py` quebrando ciclo Documents $\leftrightarrow$ UI.
+- **Expurgo do legado `sync_service.py`:** substituição definitiva pelos use cases modernos de sincronização.
+- **Decomposição Modular do Servidor MCP:** `foton_mcp.py` modularizado em routers de domínio desacoplados (`clients_router`, `docs_router`, `finance_router`, `sync_router`, `rag_router`, `infra_router`).
+
+### Fixed & Cleaned (Momento 1 — Higiene Imediata)
+- Remoção de drift em `settings.json`, eliminação de chaves órfãs e sincronização estrita com `config.py`.
+- Limpeza de logs temporários e arquivos de depuração.
+- Documentação formal do Roadmap de 3 Momentos (`AuditoriaSet2026_PlanoHardening.md`).
+
+### Security (Auditoria Profunda e Saneamento)
+- Remoção de caminhos absolutos locais hardcoded e fallbacks de usuários pessoais em scripts utilitários e MCP (`foton_mcp.py`, `analyze_templates.py`, `check_email_conflict.py`).
+- Criação de `settings.json.example` higienizado para onboarding de novos desenvolvedores.
+- Atualização de suites de testes unitários para utilizar diretórios e fixtures agnósticas.
 - **SPEC-RAG-v1.0** (STORY-028) — formalização do módulo RAG com 18 RULE-IDs
 - **Filtros + Contexto + Diagnóstico** (STORY-029, RULE-RAG-4.1/4.2/4.3/5.1/5.2/5.3/6.1/6.2)
   - `consultar_conhecimento` agora aceita filtro `cliente` e `tipo_doc`

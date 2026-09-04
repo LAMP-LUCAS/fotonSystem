@@ -1,4 +1,4 @@
-# Foton System v1.4.0 — Guia do Agente
+# Foton System v1.5.0 — Guia do Agente
 
 Sistema de gestão para escritório de arquitetura.
 
@@ -127,7 +127,7 @@ foton_system/
 
 ---
 
-## 47 Ferramentas MCP (v1.4.0)
+## 51 Ferramentas MCP (v1.5.0)
 
 ### 📂 Clientes e Serviços (11)
 | Ferramenta | Descrição |
@@ -144,12 +144,16 @@ foton_system/
 | `restaurar_servico` | Restaura serviço deletado para ATIVO |
 | `atualizar_servico` | Atualiza metadados do serviço no DB |
 
-### 💵 Financeiro (3)
+### 💵 Financeiro (7)
 | Ferramenta | Descrição |
 |---|---|
 | `registrar_financeiro` | Entrada/saída no CSV do cliente |
 | `consultar_financeiro` | Saldo e extrato do cliente |
 | `resumo_financeiro_geral` | Dashboard do escritório |
+| `lucro_por_servico` | Rentabilidade detalhada por serviço/sub-projeto |
+| `fluxo_caixa_projetado` | Projeção futura de fluxo de caixa (30/60/90 dias) |
+| `painel_financeiro_cliente` | DRE sintético e visão consolidada por cliente |
+| `conciliar_extrato_bancario` | Conciliação automática de extrato CSV bancário |
 
 ### 📄 Documentos (8)
 | Ferramenta | Descrição |
