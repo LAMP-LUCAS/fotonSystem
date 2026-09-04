@@ -42,7 +42,6 @@ def _find_project_root() -> Path:
         candidates = [
             Path.home() / "OneDrive" / "LAMP_ARQUITETURA" / "fotonSystem",
             Path(os.environ.get("USERPROFILE", "")) / "OneDrive" / "LAMP_ARQUITETURA" / "fotonSystem",
-            Path("C:\\Users") / os.environ.get("USERNAME", "Lucas") / "OneDrive" / "LAMP_ARQUITETURA" / "fotonSystem",
         ]
         for c in candidates:
             if (c / "foton_system" / "__init__.py").exists():

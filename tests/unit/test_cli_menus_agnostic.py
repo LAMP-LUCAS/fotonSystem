@@ -108,7 +108,7 @@ def test_open_workspace_folder_windows(mock_startfile, mock_porter, monkeypatch)
     monkeypatch.setattr('builtins.input', lambda _: '')
 
     config = MagicMock()
-    config.workspace_path = 'C:\\Users\\Lucas\\foton'
+    config.workspace_path = 'C:\\Users\\TestUser\\foton'
 
     with patch('foton_system.interfaces.cli.menus.get_ui_provider'), \
          patch('foton_system.interfaces.cli.menus.ExcelClientRepository'), \
@@ -117,4 +117,4 @@ def test_open_workspace_folder_windows(mock_startfile, mock_porter, monkeypatch)
          patch('foton_system.interfaces.cli.menus.TUILayout'):
         menu = MenuSystem()
         menu._open_workspace_folder(config)
-        mock_startfile.assert_called_once_with('C:\\Users\\Lucas\\foton')
+        mock_startfile.assert_called_once_with('C:\\Users\\TestUser\\foton')

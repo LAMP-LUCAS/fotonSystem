@@ -9,9 +9,10 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 
 from foton_system.modules.documents.docx_handler import DOCXHandler
 from foton_system.modules.documents.pptx_handler import PPTXHandler
+from foton_system.modules.shared.infrastructure.config.config import Config
 
 def check_email_conflict():
-    templates_dir = Path(r"C:\Users\Lucas\OneDrive\LAMP_ARQUITETURA\ADM\KIT DOC")
+    templates_dir = Config().templates_path
     docx_handler = DOCXHandler()
     pptx_handler = PPTXHandler()
     

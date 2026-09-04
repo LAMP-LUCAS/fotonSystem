@@ -1,14 +1,10 @@
-﻿{
-    "caminho_pastaClientes": "C:\\Caminho\\Para\\Clientes",
-    "caminho_baseDados": "C:\\Caminho\\Para\\baseDados.xlsx",
-    "caminho_baseClientes": "C:\\Caminho\\Para\\baseClientes.xlsx",
-    "caminho_baseServicos": "C:\\Caminho\\Para\\baseServicos.xlsx",
-    "caminho_templates": "C:\\Caminho\\Para\\Templates",
+{
+    "caminho_pastaClientes": "C:\\Users\\<SEU_USUARIO>\\OneDrive\\LAMP_ARQUITETURA\\CLIENTES",
+    "caminho_baseDados": "C:\\Users\\<SEU_USUARIO>\\AppData\\Local\\FotonSystem\\baseDados.xlsx",
+    "caminho_baseClientes": "C:\\Users\\<SEU_USUARIO>\\AppData\\Local\\FotonSystem\\baseClientes.xlsx",
+    "caminho_baseServicos": "C:\\Users\\<SEU_USUARIO>\\AppData\\Local\\FotonSystem\\baseServicos.xlsx",
+    "caminho_templates": "C:\\Users\\<SEU_USUARIO>\\OneDrive\\LAMP_ARQUITETURA\\ADM\\KIT DOC",
     "ignored_folders": ["DOC", "ARQ", "HID", "ELE", "STR", "PL", "EVT"],
     "clean_missing_variables": true,
-    "missing_variable_placeholder": "---",
-    "info_file_patterns": {
-        "cliente": "INFO-CLIENTE-{codCliente}_{versao}_R{revisao}.md",
-        "servico": "INFO-SERVICO-{codServico}_{versao}_R{revisao}.md"
-    }
+    "missing_variable_placeholder": "---"
 }
