@@ -8,7 +8,7 @@ import shutil
 import textwrap
 import re
 from colorama import Fore, Style
-from typing import List, Optional
+from typing import Any, Callable, List, Optional
 
 class TUILayout:
     """
@@ -111,16 +111,51 @@ class TUILayout:
 
     @staticmethod
     def print_menu_option(key: str, label: str, color: str = Fore.CYAN):
-        """Renderiza uma opção de menu alinhada."""
+        """Renderiza uma opção de menu alinhada ou um separador visual."""
         width = TUILayout.get_width()
-        content = f"{Fore.YELLOW}{key}. {Fore.WHITE}{label}"
-        TUILayout.print_line(content, width, color)
+        if key.startswith("---"):
+            # Separador visual
+            content = f"{Fore.LIGHTBLACK_EX}{'─' * 3} {label} {'─' * (width - len(label) - 12)}{Style.RESET_ALL}"
+            print(f"{color}║ {content}{' ' * 2}{color}║")
+        else:
+            content = f"{Fore.YELLOW}{key}. {Fore.WHITE}{label}"
+            TUILayout.print_line(content, width, color)
 
     @staticmethod
     def print_field(label: str, value: str, tag: str = "", is_calc: bool = False):
         """Renderiza um campo de formulário."""
         tag_color = Fore.GREEN if is_calc else Fore.BLUE
         print(f"\n  {Fore.WHITE}{label}: {Style.BRIGHT}{value}{Style.RESET_ALL} {tag_color}{tag}{Style.RESET_ALL}")
+
+    @staticmethod
+    def paginate_items(
+        items: list,
+        render_item: Callable[[Any, int], None],
+        page_size: int = 10,
+        header_title: str = "",
+        empty_msg: str = "Nenhum item encontrado.",
+    ) -> int:
+        total = len(items)
+        if total == 0:
+            print(f"\n  {empty_msg}")
+            return 0
+
+        for start in range(0, total, page_size):
+            TUILayout.clear()
+            page_num = start // page_size + 1
+            total_pages = (total + page_size - 1) // page_size
+            header = f"{header_title} \u2014 P\u00e1gina {page_num} de {total_pages}" if header_title else f"P\u00e1gina {page_num} de {total_pages}"
+            TUILayout.print_header(header)
+
+            page_items = items[start:start + page_size]
+            for idx, item in enumerate(page_items, start=start + 1):
+                render_item(item, idx)
+
+            remaining = total - (start + page_size)
+            if remaining > 0:
+                input(f"\n  {Fore.CYAN}Pressione Enter para continuar... ({remaining} restante(s)){Style.RESET_ALL}")
+
+        return total
 
     @staticmethod
     def wrap_text(text: str, indent: int = 4) -> str:

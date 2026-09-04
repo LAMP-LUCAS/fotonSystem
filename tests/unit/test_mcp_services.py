@@ -132,8 +132,9 @@ class FakeClientService:
         content = info_file.read_text(encoding="utf-8")
         return {'filename': info_file.name, 'content': content}
 
-    def update_client_info(self, client_name, section, content):
-        import shutil
+    def update_client_info(self, client_name, section, content,
+                           operacao="append", campo=""):
+        import re, shutil
         client_path = self.resolve_client_path(client_name)
         info_files = list(client_path.glob("*INFO*.md"))
         if not info_files:
@@ -145,17 +146,50 @@ class FakeClientService:
 
         existing = info_file.read_text(encoding="utf-8")
         section_header = f"## {section}"
-        if section_header in existing:
-            parts = existing.split(section_header, 1)
-            after_header = parts[1]
-            next_section_idx = after_header.find("\n## ")
+
+        if operacao == "remove":
+            if section_header not in existing:
+                raise ValueError(f"Section '{section}' not found in INFO file.")
+            before, after = existing.split(section_header, 1)
+            after_stripped = after.lstrip('\n')
+            next_section_idx = after_stripped.find("\n## ")
             if next_section_idx == -1:
-                new_content = existing + f"\n{content}\n"
+                new_content = before.rstrip() + "\n"
             else:
-                insert_point = len(parts[0]) + len(section_header) + next_section_idx
-                new_content = existing[:insert_point] + f"\n{content}\n" + existing[insert_point:]
+                new_content = before + after_stripped[next_section_idx:]
+
+        elif operacao == "replace":
+            if section_header not in existing:
+                raise ValueError(f"Section '{section}' not found in INFO file.")
+            before, after = existing.split(section_header, 1)
+            after_stripped = after.lstrip('\n')
+            next_section_idx = after_stripped.find("\n## ")
+            if next_section_idx == -1:
+                new_content = before + section_header + "\n" + content + "\n"
+            else:
+                new_content = (before + section_header + "\n" + content + "\n"
+                               + after_stripped[next_section_idx:])
+
+        elif operacao == "field":
+            if not campo:
+                raise ValueError("Field name (campo) is required for 'field' operation.")
+            pattern = rf'(@{re.escape(campo)})\s*[:;]\s*[^\n]*'
+            if not re.search(pattern, existing):
+                raise ValueError(f"Field '@{campo}' not found in INFO file.")
+            new_content = re.sub(pattern, rf'\1: {content}', existing)
+
         else:
-            new_content = existing.rstrip() + f"\n\n{section_header}\n{content}\n"
+            if section_header in existing:
+                parts = existing.split(section_header, 1)
+                after_header = parts[1]
+                next_section_idx = after_header.find("\n## ")
+                if next_section_idx == -1:
+                    new_content = existing + f"\n{content}\n"
+                else:
+                    insert_point = len(parts[0]) + len(section_header) + next_section_idx
+                    new_content = existing[:insert_point] + f"\n{content}\n" + existing[insert_point:]
+            else:
+                new_content = existing.rstrip() + f"\n\n{section_header}\n{content}\n"
 
         info_file.write_text(new_content, encoding="utf-8")
         return backup.name
@@ -686,6 +720,68 @@ class TestMCPDocumentService(unittest.TestCase):
             result = service.create_custom_data_file('/path', 'ABC123', desc='CONTRATO')
             self.assertIn('ABC123', str(result))
             self.assertIn('CONTRATO', str(result))
+
+    def test_generate_delegates_to_op_generate_document(self):
+        """generate() delega para OpGenerateDocument ao invés de retornar stub."""
+        from unittest.mock import patch, MagicMock
+        from foton_system.interfaces.mcp.mcp_services import MCPDocumentService
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config = FakeConfig(templates_path=tmpdir)
+            docs = FakeDocumentService()
+            fake_op = MagicMock()
+            fake_op.execute.return_value = {
+                "status": "GENERATED",
+                "output_path": f"{tmpdir}/GERADO_contrato.docx",
+                "client": "TESTE",
+                "template": "contrato.docx"
+            }
+
+            with patch(
+                "foton_system.core.ops.op_doc_gen.OpGenerateDocument",
+                return_value=fake_op
+            ):
+                service = MCPDocumentService(config, docs)
+                result = service.generate(
+                    client_name="TESTE",
+                    template_name="contrato.docx",
+                    extra_data={"@cliente": "Teste"}
+                )
+
+            self.assertTrue(result.success)
+            self.assertEqual(result.message, "Documento gerado")
+            self.assertIn("GERADO_contrato.docx", result.output_path)
+            fake_op.execute.assert_called_once_with(
+                client_name="TESTE",
+                template_name="contrato.docx",
+                extra_data={"@cliente": "Teste"}
+            )
+
+    def test_generate_returns_error_on_exception(self):
+        """generate() retorna DocumentResult com success=False quando OpGenerateDocument falha."""
+        from unittest.mock import patch, MagicMock
+        from foton_system.interfaces.mcp.mcp_services import MCPDocumentService
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config = FakeConfig(templates_path=tmpdir)
+            docs = FakeDocumentService()
+            fake_op = MagicMock()
+            fake_op.execute.side_effect = ValueError("Cliente não encontrado")
+
+            with patch(
+                "foton_system.core.ops.op_doc_gen.OpGenerateDocument",
+                return_value=fake_op
+            ):
+                service = MCPDocumentService(config, docs)
+                result = service.generate(
+                    client_name="INEXISTENTE",
+                    template_name="contrato.docx"
+                )
+
+            self.assertFalse(result.success)
+            self.assertIn("Cliente não encontrado", result.message)
 
 
 class TestMCPKnowledgeService(unittest.TestCase):

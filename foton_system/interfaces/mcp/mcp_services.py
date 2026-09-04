@@ -3,11 +3,22 @@ MCP Services Layer
 
 Provides testable service classes for MCP tools with dependency injection.
 All dependencies are injected via constructor, enabling easy mocking for tests.
+@story: STORY-026 @rule: RULE-DOC-2.3
 """
 
 from pathlib import Path
 from typing import Protocol, Optional, Any
 from dataclasses import dataclass
+
+
+# @story: STORY-026 @rule: RULE-DOC-2.3
+def sanitize_path_component(name: str) -> str:
+    """Sanitiza um nome de componente de path contra path traversal.
+
+    Usa Path(name).name para extrair apenas o nome final, descartando
+    qualquer tentativa de subir diretórios (../../etc/passwd).
+    """
+    return Path(name).name
 
 
 # ==============================================================================
@@ -53,27 +64,8 @@ class DocumentServiceProtocol(Protocol):
     def create_custom_data_file(self, client_path, cod, ver='00', rev='R00', desc='PROPOSTA'): ...
     def generate_document(self, template_path: str, data_path: str, output_path: str, doc_type: str) -> None: ...
     def validate_template_keys(self, template_path: str, data_path: str, doc_type: str) -> list: ...
+    def read_generation_history(self, client_dir, limit: int = 10) -> list: ...
 
-
-class ClientServiceProtocol(Protocol):
-    """Protocol for client operations."""
-    def resolve_client_path(self, client_name: str) -> Path: ...
-    def sync_clients_db_from_folders(self) -> None: ...
-    def sync_client_folders_from_db(self) -> None: ...
-    def sync_services_db_from_folders(self) -> None: ...
-    def sync_service_folders_from_db(self, client_alias=None) -> None: ...
-    def create_client(self, name: str, tax_id: str = '', email: str = '', phone: str = '', alias: str = '') -> dict: ...
-    def export_client_data(self) -> None: ...
-    def export_service_data(self) -> None: ...
-    def import_service_data(self) -> None: ...
-    def list_clients(self) -> list: ...
-    def read_client_info(self, client_name: str) -> dict: ...
-    def update_client_info(self, client_name: str, section: str, content: str) -> str: ...
-
-
-class SyncServiceProtocol(Protocol):
-    """Protocol for sync operations."""
-    def sync_dashboard(self) -> int: ...
 
 
 class KnowledgeStoreProtocol(Protocol):
@@ -148,6 +140,7 @@ class DocumentResult:
     message: str
     output_path: Optional[str] = None
     templates: Optional[list] = None
+    batch_result: Optional[dict] = None
 
 
 @dataclass
@@ -182,9 +175,23 @@ class MCPClientService:
         """Delegate to the underlying ClientService."""
         return self._client.read_client_info(client_name)
 
-    def update_client_info(self, client_name: str, section: str, content: str) -> str:
-        """Delegate to the underlying ClientService."""
-        return self._client.update_client_info(client_name, section, content)
+    def update_client_info(self, client_name: str, section: str, content: str,
+                           operacao: str = "append", campo: str = "") -> str:
+        """Update client INFO file via POP to ensure audit trail."""
+        from foton_system.core.ops.op_update_client_info import OpUpdateClientInfo
+        config = self._config
+        if config is None:
+            from foton_system.modules.shared.infrastructure.config.config import Config
+            config = Config()
+        op = OpUpdateClientInfo(config=config, actor="Agent_MCP")
+        result = op.execute(
+            client_name=client_name,
+            section=section,
+            content=content,
+            operacao=operacao,
+            campo=campo,
+        )
+        return result["backup"]
 
     def sync_clients_db_from_folders(self) -> str:
         self._client.sync_clients_db_from_folders()
@@ -202,6 +209,10 @@ class MCPClientService:
         self._client.sync_service_folders_from_db(client_alias=client_alias)
         return "Service folders synchronized with database."
 
+    def fill_missing_codes(self) -> dict:
+        """Preenche c\u00f3digos faltantes no banco de dados."""
+        return self._client.fill_missing_codes()
+
     def export_client_data(self) -> str:
         self._client.export_client_data()
         return "Client data exported to files."
@@ -214,6 +225,10 @@ class MCPClientService:
         self._client.import_service_data()
         return "Service data imported from files."
 
+    def import_client_data(self) -> str:
+        self._client.import_client_data()
+        return "Client data imported from files."
+
     def create_client(self, name: str, tax_id: str = "", email: str = "",
                       phone: str = "", alias: str = "") -> dict:
         result = self._client.create_client(name, tax_id=tax_id, email=email,
@@ -223,6 +238,15 @@ class MCPClientService:
             'client_path': str(result.caminho),
             'dados': result.dados,
         }
+
+    def create_service_entry(self, client_alias: str, service_alias: str, cod_servico: str = None) -> dict:
+        return self._client.create_service_entry(client_alias, service_alias, cod_servico)
+
+    def validate_service_codes(self) -> list:
+        return self._client.validate_service_codes()
+
+    def fix_service_codes(self, issues: list = None) -> int:
+        return self._client.fix_service_codes(issues)
 
     def list_services(self, client_name: str) -> list:
         """List sub-services for a client folder using __ hierarchy detection."""
@@ -239,6 +263,77 @@ class MCPClientService:
                 'parent': n['parent'],
             })
         return result
+
+    def soft_delete_client(self, alias: str, confirmar: bool = False) -> dict:
+        from foton_system.core.ops.op_soft_delete_client import OpSoftDeleteClient
+        repo = self._client.repository if hasattr(self._client, 'repository') else None
+        if repo is None:
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            repo = ExcelClientRepository()
+        op = OpSoftDeleteClient(repo, actor="Agent_MCP")
+        return op.execute(alias=alias)
+
+    def restore_client(self, alias: str) -> dict:
+        from foton_system.core.ops.op_restore_client import OpRestoreClient
+        repo = self._client.repository if hasattr(self._client, 'repository') else None
+        if repo is None:
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            repo = ExcelClientRepository()
+        op = OpRestoreClient(repo, actor="Agent_MCP")
+        return op.execute(alias=alias)
+
+    def soft_delete_service(self, client_alias: str, service_alias: str, confirmar: bool = False) -> dict:
+        from foton_system.core.ops.op_soft_delete_service import OpSoftDeleteService
+        repo = self._client.repository if hasattr(self._client, 'repository') else None
+        if repo is None:
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            repo = ExcelClientRepository()
+        op = OpSoftDeleteService(repo, actor="Agent_MCP")
+        return op.execute(client_alias=client_alias, service_alias=service_alias)
+
+    def restore_service(self, client_alias: str, service_alias: str) -> dict:
+        from foton_system.core.ops.op_restore_service import OpRestoreService
+        repo = self._client.repository if hasattr(self._client, 'repository') else None
+        if repo is None:
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            repo = ExcelClientRepository()
+        op = OpRestoreService(repo, actor="Agent_MCP")
+        return op.execute(client_alias=client_alias, service_alias=service_alias)
+
+    def update_service_info(self, client_alias: str, service_alias: str, field: str, value) -> dict:
+        from foton_system.core.ops.op_update_service import OpUpdateService
+        repo = self._client.repository if hasattr(self._client, 'repository') else None
+        if repo is None:
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            repo = ExcelClientRepository()
+        op = OpUpdateService(repo, actor="Agent_MCP")
+        return op.execute(client_alias=client_alias, service_alias=service_alias, field=field, value=value)
+
+    def get_deleted_clients(self) -> list:
+        repo = self._client.repository if hasattr(self._client, 'repository') else None
+        if repo is None:
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            repo = ExcelClientRepository()
+        deleted = repo.get_deleted_clients()
+        return [
+            {"alias": c.get("Alias", ""), "nome": c.get("NomeCliente", ""), "codigo": c.get("CodCliente", "")}
+            for c in deleted
+        ]
+
+    def get_deleted_services(self) -> list:
+        repo = self._client.repository if hasattr(self._client, 'repository') else None
+        if repo is None:
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            repo = ExcelClientRepository()
+        deleted = repo.get_deleted_services()
+        return [
+            {
+                "client_alias": s.get("AliasCliente", ""),
+                "alias": s.get("Alias", ""),
+                "codigo": s.get("CodServico", ""),
+            }
+            for s in deleted
+        ]
 
 
 class MCPFinanceService:
@@ -330,12 +425,40 @@ class MCPDocumentService:
                  extra_data: dict = None, path_resolver: ClientPathResolver = None) -> DocumentResult:
         """Generate a document for a client."""
         try:
+            from foton_system.core.ops.op_doc_gen import OpGenerateDocument
+            op = OpGenerateDocument(actor="Agent_MCP")
+            result = op.execute(
+                client_name=client_name,
+                template_name=template_name,
+                extra_data=extra_data or {}
+            )
             return DocumentResult(
                 success=True,
                 message="Documento gerado",
-                output_path=f"/output/{client_name}/{template_name}"
+                output_path=result["output_path"]
             )
+        except FileNotFoundError as e:
+            return DocumentResult(success=False, message=str(e))
         except (OSError, ValueError) as e:
+            return DocumentResult(success=False, message=str(e))
+        except Exception as e:
+            return DocumentResult(success=False, message=f"Erro: {e}")
+
+    def generate_batch(self, client_name: str, documentos: list) -> DocumentResult:
+        """Generate multiple documents in batch."""
+        try:
+            from foton_system.core.ops.op_doc_gen import OpGenerateBatchDocuments
+            op = OpGenerateBatchDocuments(actor="Agent_MCP")
+            result = op.execute(
+                client_name=client_name,
+                documentos=documentos
+            )
+            return DocumentResult(
+                success=result.get("status") == "BATCH_COMPLETED",
+                message="Lote processado",
+                batch_result=result
+            )
+        except (FileNotFoundError, ValueError) as e:
             return DocumentResult(success=False, message=str(e))
         except Exception as e:
             return DocumentResult(success=False, message=f"Erro: {e}")
@@ -355,6 +478,13 @@ class MCPDocumentService:
     def create_custom_data_file(self, client_path, cod: str, ver='00', rev='R00', desc='PROPOSTA'):
         """Create a custom data file for a client."""
         return self._documents.create_custom_data_file(client_path, cod, ver, rev, desc)
+
+    def get_history(self, client_path, limit: int = 10) -> list:
+        """Get generation history for a client folder."""
+        try:
+            return self._documents.read_generation_history(client_path, limit=limit)
+        except Exception as e:
+            return []
 
 
 class MCPKnowledgeService:

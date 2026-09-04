@@ -72,7 +72,7 @@ class TestOpQueryKnowledgeValidation(unittest.TestCase):
 class TestOpQueryKnowledgeExecution(unittest.TestCase):
     """Tests for execute_logic() method."""
 
-    @patch('foton_system.core.memory.vector_store.VectorStore')
+    @patch('foton_system.core.memory.vector_store.VectorStoreManager')
     def test_returns_found_status_with_results(self, MockVectorStore):
         """Should return FOUND status when documents match."""
         mock_store = MagicMock()
@@ -93,7 +93,7 @@ class TestOpQueryKnowledgeExecution(unittest.TestCase):
         self.assertEqual(result["results"][0]["source"], "INFO-SERVICO.md")
         self.assertAlmostEqual(result["results"][0]["score"], 0.8, places=3)
 
-    @patch('foton_system.core.memory.vector_store.VectorStore')
+    @patch('foton_system.core.memory.vector_store.VectorStoreManager')
     def test_returns_empty_status_when_no_documents(self, MockVectorStore):
         """Should return EMPTY status when no documents match."""
         mock_store = MagicMock()

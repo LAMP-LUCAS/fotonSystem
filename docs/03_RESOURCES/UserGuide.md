@@ -116,7 +116,17 @@ Suas Pastas  ←→  Banco de Dados (Excel)  ←→  Arquivos INFO-*.md
 
 > **Entenda a estrutura completa:** [[DataModel|Modelo de Dados]]
 
-Cada pasta de cliente tem um arquivo `INFO-CLIENTE.md` com todos os dados:
+Cada pasta de cliente tem um arquivo INFO com todos os dados. O nome do arquivo
+segue um **pattern configurável** (v1.4.0+):
+
+```markdown
+CLIENTE/
+├── INFO-CLIENTE-JOS01_00_R00.md   ← pattern default
+└── SERVICO/
+    └── INFO-SERVICO-JOSSRV01_00_R00.md
+```
+
+Exemplo de conteúdo:
 
 ```markdown
 @nomeCliente: João Silva
@@ -127,6 +137,32 @@ Cada pasta de cliente tem um arquivo `INFO-CLIENTE.md` com todos os dados:
 
 > [!TIP]
 > Você pode editar esses arquivos diretamente pelo VS Code ou Bloco de Notas. O FOTON respeita suas mudanças!
+
+#### Personalizando os Nomes
+
+Você pode configurar o padrão de nomes no `settings.json`:
+
+```json
+"info_file_patterns": {
+    "cliente": "CLIENTE_{codCliente}_{versao}.md",
+    "servico": "SERVICO_{codServico}_{versao}.md"
+}
+```
+
+Placeholders disponíveis: `{codCliente}`, `{nomeCliente}`, `{aliasCliente}`,
+`{codServico}`, `{aliasServico}`, `{versao}`, `{revisao}`, `{data}`,
+`{dataISO}`, `{ano}`, `{mes}`, `{timestamp}`, `{extensao}`.
+
+> Consulte o [[InfoNamingGuide]] para detalhes completos.
+
+#### Migração de Arquivos Existentes
+
+Se você já tinha arquivos `INFO-CLIENTE.md`, use o script de migração:
+
+```bash
+python scripts/migrate_info_to_pattern.py           # simular
+python scripts/migrate_info_to_pattern.py --apply    # renomear
+```
 
 ### 📄 Geração de Documentos
 

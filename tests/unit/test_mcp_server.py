@@ -49,6 +49,9 @@ class TestMCPConsultarFinanceiro(unittest.TestCase):
             self.assertIn('Saldo', result)
 
 
+from foton_system.modules.documents.domain.models.template_info import TemplateInfo
+
+
 class TestMCPListarTemplates(unittest.TestCase):
     """Tests for listar_templates tool."""
 
@@ -58,7 +61,10 @@ class TestMCPListarTemplates(unittest.TestCase):
             mock_doc_svc = MagicMock()
             mock_doc_svc.list_templates.return_value = MagicMock(
                 success=True,
-                templates={'pptx': ['prop.pptx'], 'docx': ['contract.docx']}
+                templates={
+                    'pptx': [TemplateInfo(filename='prop.pptx', description='Proposta')],
+                    'docx': [TemplateInfo(filename='contract.docx', description='Contrato')]
+                }
             )
             mock_factory.return_value.get_document_service.return_value = mock_doc_svc
 
@@ -68,6 +74,8 @@ class TestMCPListarTemplates(unittest.TestCase):
 
             self.assertIn('PPTX', result)
             self.assertIn('DOCX', result)
+            self.assertIn('Proposta', result)
+            self.assertIn('Contrato', result)
 
 
 class TestMCPGerarDocumento(unittest.TestCase):
@@ -123,7 +131,8 @@ class TestMCPConsultarConhecimento(unittest.TestCase):
         
         from foton_system.interfaces.mcp.foton_mcp import consultar_conhecimento
         result = consultar_conhecimento("test")
-        self.assertIn('No relevant knowledge found', result)
+        self.assertIn('Nenhum conhecimento relevante encontrado', result)
+        self.assertIn('duracao_ms=', result)
 
 if __name__ == '__main__':
     unittest.main()

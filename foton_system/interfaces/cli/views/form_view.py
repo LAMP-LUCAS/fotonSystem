@@ -1,6 +1,7 @@
 """
 TUI Form View - Interface Interativa.
 Renderiza o formato do arquivo no visualizador com destaque para edições.
+@story: STORY-026 @rule: RULE-DOC-5.2 @rule: RULE-DOC-5.3
 """
 
 from colorama import Fore, Style
@@ -17,17 +18,19 @@ class TUIFormView:
     def run_loop(self) -> str:
         while True:
             self._draw()
-            cmd = input(f"\n{Fore.CYAN}>> Ação ou Novo Valor: {Style.RESET_ALL}").strip()
+            cmd = input(f"\n{Fore.CYAN}>> Valor (ou /n prox, /p ant, /v ver, /s salvar, /a salvar como, /c cancelar): {Style.RESET_ALL}").strip()
             cmd_lower = cmd.lower()
-            if cmd_lower == '' or cmd_lower == 'n': self.session.next()
-            elif cmd_lower == 'p': self.session.prev()
-            elif cmd_lower == 'v': self._show_preview()
-            elif cmd_lower == 's':
-                if input(f"\n{Fore.GREEN}Salvar? (S/N): {Style.RESET_ALL}").lower() == 's': return "save"
-            elif cmd_lower == 'a':
+            if cmd_lower == '' or cmd_lower == '/n': self.session.next()
+            elif cmd_lower == '/p': self.session.prev()
+            elif cmd_lower == '/v': self._show_preview()
+            elif cmd_lower == '/s':
+                if input(f"\n{Fore.GREEN}Salvar? (S/N): {Style.RESET_ALL}").upper() != 'S': continue
+                return "save"
+            elif cmd_lower == '/a':
                 return "save_as"
-            elif cmd_lower == 'c':
-                if input(f"\n{Fore.RED}Sair sem salvar? (S/N): {Style.RESET_ALL}").lower() == 's': return "cancel"
+            elif cmd_lower == '/c':
+                if input(f"\n{Fore.RED}Sair sem salvar? (S/N): {Style.RESET_ALL}").upper() != 'S': continue
+                return "cancel"
             else:
                 f = self.session.get_current_field()
                 if f and not f.is_calculated:
@@ -69,8 +72,8 @@ class TUIFormView:
         except Exception: pass
 
         TUILayout.print_footer()
-        print(f"  {Fore.YELLOW}[ENTER/N]{Style.RESET_ALL} Próxima | {Fore.YELLOW}[P]{Style.RESET_ALL} Anterior | {Fore.YELLOW}[V]{Style.RESET_ALL} Visualizar")
-        print(f"  {Fore.GREEN}[S]{Style.RESET_ALL} Salvar | {Fore.CYAN}[A]{Style.RESET_ALL} Salvar Como | {Fore.RED}[C]{Style.RESET_ALL} Cancelar")
+        print(f"  {Fore.YELLOW}[/N]{Style.RESET_ALL} Próxima | {Fore.YELLOW}[/P]{Style.RESET_ALL} Anterior | {Fore.YELLOW}[/V]{Style.RESET_ALL} Visualizar")
+        print(f"  {Fore.GREEN}[/S]{Style.RESET_ALL} Salvar | {Fore.CYAN}[/A]{Style.RESET_ALL} Salvar Como | {Fore.RED}[/C]{Style.RESET_ALL} Cancelar")
 
     def _show_preview(self):
         TUILayout.clear()

@@ -1,8 +1,9 @@
 import hashlib
+import re
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from foton_system.core.ops.base_op import BaseOp
-from foton_system.core.memory.vector_store import VectorStore
+from foton_system.core.memory.vector_store import VectorStore, VectorStoreManager
 from foton_system.modules.shared.infrastructure.config.config import Config
 
 class OpIndexKnowledge(BaseOp):
@@ -13,19 +14,27 @@ class OpIndexKnowledge(BaseOp):
     
     def validate(self, **kwargs) -> Dict[str, Any]:
         """
-        Optional: 'target_path' to scan specific folder.
+        Optional: 'target_path' to scan specific folder, or 'cliente' for selective indexing.
         Default: Scans entire 'base_pasta_clientes'.
         """
-        path = kwargs.get("target_path")
-        if path:
-            p = Path(path)
+        cliente = kwargs.get("cliente", "").strip()
+        if cliente:
+            base = Config().base_pasta_clientes
+            p = base / cliente
             if not p.exists():
-                raise ValueError(f"Path {path} does not exist.")
+                raise ValueError(f"Cliente '{cliente}' não encontrado em {base}")
             kwargs["target_path_obj"] = p
+            kwargs["cliente"] = cliente
         else:
-             # Default to all clients
-             kwargs["target_path_obj"] = Config().base_pasta_clientes
-             
+            path = kwargs.get("target_path")
+            if path:
+                p = Path(path)
+                if not p.exists():
+                    raise ValueError(f"Path {path} does not exist.")
+                kwargs["target_path_obj"] = p
+            else:
+                kwargs["target_path_obj"] = Config().base_pasta_clientes
+
         return kwargs
 
     def _calculate_file_hash(self, file_path: Path) -> str:
@@ -37,21 +46,36 @@ class OpIndexKnowledge(BaseOp):
         return hasher.hexdigest()
 
     def _chunk_text(self, text: str, chunk_size: int = 500) -> List[str]:
-        """
-        Simple overlapping chunker. 
-        TODO: Improve with header-aware splitting (Markdown).
-        """
+        """Header-aware chunker. Splits on Markdown headers to preserve context."""
+        header_pattern = re.compile(r'^(#{1,6}\s+.*)$', re.MULTILINE)
+        sections = header_pattern.split(text)
+        header = ""
         chunks = []
-        start = 0
-        while start < len(text):
-            end = start + chunk_size
-            chunks.append(text[start:end])
-            start += chunk_size - 50 # 50 char overlap
+        for part in sections:
+            part = part.strip()
+            if not part:
+                continue
+            if part.startswith('#'):
+                header = part
+                continue
+            content = f"{header}\n{part}" if header else part
+            if len(content) <= chunk_size:
+                chunks.append(content)
+            else:
+                overlap = 50
+                start = 0
+                while start < len(content):
+                    end = start + chunk_size
+                    piece = content[start:end]
+                    if header and start > 0:
+                        piece = f"{header} (cont.)\n{piece}"
+                    chunks.append(piece)
+                    start += chunk_size - overlap
         return chunks
 
     def execute_logic(self, validated_data: Dict[str, Any]) -> Dict[str, Any]:
         target_path = validated_data["target_path_obj"]
-        store = VectorStore()
+        store = VectorStoreManager()
         
         indexed_count = 0
         skipped_count = 0
@@ -83,6 +107,8 @@ class OpIndexKnowledge(BaseOp):
                 chunks = self._chunk_text(content)
                 current_hash = self._calculate_file_hash(file_path)
                 
+                lines = content.splitlines(keepends=True)
+                char_pos = 0
                 for i, chunk in enumerate(chunks):
                     # Robust ID: Path + Chunk Index
                     # Flatten path relative to base for cleaner ID
@@ -92,6 +118,16 @@ class OpIndexKnowledge(BaseOp):
                         rel_path = file_path.name
 
                     chunk_id = f"{rel_path}::chunk_{i}"
+
+                    # Calculate line range: find chunk start in remaining content
+                    chunk_start = content.find(chunk, char_pos)
+                    if chunk_start == -1:
+                        chunk_start = char_pos
+                    chunk_end = chunk_start + len(chunk)
+
+                    linha_inicio = content[:chunk_start].count('\n') + 1
+                    linha_fim = content[:chunk_end].count('\n') + 1
+                    char_pos = chunk_end
                     
                     docs_to_add.append(chunk)
                     ids_to_add.append(chunk_id)
@@ -99,7 +135,9 @@ class OpIndexKnowledge(BaseOp):
                         "source": str(file_path),
                         "filename": file_path.name,
                         "hash": current_hash,
-                        "chunk_index": i
+                        "chunk_index": i,
+                        "linha_inicio": linha_inicio,
+                        "linha_fim": linha_fim,
                     })
                     
                 indexed_count += 1
@@ -117,6 +155,8 @@ class OpIndexKnowledge(BaseOp):
                     metadatas=metadatas_to_add[i:i+batch_size],
                     ids=ids_to_add[i:i+batch_size]
                 )
+
+        VectorStoreManager.mark_indexed()
 
         return {
             "status": "INDEXED",

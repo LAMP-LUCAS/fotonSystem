@@ -4,19 +4,40 @@
 
 O FOTON System organiza, sincroniza e automatiza seu escritório de arquitetura, eliminando o tempo perdido procurando arquivos e gerando documentos.
 
+---
+
+## 🛠️ Para Desenvolvedores
+
+| Se você é... | Comece por aqui |
+|---|---|
+| **CodeAssistant / LLM** | `AGENTS.md` — Framework de desenvolvimento, comandos, RalphLoop |
+| **Dev (humano)** | `CONTRIBUTING.md` — Setup local, primeiro PR, convenções |
+| **Qualquer um** | `DEVELOPMENT_GUIDE.md` — Metodologia 3 camadas e fluxo completo |
+| **Referência** | `GLOSSARY.md` — Linguagem ubíqua do domínio |
+
+### Fluxo de desenvolvimento (visão geral)
+
+```
+/epic  →  /translate  →  /slice  →  /feature ou /RL  →  /handoff  →  /review
+```
+
+10 comandos operacionais em `.opencode/commands/` — ver `AGENTS.md` para detalhes.
+
+---
+
 ## 📚 Documentação (Acesso Rápido)
 
 ### 🏛️ Para Agentes de IA
-- [[LlmProtocol|📜 Protocolo de Documentação]] - **LEITURA OBRIGATÓRIA PARA AGENTES**
-- [[Index|🗺️ Mapa de Conteúdo (MOC)]] - Navegação por domínios
-- [[LlmContext|🧠 Contexto Geral para LLMs]] - Identidade do sistema
-- [[SystemManifest|📋 Manifesto do Sistema]] - Visão geral técnica
+- `docs/03_RESOURCES/LlmProtocol.md` — **Leitura obrigatória para agentes**
+- `docs/00_META/MapOfContent.md` — Navegação por domínios
+- `docs/03_RESOURCES/LlmContext.md` — Contexto geral do sistema
+- `docs/03_RESOURCES/SystemManifest.md` — Manifesto técnico
 
 ### 🎯 Para o Arquiteto (Usuário)
-- [[UserGuide|📖 Guia do Usuário]] - Manual completo
-- [[DeploymentUserGuide|💾 Implantação e Backup]] - Guia de segurança de dados
-- [[TuiGuide|📟 Guia do Modo Terminal]] - Produtividade turbo
-- [[QuickReference|📑 Referência Rápida]] - Comandos e atalhos
+- `docs/02_GUIDES/UserGuide.md` — Manual completo
+- `docs/02_GUIDES/DeploymentUserGuide.md` — Implantação e backup
+- `docs/02_GUIDES/TuiGuide.md` — Guia do modo terminal
+- `docs/02_GUIDES/QuickReference.md` — Comandos e atalhos
 
 ---
 
@@ -32,7 +53,7 @@ Um dia, você precisa gerar 5 propostas urgentes. Você abre a pasta do cliente 
 
 ### A Solução
 
-Você instala o FOTON. (Veja [[DeploymentGuide|como instalar]])
+Você instala o FOTON. (Veja `docs/02_GUIDES/DeploymentUserGuide.md`)
 
 1. **Sincronização Mágica**: Com um clique, o FOTON lê suas pastas e arruma seu Excel. "J. Silva" e "João Silva" viram a mesma pessoa. ([[Pipelines|Como funciona]])
 2. **Centros de Verdade**: O FOTON cria um arquivo `INFO-CLIENTE.md` dentro da pasta do João. Agora, os dados moram onde o projeto mora. ([[DataModel|Entenda a estrutura]])

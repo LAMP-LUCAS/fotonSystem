@@ -2,10 +2,14 @@
 FormSession Domain Model - Gerencia o estado e lógica do formulário MD.
 """
 
+import logging
 import re
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Any
-from foton_system.modules.shared.domain.services.safe_math import safe_eval
+from foton_system.modules.shared.domain.services.formula_engine import FormulaEngine
+
+# @story: STORY-026 @rule: RULE-DOC-4.3
+log = logging.getLogger(__name__)
 
 @dataclass
 class FormField:
@@ -120,13 +124,8 @@ class FormSession:
 
     def _evaluate(self, expr: str, var_map: Dict[str, str]) -> float:
         try:
-            safe_expr = expr
-            sorted_vars = sorted(var_map.keys(), key=len, reverse=True)
-            for var in sorted_vars:
-                raw_val = var_map[var].replace('%', '').replace(',', '.')
-                try: val = float(raw_val) if raw_val.strip() else 0.0
-                except (ValueError, TypeError): val = 0.0
-                safe_expr = safe_expr.replace(f"@{var}", str(val))
-            safe_expr = re.sub(r'[^0-9+\-*/().\s]', '', safe_expr)
-            return float(safe_eval(safe_expr)) if safe_expr.strip() else 0.0
-        except (ValueError, TypeError): return 0.0
+            engine = FormulaEngine()
+            return engine.evaluate_expression(expr, var_map)
+        except Exception as e:
+            log.warning("Erro ao avaliar fórmula '%s': %s", expr, e)
+            raise

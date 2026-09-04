@@ -17,6 +17,24 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
+def pytest_configure(config):
+    """Ensure pytest temp directory is writable, falling back if default is locked."""
+    import tempfile
+    import getpass
+    if not config.option.basetemp:
+        try:
+            default_temp = Path(tempfile.gettempdir()) / f"pytest-of-{getpass.getuser()}"
+            default_temp.mkdir(parents=True, exist_ok=True)
+            # Test writability
+            test_probe = default_temp / ".write_probe"
+            test_probe.touch()
+            test_probe.unlink()
+        except (PermissionError, OSError):
+            fallback = Path(tempfile.gettempdir()) / "pytest_foton_temp"
+            fallback.mkdir(parents=True, exist_ok=True)
+            config.option.basetemp = str(fallback)
+
+
 @pytest.fixture
 def fake_client_repository():
     """In-memory ClientRepositoryPort implementation for fast unit tests.
@@ -30,20 +48,32 @@ def fake_client_repository():
     class FakeClientRepository(ClientRepositoryPort):
         def __init__(self, clients_df=None, services_df=None, folders=None, service_folders=None):
             self._clients = clients_df if clients_df is not None else pd.DataFrame(
-                columns=['Alias', 'NomeCliente', 'CodCliente', 'NIF', 'Email', 'Telefone']
+                columns=['Alias', 'NomeCliente', 'CodCliente', 'NIF', 'Email', 'Telefone', 'Status']
             )
             self._services = services_df if services_df is not None else pd.DataFrame(
-                columns=['AliasCliente', 'Alias', 'CodServico']
+                columns=['AliasCliente', 'Alias', 'CodServico', 'Status']
             )
             self._folders = folders if folders is not None else set()
             self._service_folders = service_folders if service_folders is not None else {}
             self._created_folders = []
 
         def get_clients_dataframe(self) -> pd.DataFrame:
-            return self._clients.copy()
+            df = self._clients.copy()
+            if 'Status' not in df.columns:
+                df['Status'] = 'ATIVO'
+            return df[df['Status'] != 'DELETADO'].copy()
+
+        def get_all_clients_dataframe(self) -> pd.DataFrame:
+            df = self._clients.copy()
+            if 'Status' not in df.columns:
+                df['Status'] = 'ATIVO'
+            return df.copy()
 
         def get_services_dataframe(self) -> pd.DataFrame:
-            return self._services.copy()
+            df = self._services.copy()
+            if 'Status' not in df.columns:
+                df['Status'] = 'ATIVO'
+            return df[df['Status'] != 'DELETADO'].copy()
 
         def save_clients(self, df: pd.DataFrame):
             self._clients = df.copy()
@@ -59,6 +89,94 @@ def fake_client_repository():
 
         def create_folder(self, path):
             self._created_folders.append(Path(path))
+        
+        def soft_delete_client(self, alias: str) -> bool:
+            from foton_system.modules.clients.domain.models import Client
+            if 'Status' not in self._clients.columns:
+                self._clients['Status'] = 'ATIVO'
+            mask = self._clients['Alias'] == alias
+            if not mask.any():
+                return False
+            row = self._clients[mask].iloc[0].to_dict()
+            client = Client.from_row(row)
+            client.soft_delete()
+            self._clients.loc[mask, 'Status'] = client.status
+            return True
+        
+        def soft_delete_service(self, client_alias: str, service_alias: str) -> bool:
+            from foton_system.modules.clients.domain.models import Service
+            if 'Status' not in self._services.columns:
+                self._services['Status'] = 'ATIVO'
+            mask = (self._services['AliasCliente'] == client_alias) & (self._services['Alias'] == service_alias)
+            if not mask.any():
+                return False
+            row = self._services[mask].iloc[0].to_dict()
+            service = Service.from_row(row)
+            service.soft_delete()
+            self._services.loc[mask, 'Status'] = service.status
+            return True
+        
+        def restore_client(self, alias: str) -> bool:
+            from foton_system.modules.clients.domain.models import Client
+            if 'Status' not in self._clients.columns:
+                return False
+            mask = (self._clients['Alias'] == alias) & (self._clients['Status'] == 'DELETADO')
+            if not mask.any():
+                return False
+            row = self._clients[mask].iloc[0].to_dict()
+            client = Client.from_row(row)
+            client.restore()
+            self._clients.loc[mask, 'Status'] = client.status
+            return True
+        
+        def restore_service(self, client_alias: str, service_alias: str) -> bool:
+            from foton_system.modules.clients.domain.models import Service
+            if 'Status' not in self._services.columns:
+                return False
+            mask = (self._services['AliasCliente'] == client_alias) & (self._services['Alias'] == service_alias) & (self._services['Status'] == 'DELETADO')
+            if not mask.any():
+                return False
+            row = self._services[mask].iloc[0].to_dict()
+            service = Service.from_row(row)
+            service.restore()
+            self._services.loc[mask, 'Status'] = service.status
+            return True
+
+        def get_all_services_dataframe(self) -> pd.DataFrame:
+            df = self._services.copy()
+            if 'Status' not in df.columns:
+                df['Status'] = 'ATIVO'
+            return df.copy()
+
+        def get_deleted_clients(self):
+            if 'Status' not in self._clients.columns:
+                return []
+            return self._clients[self._clients['Status'] == 'DELETADO'].to_dict('records')
+
+        def get_deleted_services(self):
+            if 'Status' not in self._services.columns:
+                return []
+            return self._services[self._services['Status'] == 'DELETADO'].to_dict('records')
+
+        def get_clients(self):
+            from foton_system.modules.clients.domain.models import Client
+            df = self.get_clients_dataframe()
+            return [Client.from_row(row.to_dict()) for _, row in df.iterrows()]
+
+        def get_services(self):
+            from foton_system.modules.clients.domain.models import Service
+            df = self.get_services_dataframe()
+            return [Service.from_row(row.to_dict()) for _, row in df.iterrows()]
+
+        def get_all_clients(self):
+            from foton_system.modules.clients.domain.models import Client
+            df = self.get_all_clients_dataframe()
+            return [Client.from_row(row.to_dict()) for _, row in df.iterrows()]
+
+        def get_all_services(self):
+            from foton_system.modules.clients.domain.models import Service
+            df = self.get_all_services_dataframe()
+            return [Service.from_row(row.to_dict()) for _, row in df.iterrows()]
 
     return FakeClientRepository
 

@@ -1,22 +1,24 @@
-﻿import os
 import re
 import json
+import time
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
 from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
 from foton_system.modules.documents.application.ports.document_service_port import DocumentServicePort
+from foton_system.modules.documents.domain.models.template_info import TemplateInfo
 from foton_system.modules.shared.infrastructure.utils.formatting import FotonFormatter
 from foton_system.modules.shared.infrastructure.services.cub_service import CubService
-from foton_system.modules.shared.domain.services.safe_math import safe_eval
 from foton_system.modules.shared.domain.exceptions import (
     TemplateNotFoundError,
     DocumentGenerationError
 )
+from foton_system.modules.shared.domain.services.formula_engine import FormulaEngine
 
 logger = setup_logger()
 
+# @story: STORY-026 @rule: RULE-DOC-3.2
 
 class DocumentService:
     def __init__(self, docx_adapter: DocumentServicePort, pptx_adapter: DocumentServicePort, config: Optional[Config] = None):
@@ -31,14 +33,56 @@ class DocumentService:
         self.docx_handler = docx_adapter
         self.pptx_handler = pptx_adapter
         self._config = config or Config()
+        self._template_index_cache = None
+        self._template_index_mtime = 0
+        self._index_filename = "templates_index.json"
 
-    def list_templates(self, extension):
+    # @story: STORY-027 @rule: RULE-DOC-1.4
+    def list_templates(self, extension: Optional[str] = None) -> list[TemplateInfo]:
         templates_dir = self._config.templates_path
         if not templates_dir or not templates_dir.exists():
             logger.warning(f"Diretório de templates não encontrado: {templates_dir}")
             return []
-        
-        return [f.name for f in templates_dir.glob(f'*.{extension}')]
+
+        pattern = f'*.{extension}' if extension else '*'
+        files = sorted(templates_dir.glob(pattern))
+        templates = [f for f in files if f.suffix in ('.pptx', '.docx')]
+        filenames = [f.name for f in templates]
+
+        index = self._load_template_index(templates_dir)
+        lookup = {entry['filename']: entry for entry in index} if index else {}
+
+        result = []
+        for name in filenames:
+            entry = lookup.get(name, {})
+            result.append(TemplateInfo(
+                filename=name,
+                description=entry.get('description', ''),
+                category=entry.get('category'),
+                tags=entry.get('tags', []),
+                version=entry.get('version'),
+            ))
+        return result
+
+    def _load_template_index(self, templates_dir: Path) -> Optional[list[dict]]:
+        index_file = templates_dir / self._index_filename
+        if not index_file.exists():
+            return None
+        try:
+            mtime = index_file.stat().st_mtime
+            if self._template_index_cache is not None and mtime == self._template_index_mtime:
+                return self._template_index_cache
+            with open(index_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            if not isinstance(data, list):
+                logger.warning(f"templates_index.json não é uma lista: {type(data)}")
+                return None
+            self._template_index_cache = data
+            self._template_index_mtime = mtime
+            return data
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(f"Erro ao ler templates_index.json: {e}")
+            return None
 
     def list_data_files(self):
         data_dir = self._config.templates_path
@@ -130,21 +174,20 @@ class DocumentService:
             logger.error(f"Erro ao parsear TXT {path}: {e}")
         return replacements
 
-    def generate_document(self, template_path, data_path, output_path, doc_type):
+    def generate_document(self, template_path, data_path, output_path, doc_type, extra_data: Optional[dict] = None):
         logger.info(f"Gerando documento do tipo {doc_type}...")
 
         # 1. Load Context Data (Centers of Truth)
         context_data = self._load_context_data(Path(data_path))
 
         # 2. Load Document Data
-        doc_data = self._load_data(data_path)
+        doc_data = self._load_data(data_path) if extra_data is None else extra_data
         
         # 3. Inject System Variables (Auto-Context)
         system_vars = self._get_system_variables()
         
         if not doc_data and not context_data:
             logger.error("Nenhum dado carregado (nem do arquivo nem do contexto).")
-            # We proceed anyway because we might rely on system variables or manual fixes
         
         # 4. Merge (System < Context < Document)
         replacements = {**system_vars, **context_data, **doc_data}
@@ -155,32 +198,52 @@ class DocumentService:
         # 6. Apply Formatting (Auto-Formatting Middleware)
         self._apply_formatting(replacements)
 
-        # Validate Keys
-        missing_keys = self._validate_keys(template_path, replacements, doc_type)
+        # 7. Pré-validação obrigatória (RULE-DOC-2.4 / RULE-DOC-2.5)
+        validation = self._validate_keys(template_path, replacements, doc_type)
+        errors = []
+        if validation["missing"]:
+            errors.append(f"Variáveis não encontradas ({len(validation['missing'])}):\n" +
+                          "\n".join(f"   ❌ {k}" for k in validation["missing"]))
+        if validation["none_values"]:
+            errors.append(f"Valores inválidos (None/---/vazio) ({len(validation['none_values'])}):\n" +
+                          "\n".join(f"   ⚠️ {k}" for k in validation["none_values"]))
+        if errors:
+            report = "\n\n".join(errors)
+            raise ValueError(
+                f"❌ Geração bloqueada — pré-validação falhou:\n\n{report}"
+            )
 
-        # Clean missing variables
-        if missing_keys and self._config.clean_missing_variables:
-            placeholder = self._config.missing_variable_placeholder
-            logger.info(f"Limpando {len(missing_keys)} variáveis faltando com placeholder '{placeholder}'")
-            for key in missing_keys:
-                replacements[key] = placeholder
+        # 8. Versioning (RULE-DOC-3.6): archive existing file before saving
+        output_path_obj = Path(output_path)
+        client_dir = output_path_obj.parent
+        versao_anterior = None
+        versao, prev_file = self._resolve_version_and_archive(
+            client_dir, output_path_obj, template_path
+        )
+        if prev_file is not None:
+            versao_anterior = prev_file.name
 
         if doc_type == 'pptx':
             presentation = self.pptx_handler.load_document(template_path)
             presentation = self.pptx_handler.replace_text(presentation, replacements)
+            self.pptx_handler.validate_no_placeholders(presentation, doc_type)
             self.pptx_handler.save_document(presentation, output_path)
 
         elif doc_type == 'docx':
             document = self.docx_handler.load_document(template_path)
             document = self.docx_handler.replace_text(document, replacements)
+            self.docx_handler.validate_no_placeholders(document, doc_type)
             self.docx_handler.save_document(document, output_path)
 
         else:
             logger.error(f"Tipo de documento desconhecido: {doc_type}")
             return
 
-        # Log generation
-        self._log_generation(output_path, doc_type, template_path, data_path)
+        # 9. Log generation (JSONL — RULE-DOC-3.6)
+        self._log_generation(
+            output_path, doc_type, template_path, data_path,
+            extra_params={'versao': versao, 'versao_anterior': versao_anterior}
+        )
 
     def _get_system_variables(self):
         """Injects dynamic system variables"""
@@ -203,7 +266,8 @@ class DocumentService:
         data = {}
         try:
             base_clients = self._config.base_pasta_clientes
-            current_dir = data_path.parent
+            start_dir = data_path if data_path.is_dir() else data_path.parent
+            current_dir = start_dir
 
             dirs_to_check = []
             while current_dir != base_clients and current_dir != current_dir.parent:
@@ -212,10 +276,19 @@ class DocumentService:
 
             dirs_to_check.reverse()
 
+            from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+            cliente_glob = PathManager.get_info_glob("cliente")
+            servico_glob = PathManager.get_info_glob("servico")
             for folder in dirs_to_check:
                 info_files = list(folder.glob("*INFO*.md"))
                 if info_files:
-                    canonical = [f for f in info_files if f.name.upper() in ('INFO-CLIENTE.MD', 'INFO-SERVICO.MD')]
+                    import fnmatch
+                    canonical = [
+                        f for f in info_files
+                        if fnmatch.fnmatch(f.name, cliente_glob)
+                        or fnmatch.fnmatch(f.name, servico_glob)
+                        or f.name.upper() in ('INFO-CLIENTE.MD', 'INFO-SERVICO.MD')
+                    ]
                     if canonical:
                         info_file = canonical[0]
                     else:
@@ -270,11 +343,13 @@ class DocumentService:
     def validate_template_keys(self, template_path, data_path, doc_type):
         """
         Public method to validate template keys against context and local data.
-        Ensures everything is case-insensitive by lowercasing keys.
+        Returns categorized dict: resolved, missing, none_values, formulas.
         """
         context_data = self._load_context_data(Path(data_path))
         doc_data = self._load_data(Path(data_path))
         replacements = {**context_data, **doc_data}
+        self._resolve_operations(replacements)
+        self._apply_formatting(replacements)
         return self._validate_keys(template_path, replacements, doc_type)
 
     def _validate_keys(self, template_path, replacements, doc_type):
@@ -310,14 +385,25 @@ class DocumentService:
                                             self._extract_keys_from_text(p.text, required_keys)
         except Exception as e:
             logger.warning(f"Não foi possível validar as chaves do template: {e}")
-            return []
+            return {"resolved": [], "missing": [], "none_values": [], "formulas": []}
 
-        # All keys are normalized to lowercase for comparison
-        missing_keys = [k for k in required_keys if k.lower() not in replacements]
-        if missing_keys:
-            logger.warning(f"CHAVES FALTANDO: {missing_keys}")
+        report = {"resolved": [], "missing": [], "none_values": [], "formulas": []}
+        for key in required_keys:
+            kl = key.lower()
+            if kl not in replacements:
+                report["missing"].append(key)
+            else:
+                val = replacements[kl]
+                report["resolved"].append({"key": key, "value": val})
+                if val is None or str(val).strip() in ("---", ""):
+                    report["none_values"].append(key)
 
-        return missing_keys
+        if report["missing"]:
+            logger.warning(f"CHAVES FALTANDO: {report['missing']}")
+        if report["none_values"]:
+            logger.warning(f"VALORES INVÁLIDOS (None/---/vazio): {report['none_values']}")
+
+        return report
 
     def get_generated_doc_path(self, service_path: Path, template_name: str) -> Path:
         template_stem = Path(template_name).stem.upper()
@@ -329,19 +415,166 @@ class DocumentService:
         folder_doc = self._config.folder_doc
         return service_path / folder_doc / "GERADOS" / tipo / template_name
 
-    def _log_generation(self, output_path, doc_type, template_path, data_path):
+    def build_standard_filename(self, client_name, template_stem, doc_type, service_name=None):
+        if not client_name:
+            return f"GERADO_{template_stem}.{doc_type}"
+
+        def _sanitize(name):
+            name = name.upper().replace(' ', '_')
+            name = re.sub(r'[^A-Z0-9_À-ÜÃ-Õ]', '', name)
+            name = re.sub(r'_+', '_', name).strip('_')
+            return name
+
+        client_part = _sanitize(client_name)
+        tipo = "DOC"
+        stem_upper = template_stem.upper()
+        for prefix in ["PROPOSTA", "CONTRATO", "MEMORIAL", "RECIBO"]:
+            if stem_upper.startswith(prefix):
+                tipo = prefix
+                break
+
+        service_part = _sanitize(service_name) if service_name else ""
+        date_part = datetime.now().strftime('%Y-%m-%d')
+
+        parts = [client_part]
+        if service_part:
+            parts.append(service_part)
+        parts.append(tipo)
+        parts.append(date_part)
+
+        return "GERADO_" + "_".join(parts) + f".{doc_type}"
+
+    def _log_generation(self, output_path, doc_type, template_path, data_path, extra_params=None):
         try:
             client_dir = Path(output_path).parent
-            history_file = client_dir / 'history.log'
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            jsonl_path = client_dir / 'historico_documentos.jsonl'
             template_name = Path(template_path).name
-            data_name = Path(data_path).name
             output_name = Path(output_path).name
-            log_entry = f"[{timestamp}] Documento '{output_name}' ({doc_type}) gerado usando Template '{template_name}' e Dados '{data_name}'\n"
-            with open(history_file, 'a', encoding='utf-8') as f:
-                f.write(log_entry)
+            timestamp = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+            extra_params = extra_params or {}
+            entry = {
+                'data_hora': timestamp,
+                'tipo_template': doc_type,
+                'nome_arquivo': output_name,
+                'template': template_name,
+                'status': 'sucesso',
+                'versao': extra_params.get('versao', 1),
+                'versao_anterior': extra_params.get('versao_anterior'),
+                'cliente': client_dir.name,
+            }
+            with open(jsonl_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + '\n')
         except Exception as e:
             logger.error(f"Erro ao gravar log de geração: {e}")
+
+    def read_generation_history(self, client_dir, limit=10):
+        try:
+            jsonl_path = Path(client_dir) / 'historico_documentos.jsonl'
+            if not jsonl_path.exists():
+                return []
+            entries = []
+            with open(jsonl_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entries.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+            entries.reverse()
+            return entries[:limit]
+        except Exception as e:
+            logger.error(f"Erro ao ler histórico: {e}")
+            return []
+
+    def generate_batch(self, client_name, client_dir, documentos):
+        """
+        Generate multiple documents in a batch operation.
+        Phase 1: validate all items. Phase 2: generate all (only if all pass).
+        Returns consolidated report list.
+        """
+        templates_dir = self._config.templates_path
+        report = []
+
+        for doc in documentos:
+            template_stem = doc.get('template_stem', '')
+            doc_type = doc.get('doc_type', 'pptx')
+            extra_data = doc.get('extra_data')
+
+            template_file = f"{template_stem}.{doc_type}"
+            template_path = templates_dir / template_file
+
+            output_name = self.build_standard_filename(
+                client_name, template_stem, doc_type
+            )
+            output_path = client_dir / output_name
+
+            validation = self.validate_template_keys(
+                str(template_path), str(client_dir), doc_type
+            )
+
+            report.append({
+                'template_stem': template_stem,
+                'doc_type': doc_type,
+                'output_path': str(output_path),
+                'status': 'pending',
+                'validation_valid': not validation.get('missing') and not validation.get('none_values')
+            })
+
+        all_valid = all(r['validation_valid'] for r in report)
+
+        if not all_valid:
+            for r in report:
+                if r.pop('validation_valid'):
+                    r['status'] = 'bloqueado_por_dependencia'
+                else:
+                    r['status'] = 'bloqueado'
+            return report
+
+        for r in report:
+            try:
+                template_file = f"{r['template_stem']}.{r['doc_type']}"
+                template_path = templates_dir / template_file
+
+                self.generate_document(
+                    template_path=str(template_path),
+                    data_path=str(client_dir),
+                    output_path=r['output_path'],
+                    doc_type=r['doc_type'],
+                    extra_data=None
+                )
+                r['status'] = 'sucesso'
+            except Exception as e:
+                r['status'] = 'erro'
+                r['error'] = str(e)
+
+        return report
+
+    def _resolve_version_and_archive(self, client_dir, output_path, template_name):
+        client_dir = Path(client_dir)
+        output_path = Path(output_path)
+        history = self.read_generation_history(client_dir, limit=100)
+        last_version = 0
+        last_entry = None
+        template_filename = Path(template_name).name
+        for entry in history:
+            if entry.get('template') == template_filename:
+                v = entry.get('versao', 0)
+                if v > last_version:
+                    last_version = v
+                    last_entry = entry
+
+        new_version = last_version + 1
+        prev_file = None
+
+        if output_path.exists():
+            stem = output_path.stem
+            suffix = output_path.suffix
+            prev_file = output_path.parent / f'{stem}_v{last_version}{suffix}'
+            output_path.rename(prev_file)
+
+        return new_version, prev_file
 
     def _extract_keys_from_text(self, text, keys_set):
         """Extracts keys from text and normalizes them to lowercase for consistent validation."""
@@ -351,36 +584,5 @@ class DocumentService:
                 keys_set.add(k.lower())
 
     def _resolve_operations(self, replacements):
-        """
-        Resolves mathematical operations.
-        Improvement: Handles Brazilian number formats during calculation.
-        """
-        for _ in range(3):
-            # Normalize keys for lookup
-            current_keys = list(replacements.keys())
-            for key in current_keys:
-                value = replacements[key]
-                if isinstance(value, str) and '[calculo:' in value:
-                    match = re.search(r'\[calculo:\s*(.+?)\]', value)
-                    if match:
-                        expression = match.group(1)
-                        # Sort keys by length to avoid partial matches during calculation replacement
-                        for k in sorted(current_keys, key=len, reverse=True):
-                            v = replacements[k]
-                            if k.lower() in expression.lower() and k != key:
-                                try:
-                                    # Normalize to float for calculation
-                                    float_val = FotonFormatter.parse_br_number(v)
-                                    # Case-insensitive replacement of variable in expression
-                                    expression = re.sub(re.escape(k), str(float_val), expression, flags=re.IGNORECASE)
-                                except (ValueError, TypeError):
-                                    pass
-                        try:
-                            if not re.match(r'^[\d\.\-\+\*\/\(\)\s]+$', expression):
-                                raise ValueError("Expressão contém caracteres inválidos")
-
-                            result = safe_eval(expression)
-                            # Store with .2f precision for financial consistency
-                            replacements[key] = f"{result:.2f}"
-                        except Exception as e:
-                            logger.warning(f"Falha ao calcular {key}: {e}")
+        engine = FormulaEngine()
+        engine.resolve(replacements)

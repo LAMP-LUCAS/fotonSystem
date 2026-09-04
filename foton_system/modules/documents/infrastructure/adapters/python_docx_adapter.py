@@ -3,6 +3,8 @@ import re
 from typing import Dict, Any
 from docx import Document
 from docx.oxml import CT_P
+
+# @story: STORY-026 @rule: RULE-DOC-1.2
 from docx.text.paragraph import Paragraph
 from docx.text.run import Run
 from docx.table import Table, _Cell, _Row
@@ -125,3 +127,36 @@ class PythonDocxAdapter(DocumentServicePort):
                             new_text: str = self._replace_keys_in_text(original_text, replacements)
                             if original_text != new_text:
                                 t.text = new_text
+
+    PATTERN_BARE_PLACEHOLDER = re.compile(
+        r'(?<![\w.])@[\w%]+(?!\.[a-z]{2,}\b)',
+        re.IGNORECASE
+    )
+
+    def validate_no_placeholders(self, document: DocumentType, doc_type: str) -> None:
+        """
+        Pós-processamento (RULE-DOC-2.5): verifica se algum @VAR sobreviveu
+        ao replace (não foi substituído). Levanta ValueError se detectar.
+        """
+        text_blocks = []
+        for p in document.paragraphs:
+            text_blocks.append(p.text)
+        for table in document.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for p in cell.paragraphs:
+                        text_blocks.append(p.text)
+        for section in document.sections:
+            for p in section.header.paragraphs:
+                text_blocks.append(p.text)
+            for p in section.footer.paragraphs:
+                text_blocks.append(p.text)
+        occurrences = []
+        for text in text_blocks:
+            found = self.PATTERN_BARE_PLACEHOLDER.findall(text)
+            occurrences.extend(found)
+        if occurrences:
+            raise ValueError(
+                f"Placeholder zero detectado: {len(occurrences)} variável(is) "
+                f"não resolvida(s) sobreviveram ao replace: {occurrences}"
+            )

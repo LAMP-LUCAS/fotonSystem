@@ -1,9 +1,11 @@
 from typing import Dict, Any
 from pathlib import Path
+from datetime import datetime
 from foton_system.core.ops.base_op import BaseOp
 from foton_system.modules.finance.application.use_cases.finance_service import FinanceService
 from foton_system.modules.finance.infrastructure.repositories.csv_finance_repository import CSVFinanceRepository
 from foton_system.modules.shared.infrastructure.config.config import Config
+from foton_system.modules.clients.domain.models import FinanceEntry
 
 class OpFinanceEntry(BaseOp):
     """
@@ -43,33 +45,45 @@ class OpFinanceEntry(BaseOp):
         return kwargs
 
     def execute_logic(self, validated_data: Dict[str, Any]) -> Dict[str, Any]:
-        # 1. Resolve Client Path
-        # This logic mimics _get_client_path but is self-contained or reuses service
         raw_client = validated_data.get("client_name") or validated_data.get("client_path")
         
-        # Try to resolve if it's just a name
         client_path = Path(raw_client)
         if not client_path.is_absolute():
-             base = Config().base_pasta_clientes
-             client_path = base / raw_client
+            base = Config().base_pasta_clientes
+            client_path = base / raw_client
         
         if not client_path.exists():
             raise FileNotFoundError(f"Client folder not found: {client_path}")
-
-        # 2. Setup Service
+        
+        # Verify client exists in clients database
+        try:
+            from foton_system.modules.clients.application.use_cases.client_service import ClientService
+            from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import ExcelClientRepository
+            
+            repo = ExcelClientRepository(Config())
+            client_service = ClientService(repo)
+            clients_df = repo.get_clients_dataframe()
+            if client_path.name not in clients_df['Alias'].values:
+                raise ValueError(f"Client '{client_path.name}' not found in clients database")
+        except Exception as e:
+            if "not found" in str(e).lower():
+                raise
+        
         repo = CSVFinanceRepository()
         service = FinanceService(repo)
 
-        # 3. Execute
-        summary = service.add_entry(
-            client_path=client_path,
-            description=validated_data["description"],
-            value=validated_data["value"],
-            entry_type=validated_data["type"]
+        # 3. Build FinanceEntry entity and execute
+        entry = FinanceEntry(
+            tipo=validated_data["type"],
+            valor=validated_data["value"],
+            descricao=validated_data["description"],
+            data=datetime.now().strftime('%Y-%m-%d'),
+            cliente_alias=client_path.name,
         )
+        summary = service.add_entry(client_path, entry=entry)
 
         # 4. Return BI Metrics
-        return {
+        result = {
             "status": "REGISTERED",
             "client": client_path.name,
             "new_balance": summary["saldo"],
@@ -77,6 +91,10 @@ class OpFinanceEntry(BaseOp):
             "total_out": summary["total_saidas"],
             "message": f"Entry registered. New Balance: R$ {summary['saldo']:.2f}"
         }
+        if summary.get("duplicate_warning"):
+            result["warning"] = "Possível duplicata: mesma descrição, valor e data"
+            result["message"] += " ⚠️ Possível duplicata"
+        return result
 
 if __name__ == "__main__":
     import argparse

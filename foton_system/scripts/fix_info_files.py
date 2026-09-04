@@ -1,8 +1,15 @@
 import os
 import re
+import warnings
 from pathlib import Path
 import sys
 from colorama import init, Fore, Style
+
+warnings.warn(
+    "fix_info_files.py is deprecated. Use 'scripts/migrate_info_to_pattern.py' instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 # Initialize colorama
 init(autoreset=True)
@@ -38,9 +45,9 @@ def parse_template(path):
     with open(path, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
-            if "## INFO-CLIENTE.md" in line:
+            if "## INFO-CLIENTE" in line:
                 current_section = "CLIENT"
-            elif "## INFO-SERVICO.md" in line:
+            elif "## INFO-SERVICO" in line:
                 current_section = "SERVICE"
             
             if line.startswith("@"):
@@ -59,7 +66,11 @@ def parse_template(path):
     return client_keys, service_keys
 
 def get_latest_info_file(folder, alias, suffix):
-    files = list(folder.glob(f"*_INFO-{alias}.md"))
+    """DEPRECATED: Use _get_latest_file from client_crud instead."""
+    from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+    tipo = "cliente" if suffix == "CLIENTE" else "servico"
+    glob_pattern = PathManager.get_info_glob(tipo)
+    files = list(folder.glob(glob_pattern))
     if not files:
         return None
     files.sort(key=lambda f: f.name, reverse=True)

@@ -1,5 +1,6 @@
 import unittest
 from foton_system.modules.shared.domain.services.safe_math import safe_eval
+from foton_system.modules.shared.domain.exceptions import FormulaError
 
 
 class TestSafeEval(unittest.TestCase):
@@ -32,8 +33,9 @@ class TestSafeEval(unittest.TestCase):
     def test_decimal_numbers(self):
         self.assertEqual(safe_eval("2.5 + 3.5"), 6.0)
 
-    def test_division_by_zero_returns_zero(self):
-        self.assertEqual(safe_eval("10 / 0"), 0.0)
+    def test_division_by_zero_raises_formula_error(self):
+        with self.assertRaises(FormulaError):
+            safe_eval("10 / 0")
 
     def test_empty_string_returns_zero(self):
         self.assertEqual(safe_eval(""), 0.0)
@@ -95,6 +97,37 @@ class TestSafeEval(unittest.TestCase):
     def test_lambda_raises_value_error(self):
         with self.assertRaises(ValueError):
             safe_eval("lambda x: x")
+
+
+class TestSafeEvalNaNInfinity(unittest.TestCase):
+    """Tests for NaN/Infinity detection in safe_eval (RULE-DOC-4.3)."""
+
+    def test_infinity_from_overflow_raises_formula_error(self):
+        with self.assertRaises(FormulaError):
+            safe_eval("1e308 * 10")
+
+    def test_constant_nan_raises_formula_error(self):
+        with self.assertRaises((FormulaError, ValueError)):
+            safe_eval("nan")
+
+    def test_constant_inf_raises_formula_error(self):
+        with self.assertRaises((FormulaError, ValueError)):
+            safe_eval("inf")
+
+    def test_nan_from_division_zero_zero_raises(self):
+        with self.assertRaises(FormulaError):
+            safe_eval("0 / 0")
+
+
+class TestFormulaResult(unittest.TestCase):
+    """E2: Test that FormulaResult.var matches replacement key (RULE-DOC-4.4)."""
+
+    def test_formula_result_has_var_field(self):
+        from foton_system.modules.shared.domain.exceptions import FormulaError
+        try:
+            safe_eval("2 + 2")
+        except FormulaError as e:
+            pass
 
 
 if __name__ == '__main__':

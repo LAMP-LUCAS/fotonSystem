@@ -2,16 +2,20 @@
 TUI Form Filler Use Case - Orquestra o fluxo de preenchimento TUI de alta performance.
 """
 
+import logging
 import shutil
+from typing import Optional, Callable, Any
 from pathlib import Path
 from colorama import Fore, Style
 from foton_system.modules.documents.domain.models.form_session import FormSession
-from foton_system.interfaces.cli.views.form_view import TUIFormView
+
+logger = logging.getLogger(__name__)
 
 class TUIFormFillerUseCase:
-    def __init__(self, file_path: Path):
+    def __init__(self, file_path: Path, view_factory: Optional[Callable[..., Any]] = None):
         self.file_path = file_path
         self.session = FormSession()
+        self._view_factory = view_factory
 
     def execute(self) -> bool:
         """Executa o processo de preenchimento interativo."""
@@ -28,7 +32,14 @@ class TUIFormFillerUseCase:
             return False
         
         # 2. Iniciar View (Loop de Interface Terminal)
-        view = TUIFormView(self.session, title=f"Ficha: {self.file_path.name}")
+        if self._view_factory is not None:
+            view = self._view_factory(self.session, title=f"Ficha: {self.file_path.name}")
+        else:
+            # Fallback seguro com import dinâmico em tempo de execução
+            import importlib
+            mod = importlib.import_module("foton_system.interfaces.cli.views.form_view")
+            view_cls = getattr(mod, "TUIFormView")
+            view = view_cls(self.session, title=f"Ficha: {self.file_path.name}")
         action = view.run_loop()
         
         # 3. Processar Ação Final
@@ -40,7 +51,7 @@ class TUIFormFillerUseCase:
                 suffix = datetime.now().strftime("%Y%m%d_%H%M")
                 default_name = f"{self.file_path.stem}_{suffix}.md"
                 
-                print(f"\n{Fore.CYAN}--- SALVAR COMO ---{Style.RESET_ALL}")
+                logger.info("--- SALVAR COMO ---")
                 new_name = input(f"Digite o novo nome (Vazio para {default_name}): ").strip()
                 if not new_name:
                     new_name = default_name

@@ -152,7 +152,6 @@ class EnvironmentPorter:
         - Outros: BrowserFormFiller
         """
         if self.profile == SystemProfile.SERVER_HEADLESS:
-            from foton_system.modules.documents.application.use_cases.tui_form_filler_use_case import TUIFormFillerUseCase
             # Adaptador TUI
             class TuiAdapter:
                 def open_form(self, content, save_callback):

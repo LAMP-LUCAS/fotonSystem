@@ -63,13 +63,18 @@ def build():
     parser.add_argument("--clean", action="store_true", help="Clear PyInstaller cache before building")
     parser.add_argument("--type", choices=["lite", "full"], default="lite", help="Build type: lite (small, excludes AI) or full (includes everything)")
     parser.add_argument("--target", choices=["windows-desktop", "linux-server", "linux-desktop"], default="windows-desktop", help="Target environment profile")
+    parser.add_argument("--output-dir", type=str, default=None, help="Alternative output directory (e.g., temp dir outside OneDrive)")
     cli_args = parser.parse_args()
     
     # Base paths
     base_dir = Path(__file__).resolve().parent.parent.parent
     main_script = base_dir / "foton_system" / "main.py"
-    dist_dir = base_dir / "dist"
-    build_dir = base_dir / "build"
+    if cli_args.output_dir:
+        dist_dir = Path(cli_args.output_dir) / "dist"
+        build_dir = Path(cli_args.output_dir) / "build"
+    else:
+        dist_dir = base_dir / "dist"
+        build_dir = base_dir / "build"
     
     print("=" * 60)
     print("  🚀 FotonSystem Build Script")
@@ -301,8 +306,13 @@ def build():
         print(f"  📦 ZIP:    {zip_path}")
         print("")
         print("  Next steps:")
-        print("  1. Test the EXE in the dist folder")
-        print("  2. Compile installer/foton_setup.iss with Inno Setup")
+        print("  🏆 RECOMMENDED: Compile installer/foton_setup.iss with Inno Setup")
+        print("     (generates a professional .exe installer at dist/FotonSystem_Setup_v....exe)")
+        print("")
+        print("  🚀 Quick test: run the EXE from the dist folder directly")
+        print("     Then use menu option 7 (Instalação / Atalhos) for local install")
+        print("  ⚠️  When --output-dir is used, copy the dist folder to the project root")
+        print("     before compiling with Inno Setup, or adjust the Source path in .iss")
         print("")
     else:
         print("\n❌ Build failed: output folder not found")

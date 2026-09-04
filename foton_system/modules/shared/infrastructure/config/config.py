@@ -4,6 +4,8 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from foton_system.modules.shared.infrastructure.config.rag_schema import validate_rag_config
+
 _SETTINGS_SCHEMA: Dict[str, type] = {
     "caminho_pastaClientes": str,
     "caminho_templates": str,
@@ -12,12 +14,15 @@ _SETTINGS_SCHEMA: Dict[str, type] = {
     "clean_missing_variables": bool,
     "missing_variable_placeholder": str,
     "folder_conventions": dict,
+    "info_file_patterns": dict,
+    "rag": dict,
 }
 
 
 class Config:
     _instance: Optional["Config"] = None
     _settings: Dict[str, Any] = {}
+    _rag_validated: Dict[str, Any] = {}
     _config_path: Path
 
     def __new__(cls) -> "Config":
@@ -48,6 +53,7 @@ class Config:
             print(f"Error loading config from {self._config_path}: {e}")
 
         self._validate_settings()
+        self._rag_validated = validate_rag_config(self.get('rag', {}))
 
     def set(self, key: str, value: Any) -> None:
         """Updates a setting value in memory."""
@@ -69,15 +75,26 @@ class Config:
 
     @property
     def base_pasta_clientes(self) -> Path:
-        return Path(self.get('caminho_pastaClientes'))
+        val = self.get('caminho_pastaClientes')
+        if val:
+            return Path(val)
+        from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+        return PathManager.get_user_projects_dir()
 
     @property
     def base_dados(self) -> Path:
-        return Path(self.get('caminho_baseDados'))
+        val = self.get('caminho_baseDados')
+        if val:
+            return Path(val)
+        from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+        return PathManager.get_app_data_dir() / "baseDados.xlsx"
 
     @property
     def templates_path(self) -> Path:
-        return Path(self.get('caminho_templates'))
+        val = self.get('caminho_templates')
+        if val:
+            return Path(val)
+        return Path.home() / "Documents" / "FotonTemplates"
 
     @property
     def ignored_folders(self) -> List[str]:
@@ -115,6 +132,13 @@ class Config:
         return list(fc.get('op_phases', ['EP', 'AP', 'EXE', 'REL']))
 
     @property
+    def info_file_patterns(self) -> dict:
+        return self.get('info_file_patterns', {
+            'cliente': "INFO-CLIENTE-{codCliente}_{versao}_R{revisao}.md",
+            'servico': "INFO-SERVICO-{codServico}_{versao}_R{revisao}.md"
+        })
+
+    @property
     def pomodoro_work_time(self) -> int:
         return int(self.get('pomodoro_work_time', 25))
 
@@ -133,4 +157,29 @@ class Config:
     @property
     def ui_mode(self) -> str:
         return str(self.get('ui_mode', 'auto'))
+
+    @property
+    def rag_config(self) -> dict:
+        default = {
+            "mode": "minilm",
+            "models": {"primary": "minilm", "fallback": []},
+            "pipeline": {"type": "simple", "nodes": ["embed", "search", "format"]},
+        }
+        return dict(self.get('rag', default))
+
+    @property
+    def rag_embedding_mode(self) -> str:
+        return str(self._rag_validated.get("embedding_mode", "minilm"))
+
+    @property
+    def rag_pipeline_type(self) -> str:
+        return str(self._rag_validated.get("pipeline", {}).get("type", "simple"))
+
+    @property
+    def rag_models_primary(self) -> str:
+        return str(self._rag_validated.get("models", {}).get("primary", "minilm"))
+
+    @property
+    def rag_models_fallback(self) -> List[str]:
+        return list(self._rag_validated.get("models", {}).get("fallback", ["minilm"]))
 

@@ -1,6 +1,6 @@
 # TEMPLATE DE VARIÁVEIS
 
-## INFO-CLIENTE.md
+## INFO-CLIENTE
 
 Aqui tem todas as colunas da tabela de clientes e variáveis extra para personalização
 
@@ -20,7 +20,7 @@ Dados que serão utilizados nas propostas comerciais:
 @cpfCnpjCliente; "000.000.000-00"
 @enderecoCliente; "Rua C152"
 
-## INFO-SERVICO.md
+## INFO-SERVICO
 
 @TEMPLATE; 02-COD_DOC_PC_00_R00_PROPOSTA_VIABILIDADE.pptx
 
@@ -64,8 +64,15 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
 
 @projArqEng;Custo estimado dos projetos de arquitetura e engenharia, exemplo: 35347.55
 @procLegais;Custo estimado dos processos legais, exemplo: 4241.70
+@execcub;Custo fornecido pelo sindicato de construção estadual, exemplo: 2698.11
+@CUBref;REFERENCIA R16A do mês mais recente, exemplo: 2768.47
+@MatCUB%;[calculo: 1334.84/@CUBref] Custo de materiais
+@MoCUB%;[calculo: 1361.23/@CUBref] Custo de mão de obra
+@EqCUB%;[calculo: 8.10/@CUBref] Custo de equipamentos
+@DespAdmCUB%;[calculo: 64.30/@CUBref] Custo de despesas administrativas
+
 @ACEqv;[calculo: @areaCoberta] Valor baseado na área construída equivalente
-@execcub;[calculo: 1300*@ACEqv] Custo de execução baseado no CUB multiplicado pela ACEqv
+@execcub;[calculo: @CUBtotal*@ACEqv] Custo de execução baseado no CUB multiplicado pela ACEqv
 @execInfra;[calculo: @execcub*0.20] Custo de execução de infraestrutura
 @execPais;[calculo: @execcub*0.05] Custo de execução de paisagism
 @execMob;[calculo: @execcub*0.05] Custo de execução de mobiliário
@@ -82,3 +89,4 @@ O cliente pode precisar utilizar dados distintos no contrato, portanto abaixo te
 @mob%;[calculo: @execMob/@totalGeral] Percentual do custo de mobiliário em relação ao total
 @Exec%;[calculo: @totalExec/@totalGeral] Percentual do custo de execução em relação ao total
 @inss%;[calculo: @totalinss/@totalGeral] Percentual da contribuição ao INSS em relação ao total
+

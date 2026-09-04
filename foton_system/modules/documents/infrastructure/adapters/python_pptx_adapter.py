@@ -3,6 +3,8 @@ import re
 from typing import Dict, Any
 from pptx import Presentation
 from pptx.util import Inches, Pt
+
+# @story: STORY-026 @rule: RULE-DOC-1.2
 from pptx.slide import Slide
 from pptx.shapes.base import BaseShape
 from pptx.table import Table, _Cell, _Row
@@ -76,3 +78,33 @@ class PythonPPTXAdapter(DocumentServicePort):
             new_val: str = str(replacements[key])
             text = re.sub(pattern, new_val, text, flags=re.IGNORECASE)
         return text
+
+    PATTERN_BARE_PLACEHOLDER = re.compile(
+        r'(?<![\w.])@[\w%]+(?!\.[a-z]{2,}\b)',
+        re.IGNORECASE
+    )
+
+    def validate_no_placeholders(self, document: Presentation, doc_type: str) -> None:
+        """
+        Pós-processamento (RULE-DOC-2.5): verifica se algum @VAR sobreviveu
+        ao replace (não foi substituído). Levanta ValueError se detectar.
+        """
+        occurrences = []
+        for slide in document.slides:
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    for p in shape.text_frame.paragraphs:
+                        found = self.PATTERN_BARE_PLACEHOLDER.findall(p.text)
+                        occurrences.extend(found)
+                if shape.has_table:
+                    for row in shape.table.rows:
+                        for cell in row.cells:
+                            if cell.text_frame:
+                                for p in cell.text_frame.paragraphs:
+                                    found = self.PATTERN_BARE_PLACEHOLDER.findall(p.text)
+                                    occurrences.extend(found)
+        if occurrences:
+            raise ValueError(
+                f"Placeholder zero detectado: {len(occurrences)} variável(is) "
+                f"não resolvida(s) sobreviveram ao replace: {occurrences}"
+            )

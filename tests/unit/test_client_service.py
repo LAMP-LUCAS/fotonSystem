@@ -16,6 +16,9 @@ import pandas as pd
 # Tested Module
 from foton_system.modules.clients.application.use_cases.client_service import ClientService
 from foton_system.modules.clients.application.ports.client_repository_port import ClientRepositoryPort
+from foton_system.modules.clients.domain.models.client import Client
+from foton_system.modules.clients.domain.models.service import Service
+from typing import List
 
 
 class FakeClientRepository(ClientRepositoryPort):
@@ -25,17 +28,33 @@ class FakeClientRepository(ClientRepositoryPort):
     Respects the port interface without hitting real Excel or Filesystem.
     """
     def __init__(self, clients_df=None, services_df=None, folders=None, service_folders=None):
-        self._clients = clients_df if clients_df is not None else pd.DataFrame(columns=['Alias', 'NomeCliente', 'CodCliente'])
-        self._services = services_df if services_df is not None else pd.DataFrame(columns=['AliasCliente', 'Alias', 'CodServico'])
+        self._clients = clients_df if clients_df is not None else pd.DataFrame(
+            columns=['Alias', 'NomeCliente', 'CodCliente', 'Status']
+        )
+        self._services = services_df if services_df is not None else pd.DataFrame(
+            columns=['AliasCliente', 'Alias', 'CodServico', 'Status']
+        )
         self._folders = folders if folders is not None else set()
         self._service_folders = service_folders if service_folders is not None else {}
         self._created_folders = []
 
     def get_clients_dataframe(self) -> pd.DataFrame:
-        return self._clients.copy()
+        df = self._clients.copy()
+        if 'Status' not in df.columns:
+            df['Status'] = 'ATIVO'
+        return df[df['Status'] != 'DELETADO'].copy()
+
+    def get_all_clients_dataframe(self) -> pd.DataFrame:
+        df = self._clients.copy()
+        if 'Status' not in df.columns:
+            df['Status'] = 'ATIVO'
+        return df.copy()
 
     def get_services_dataframe(self) -> pd.DataFrame:
-        return self._services.copy()
+        df = self._services.copy()
+        if 'Status' not in df.columns:
+            df['Status'] = 'ATIVO'
+        return df[df['Status'] != 'DELETADO'].copy()
 
     def save_clients(self, df: pd.DataFrame):
         self._clients = df.copy()
@@ -51,6 +70,70 @@ class FakeClientRepository(ClientRepositoryPort):
 
     def create_folder(self, path):
         self._created_folders.append(Path(path))
+    
+    def soft_delete_client(self, alias: str) -> bool:
+        if 'Status' not in self._clients.columns:
+            self._clients['Status'] = 'ATIVO'
+        mask = self._clients['Alias'] == alias
+        if not mask.any():
+            return False
+        self._clients.loc[mask, 'Status'] = 'DELETADO'
+        return True
+    
+    def soft_delete_service(self, client_alias: str, service_alias: str) -> bool:
+        if 'Status' not in self._services.columns:
+            self._services['Status'] = 'ATIVO'
+        mask = (self._services['AliasCliente'] == client_alias) & (self._services['Alias'] == service_alias)
+        if not mask.any():
+            return False
+        self._services.loc[mask, 'Status'] = 'DELETADO'
+        return True
+    
+    def restore_client(self, alias: str) -> bool:
+        if 'Status' not in self._clients.columns:
+            return False
+        mask = (self._clients['Alias'] == alias) & (self._clients['Status'] == 'DELETADO')
+        if not mask.any():
+            return False
+        self._clients.loc[mask, 'Status'] = 'ATIVO'
+        return True
+    
+    def get_deleted_clients(self):
+        if 'Status' not in self._clients.columns:
+            return []
+        return self._clients[self._clients['Status'] == 'DELETADO'].to_dict('records')
+
+    def restore_service(self, client_alias: str, service_alias: str) -> bool:
+        if 'Status' not in self._services.columns:
+            return False
+        mask = (self._services['AliasCliente'] == client_alias) & (self._services['Alias'] == service_alias) & (self._services['Status'] == 'DELETADO')
+        if not mask.any():
+            return False
+        self._services.loc[mask, 'Status'] = 'ATIVO'
+        return True
+
+    def get_all_services_dataframe(self) -> pd.DataFrame:
+        df = self._services.copy()
+        if 'Status' not in df.columns:
+            df['Status'] = 'ATIVO'
+        return df.copy()
+
+    def get_deleted_services(self):
+        if 'Status' not in self._services.columns:
+            return []
+        return self._services[self._services['Status'] == 'DELETADO'].to_dict('records')
+
+    def get_clients(self) -> List[Client]:
+        return [Client.from_row(row) for _, row in self.get_clients_dataframe().iterrows()]
+
+    def get_services(self) -> List[Service]:
+        return [Service.from_row(row) for _, row in self.get_services_dataframe().iterrows()]
+
+    def get_all_clients(self) -> List[Client]:
+        return [Client.from_row(row) for _, row in self.get_all_clients_dataframe().iterrows()]
+
+    def get_all_services(self) -> List[Service]:
+        return [Service.from_row(row) for _, row in self.get_all_services_dataframe().iterrows()]
 
 
 class TestClientServiceSyncLogic(unittest.TestCase):
@@ -177,10 +260,9 @@ class TestClientServiceValidation(unittest.TestCase):
 
         result = service.create_client(name='Maria Santos', alias='001_Maria_Santos')
 
-        # Bug #2 fix: create_client now returns CreatedClient dataclass
+        # create_client now returns Client entity with codigo
         self.assertTrue(hasattr(result, 'codigo'))
-        self.assertTrue(result.codigo)
-        self.assertTrue(hasattr(result, 'caminho'))
+        self.assertTrue(result.codigo is not None)
         self.assertEqual(len(repo._clients), 1)
 
 
@@ -215,27 +297,35 @@ class TestClientServiceEdgeCases(unittest.TestCase):
 class TestClientServiceFileParsing(unittest.TestCase):
     """Tests for file parsing and versioning logic."""
 
-    def test_parse_filename_extracts_version_and_revision(self):
-        """Parses VER and REV from filename correctly."""
-        from foton_system.modules.clients.application.use_cases.client_crud import _parse_filename
-        
-        mock_path = MagicMock()
-        mock_path.stem = 'CODE_DOC_CD_01_R02_INFO-ClientAlias'
-        
-        ver, rev = _parse_filename(mock_path)
-        
+    @patch('foton_system.modules.shared.infrastructure.config.config.Config')
+    def test_parse_revision_from_filename_extracts_versao_revisao(self, MockConfig):
+        """Extrai VER e REV do filename via pattern."""
+        cfg = MagicMock()
+        cfg.info_file_patterns = {
+            'cliente': "INFO-CLIENTE-{codCliente}_{versao}_R{revisao}.md",
+            'servico': "INFO-SERVICO-{codServico}_{versao}_R{revisao}.md",
+        }
+        cfg.get.return_value = None
+        MockConfig.return_value = cfg
+
+        from foton_system.modules.clients.application.use_cases.client_crud import _parse_revision_from_filename
+        ver, rev = _parse_revision_from_filename("INFO-CLIENTE-COD01_01_R02.md", "cliente")
         self.assertEqual(ver, '01')
         self.assertEqual(rev, 'R02')
 
-    def test_parse_filename_handles_malformed_names(self):
-        """Returns defaults for malformed filenames."""
-        from foton_system.modules.clients.application.use_cases.client_crud import _parse_filename
-        
-        mock_path = MagicMock()
-        mock_path.stem = 'InvalidFormat'
-        
-        ver, rev = _parse_filename(mock_path)
-        
+    @patch('foton_system.modules.shared.infrastructure.config.config.Config')
+    def test_parse_revision_from_filename_defaults_para_malformed(self, MockConfig):
+        """Retorna defaults para filename que não corresponde ao pattern."""
+        cfg = MagicMock()
+        cfg.info_file_patterns = {
+            'cliente': "INFO-CLIENTE-{codCliente}_{versao}_R{revisao}.md",
+            'servico': "INFO-SERVICO-{codServico}_{versao}_R{revisao}.md",
+        }
+        cfg.get.return_value = None
+        MockConfig.return_value = cfg
+
+        from foton_system.modules.clients.application.use_cases.client_crud import _parse_revision_from_filename
+        ver, rev = _parse_revision_from_filename("NOT-MATCHING-ANY-PATTERN.md", "cliente")
         self.assertEqual(ver, '00')
         self.assertEqual(rev, 'R00')
 
@@ -364,3 +454,36 @@ class TestListServiceNodes(unittest.TestCase):
         names = {n['name'] for n in nodes}
         self.assertNotIn('_ignored', names)
         self.assertIn('REFORMA', names)
+
+
+class TestFakeClientRepository(unittest.TestCase):
+    """Tests for FakeClientRepository behavior matching real repo."""
+
+    def test_get_services_dataframe_filters_deleted(self):
+        repo = FakeClientRepository(
+            services_df=pd.DataFrame({
+                'AliasCliente': ['CLIENTE_A', 'CLIENTE_A'],
+                'Alias': ['SERVICO_ATIVO', 'SERVICO_DELETADO'],
+                'CodServico': ['SA-001', 'SD-001'],
+                'Status': ['ATIVO', 'DELETADO']
+            })
+        )
+        df = repo.get_services_dataframe()
+        self.assertNotIn('DELETADO', df['Status'].values,
+                         "get_services_dataframe() deve filtrar Status == 'DELETADO'")
+        self.assertEqual(len(df), 1)
+        self.assertEqual(df.iloc[0]['Alias'], 'SERVICO_ATIVO')
+
+    def test_get_all_services_dataframe_includes_deleted(self):
+        repo = FakeClientRepository(
+            services_df=pd.DataFrame({
+                'AliasCliente': ['CLIENTE_A', 'CLIENTE_A'],
+                'Alias': ['SERVICO_ATIVO', 'SERVICO_DELETADO'],
+                'CodServico': ['SA-001', 'SD-001'],
+                'Status': ['ATIVO', 'DELETADO']
+            })
+        )
+        df = repo.get_all_services_dataframe()
+        self.assertIn('DELETADO', df['Status'].values,
+                      "get_all_services_dataframe() deve incluir DELETADO")
+        self.assertEqual(len(df), 2)

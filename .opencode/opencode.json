@@ -1,0 +1,33 @@
+{
+  "$schema": "https://opencode.ai/schema.json",
+  "experimental": {
+    "cacheStabilization": true,
+    "compactMaxTokens": 8000
+  },
+  "watcher": {
+    "ignore": [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/coverage/**",
+      "**/.git/**",
+      "**/*.log",
+      "**/.env",
+      "**/__pycache__/**",
+      "**/target/**",
+      "**/.pytest_cache/**",
+      "**/*.bak",
+      "**GERADO_*"
+    ]
+  },
+    "plugin": [
+    "openslimedit",
+    [
+      "oc-plugin-caching",
+      {
+        "enabled": true
+      }
+    ],
+    "opencode-cachebro"
+  ]
+}

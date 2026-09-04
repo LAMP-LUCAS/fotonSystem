@@ -40,6 +40,9 @@ class TempFileClientRepository(ClientRepositoryPort):
     def get_clients_dataframe(self) -> pd.DataFrame:
         return pd.read_excel(self.db_path, sheet_name='baseClientes')
 
+    def get_all_clients_dataframe(self) -> pd.DataFrame:
+        return pd.read_excel(self.db_path, sheet_name='baseClientes')
+
     def get_services_dataframe(self) -> pd.DataFrame:
         return pd.read_excel(self.db_path, sheet_name='baseServicos')
 
@@ -62,6 +65,50 @@ class TempFileClientRepository(ClientRepositoryPort):
 
     def create_folder(self, path):
         Path(path).mkdir(parents=True, exist_ok=True)
+
+    # --- New abstract methods (stub implementations for tests) ---
+    def soft_delete_client(self, alias: str) -> bool:
+        # For integration tests we don't need actual deletion logic.
+        # Return True to indicate a successful operation.
+        return True
+
+    def soft_delete_service(self, client_alias: str, service_alias: str) -> bool:
+        return True
+
+    def restore_client(self, alias: str) -> bool:
+        return True
+
+    def get_deleted_clients(self) -> list:
+        return []
+
+    def restore_service(self, client_alias: str, service_alias: str) -> bool:
+        return True
+
+    def get_all_services_dataframe(self) -> pd.DataFrame:
+        return pd.read_excel(self.db_path, sheet_name='baseServicos')
+
+    def get_deleted_services(self) -> list:
+        return []
+
+    def get_clients(self) -> list:
+        from foton_system.modules.clients.domain.models import Client
+        df = self.get_clients_dataframe()
+        return [Client.from_row(row.to_dict()) for _, row in df.iterrows()]
+
+    def get_services(self) -> list:
+        from foton_system.modules.clients.domain.models import Service
+        df = self.get_services_dataframe()
+        return [Service.from_row(row.to_dict()) for _, row in df.iterrows()]
+
+    def get_all_clients(self) -> list:
+        from foton_system.modules.clients.domain.models import Client
+        df = self.get_all_clients_dataframe()
+        return [Client.from_row(row.to_dict()) for _, row in df.iterrows()]
+
+    def get_all_services(self) -> list:
+        from foton_system.modules.clients.domain.models import Service
+        df = self.get_all_services_dataframe()
+        return [Service.from_row(row.to_dict()) for _, row in df.iterrows()]
 
 
 class TestFullSyncCycle(unittest.TestCase):

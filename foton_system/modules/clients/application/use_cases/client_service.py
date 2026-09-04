@@ -50,7 +50,7 @@ class ClientService:
         return client_query.generate_client_code(name, existing_codes)
 
     def create_client(self, name: str, tax_id: str = "",
-                      email: str = "", phone: str = "", alias: str = "") -> CreatedClient:
+                      email: str = "", phone: str = "", alias: str = ""):
         return client_crud.create_client(
             name, self.repository, self._config,
             tax_id=tax_id, email=email, phone=phone, alias=alias
@@ -64,9 +64,12 @@ class ClientService:
         client_path = self.resolve_client_path(client_name)
         return client_crud.read_client_info_file(client_path)
 
-    def update_client_info(self, client_name: str, section: str, content: str) -> str:
+    def update_client_info(self, client_name: str, section: str, content: str,
+                           operacao: str = "append", campo: str = "") -> str:
         client_path = self.resolve_client_path(client_name)
-        return client_crud.update_client_info_file(client_path, section, content)
+        return client_crud.update_client_info_file(
+            client_path, section, content, operacao=operacao, campo=campo
+        )
 
     def sync_clients_db_from_folders(self):
         client_crud.sync_clients_db_from_folders(self.repository)
@@ -80,6 +83,9 @@ class ClientService:
     def sync_service_folders_from_db(self, client_alias=None):
         client_crud.sync_service_folders_from_db(self.repository, self._config, client_alias=client_alias)
 
+    def fill_missing_codes(self):
+        return client_crud.fill_missing_codes(self.repository, self._config)
+
     def export_client_data(self):
         client_crud.export_client_data(self.repository, self._config)
 
@@ -88,4 +94,30 @@ class ClientService:
 
     def import_service_data(self):
         client_crud.import_service_data(self.repository, self._config)
+
+    def import_client_data(self):
+        client_crud.import_client_data(self.repository, self._config)
+
+    def create_service_entry(self, client_alias: str, service_alias: str, cod_servico: str = None) -> dict:
+        return client_crud.create_service_entry(self.repository, self._config, client_alias, service_alias, cod_servico)
+
+    def validate_service_codes(self) -> list[dict]:
+        return client_crud.validate_service_codes(self.repository, self._config)
+
+    def fix_service_codes(self, issues: list[dict] = None) -> int:
+        if issues is None:
+            issues = self.validate_service_codes()
+        return client_crud.fix_service_codes(self.repository, issues)
+    
+    def soft_delete_client(self, alias: str) -> dict:
+        return client_crud.soft_delete_client(alias, self.repository, self._config)
+    
+    def restore_client(self, alias: str) -> dict:
+        return client_crud.restore_client(alias, self.repository, self._config)
+    
+    def get_deleted_clients(self) -> list:
+        return client_crud.get_deleted_clients(self.repository)
+    
+    def update_service_info(self, client_alias: str, service_alias: str, field: str, value) -> dict:
+        return client_crud.update_service_info(client_alias, service_alias, field, value, self.repository, self._config)
 

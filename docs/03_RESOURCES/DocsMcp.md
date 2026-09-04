@@ -65,7 +65,7 @@ O MCP respeita as configurações globais do FotonSystem definidas em:
 
 ---
 
-## 3. Guia de Ferramentas (32 ferramentas)
+## 3. Guia de Ferramentas (38 ferramentas)
 
 ### 📂 Pilar: Clientes
 
@@ -101,6 +101,8 @@ O MCP respeita as configurações globais do FotonSystem definidas em:
 - `exportar_dados_clientes`: Exporta dados do DB para arquivos `.md` nas pastas dos clientes.
 - `exportar_dados_servicos`: Exporta dados de serviços do DB para arquivos `.md`.
 - `importar_dados_servicos`: Importa dados de serviços de arquivos `.md` de volta ao DB.
+- `importar_dados_clientes`: Importa dados de clientes de arquivos INFO (`.md`) de volta ao DB.
+- `preencher_codigos_faltantes`: Preenche automaticamente CodCliente e CodServico faltantes (NaN) no banco de dados.
 - `configurar_agente`: Instala formalmente o Skill Foton Architecture no CLI.
 
 ### 🧠 Pilar: Memória (RAG)
@@ -120,6 +122,14 @@ O MCP respeita as configurações globais do FotonSystem definidas em:
 - `consultar_auditoria`: Mostra eventos recentes de auditoria (operações POP).
 - `ping`: Verifica se o servidor MCP está responsivo.
 
+### ✅ Pilar: Conformidade e Códigos (v1.4.0+)
+
+- `verificar_conformidade_clientes`: Audita pastas e nomes de arquivos INFO contra o pattern configurado. Detecta pastas com caracteres inválidos, INFO ausente, pattern mismatch e duplicatas.
+- `corrigir_conformidade`: Aplica a correção sugerida para um item não conforme (rename de pasta, arquivo, ou criação de INFO files faltantes).
+- `preencher_codigos_faltantes`: Varre o banco de dados e gera `CodCliente`/`CodServico` únicos para registros com valor NaN.
+- `validar_codigos_servicos`: Valida todos os `CodServico` no banco — detecta ausentes, placeholders (`000`), formato inválido e duplicatas.
+- `corrigir_codigos_servicos`: Corrige automaticamente códigos de serviço inválidos gerando novos códigos únicos.
+
 ---
 
 ## 3.1 Segurança (Fase 1 — Implemented)
@@ -128,7 +138,7 @@ As seguintes melhorias de segurança foram aplicadas na Fase 1 da Sprint de Audi
 
 - **Path traversal prevention**: `validar_template` sanitiza `nome_template` com `Path(nome_template).name` antes de construir o caminho — impede escapes como `../../etc/passwd`.
 - **Temp file cleanup**: Subprocessos RAG usam `tempfile.mkdtemp()` + `shutil.rmtree()` em `finally` — sem acúmulo de `_rag_run.py` ou `_rag_error.txt`.
-- **Exception narrowing**: Todas as 32 tools têm cláusulas `except` específicas (`ValueError`, `OSError`, `PermissionError`, `ConnectionError`) antes do `except Exception` genérico — sem risco de capturar `KeyboardInterrupt` ou `SystemExit`.
+- **Exception narrowing**: Todas as 37 tools têm cláusulas `except` específicas (`ValueError`, `OSError`, `PermissionError`, `ConnectionError`) antes do `except Exception` genérico — sem risco de capturar `KeyboardInterrupt` ou `SystemExit`.
 - **dados_extras schema validation**: `_validate_dados_extras()` rejeita dicts aninhados, chaves não-string, cardinalidade >50, valores não escalares.
 
 ---

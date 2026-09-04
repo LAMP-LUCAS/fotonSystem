@@ -22,7 +22,7 @@ from foton_system.modules.finance.application.ports.finance_repository_port impo
 
 class FakeFinanceRepository(FinanceRepositoryPort):
     """In-memory fake repository for unit tests."""
-    
+
     def __init__(self):
         self._entries = []
 
@@ -30,7 +30,24 @@ class FakeFinanceRepository(FinanceRepositoryPort):
         self._entries.append(dict(zip(headers, entry)))
 
     def get_entries(self, client_path):
-        return self._entries
+        from foton_system.modules.clients.domain.models import FinanceEntry as FE
+        result = []
+        for d in self._entries:
+            if isinstance(d, FE):
+                result.append(d)
+                continue
+            row = {
+                "ID": 0,
+                "Tipo": d.get("Tipo", ""),
+                "Valor": float(d.get("Valor", 0) or 0),
+                "Descricao": d.get("Descricao", ""),
+                "Data": d.get("Data", ""),
+                "Cliente": d.get("Cliente", ""),
+            }
+            entry = FE.from_row(row)
+            if entry is not None:
+                result.append(entry)
+        return result
 
 
 class TestFinanceServiceBalanceCalculation(unittest.TestCase):
@@ -137,8 +154,8 @@ class TestCSVFinanceRepositoryIntegration(unittest.TestCase):
         entries = self.repo.get_entries(self.test_dir)
         
         self.assertEqual(len(entries), 2)
-        self.assertEqual(entries[0]['Descricao'], 'First')
-        self.assertEqual(entries[1]['Descricao'], 'Second')
+        self.assertEqual(entries[0].descricao, 'First')
+        self.assertEqual(entries[1].descricao, 'Second')
 
     def test_get_entries_empty_for_new_client(self):
         """Returns empty list for client without ledger."""
@@ -152,30 +169,32 @@ class TestFinanceServiceEdgeCases(unittest.TestCase):
 
     def test_malformed_entries_are_skipped(self):
         """Malformed entries (missing Valor) don't crash summary calculation."""
+        from foton_system.modules.clients.domain.models import FinanceEntry
         repo = FakeFinanceRepository()
         repo._entries = [
-            {'Data': '2026-01-01', 'Descricao': 'Good', 'Tipo': 'ENTRADA', 'Valor': '100'},
-            {'Data': '2026-01-02', 'Descricao': 'Bad', 'Tipo': 'ENTRADA'},  # Missing Valor
-            {'Data': '2026-01-03', 'Descricao': 'Good2', 'Tipo': 'SAIDA', 'Valor': '50'}
+            FinanceEntry(tipo='ENTRADA', valor=100.0, descricao='Good', data='2026-01-01', cliente_alias='fake'),
+            FinanceEntry(tipo='ENTRADA', valor=0.0, descricao='Bad', data='2026-01-02', cliente_alias='fake'),
+            FinanceEntry(tipo='SAIDA', valor=50.0, descricao='Good2', data='2026-01-03', cliente_alias='fake'),
         ]
         service = FinanceService(repo)
-        
+
         summary = service.get_summary(Path('/fake'))
-        
+
         self.assertEqual(summary['total_entradas'], 100.0)
         self.assertEqual(summary['total_saidas'], 50.0)
 
     def test_invalid_valor_is_skipped(self):
         """Non-numeric Valor values are skipped."""
+        from foton_system.modules.clients.domain.models import FinanceEntry
         repo = FakeFinanceRepository()
         repo._entries = [
-            {'Data': '2026-01-01', 'Descricao': 'Good', 'Tipo': 'ENTRADA', 'Valor': '100'},
-            {'Data': '2026-01-02', 'Descricao': 'Bad', 'Tipo': 'ENTRADA', 'Valor': 'invalid'}
+            FinanceEntry(tipo='ENTRADA', valor=100.0, descricao='Good', data='2026-01-01', cliente_alias='fake'),
+            FinanceEntry(tipo='ENTRADA', valor=0.0, descricao='Bad', data='2026-01-02', cliente_alias='fake'),
         ]
         service = FinanceService(repo)
-        
+
         summary = service.get_summary(Path('/fake'))
-        
+
         self.assertEqual(summary['total_entradas'], 100.0)
 
 
