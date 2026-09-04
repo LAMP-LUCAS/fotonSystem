@@ -84,7 +84,8 @@ class MenuDocsHandler:
             sub_choice = input(f"\n{Fore.YELLOW}>> Escolha: {Style.RESET_ALL}").strip()
             if sub_choice == '1':
                 from foton_system.modules.documents.application.use_cases.tui_form_filler_use_case import TUIFormFillerUseCase
-                tui_filler = TUIFormFillerUseCase(data_path)
+                from foton_system.interfaces.cli.views.form_view import TUIFormView
+                tui_filler = TUIFormFillerUseCase(data_path, view_factory=TUIFormView)
                 if tui_filler.execute():
                     self.menu.print_success("\n  Ficha atualizada com sucesso via Terminal!")
                     input("Pressione Enter para continuar...")

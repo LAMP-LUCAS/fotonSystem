@@ -9,13 +9,16 @@ class SearchNode(PipelineNode):
     input_keys = ["query", "embeddings"]
     output_keys = ["raw_results"]
 
+    def __init__(self, manager: Optional[Any] = None):
+        self._manager = manager
+
     def execute(self, context: ProcessContext) -> ProcessContext:
         query = context["query"]
         embeddings = context["embeddings"]
         n_results = context.get("n_results", 5)
         where = context.get("where", None)
 
-        manager = VectorStoreManager()
+        manager = self._manager or context.get("vector_store_manager") or VectorStoreManager()
 
         if len(manager.active_tags) == 1:
             tag = manager.active_tags[0]

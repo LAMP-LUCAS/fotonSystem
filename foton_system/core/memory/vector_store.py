@@ -568,15 +568,20 @@ class VectorStoreInstance:
             "ultima_indexacao": last_idx,
         }
 
+def _load_rag_symbol(module_suffix: str, symbol_name: str) -> Any:
+    import importlib
+    mod = importlib.import_module(f"foton_system.core.rag.{module_suffix}")
+    return getattr(mod, symbol_name)
+
 
 class VectorStoreManager:
-    """Facade singleton que gerencia N instâncias de VectorStoreInstance.
-
-    Substitui o VectorStore original para operações multi-modelo.
-    Backward compat (RAG-10.7): sem config 'rag', opera em modo minilm.
+    """
+    Singleton que gerencia instâncias de VectorStoreInstance por tag de modelo.
+    Suporta modo único (minilm) e modo híbrido (minilm + bgem3).
     """
 
     _instance: Optional['VectorStoreManager'] = None
+    _initialized: bool = False
 
     def __new__(cls) -> 'VectorStoreManager':
         if cls._instance is None:
@@ -606,16 +611,16 @@ class VectorStoreManager:
         self._lazy_init_done = True
 
         try:
-            from foton_system.core.rag.migration import MigrationChecker
+            MigrationChecker = _load_rag_symbol("migration", "MigrationChecker")
             MigrationChecker().ensure_migrated()
 
             from foton_system.modules.shared.infrastructure.config.config import Config
             config = Config()
             rag_cfg = config.rag_config
 
-            from foton_system.core.rag.model_registry import ModelRegistry
-            from foton_system.core.rag.hardware_profiler import HardwareProfiler
-            from foton_system.core.rag.model_router import ModelRouter
+            ModelRegistry = _load_rag_symbol("model_registry", "ModelRegistry")
+            HardwareProfiler = _load_rag_symbol("hardware_profiler", "HardwareProfiler")
+            ModelRouter = _load_rag_symbol("model_router", "ModelRouter")
 
             registry = ModelRegistry()
             profiler = HardwareProfiler()
@@ -650,7 +655,8 @@ class VectorStoreManager:
             self._active_tags = ["minilm"]
             if "minilm" not in self._instances:
                 try:
-                    from foton_system.core.rag.model_registry import ModelRegistry, ModelEntry
+                    ModelRegistry = _load_rag_symbol("model_registry", "ModelRegistry")
+                    ModelEntry = _load_rag_symbol("model_registry", "ModelEntry")
                     registry = ModelRegistry()
                     entry = registry.get("minilm") or ModelEntry(
                         id="minilm",
@@ -682,7 +688,7 @@ class VectorStoreManager:
         if not documents:
             return
         self._lazy_init()
-        from foton_system.core.rag.model_router import ModelRouter
+        ModelRouter = _load_rag_symbol("model_router", "ModelRouter")
         for tag in self._active_tags:
             instance = self._instances.get(tag)
             if instance:
@@ -709,7 +715,7 @@ class VectorStoreManager:
                 return {"documents": [[]], "metadatas": [[]], "distances": [[]], "ids": [[]]}
             return {"documents": [[]], "metadatas": [[]], "distances": [[]], "ids": [[]]}
 
-        from foton_system.core.rag.model_router import ModelRouter
+        ModelRouter = _load_rag_symbol("model_router", "ModelRouter")
         all_results: List[Dict[str, Any]] = []
         for tag in self._active_tags:
             instance = self._instances.get(tag)
@@ -782,7 +788,7 @@ class VectorStoreManager:
                 return instance.query(query_text, n_results, where)
             return {"documents": [[]], "metadatas": [[]], "distances": [[]], "ids": [[]]}
 
-        from foton_system.core.rag.model_router import ModelRouter
+        ModelRouter = _load_rag_symbol("model_router", "ModelRouter")
         all_results: List[Dict[str, Any]] = []
         for tag in self._active_tags:
             instance = self._instances.get(tag)

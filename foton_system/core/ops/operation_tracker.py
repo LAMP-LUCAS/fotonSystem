@@ -30,15 +30,17 @@ def _rotate_if_needed(log_path: Path):
             return
         with open(log_path, "r", encoding="utf-8", newline="") as f:
             lines = f.readlines()
-        total = len(lines)
-        keep = total
-        while keep > 1:
-            sample_size = sum(len(l) for l in lines[total - keep:])
-            if sample_size <= _TRUNCATE_TARGET:
+        current_size = 0
+        keep_lines = []
+        for line in reversed(lines):
+            line_len = len(line)
+            if current_size + line_len > _TRUNCATE_TARGET and keep_lines:
                 break
-            keep -= 1
+            keep_lines.append(line)
+            current_size += line_len
+        keep_lines.reverse()
         with open(log_path, "w", encoding="utf-8", newline="") as f:
-            f.writelines(lines[total - keep:])
+            f.writelines(keep_lines)
     except OSError:
         pass
 

@@ -1,4 +1,4 @@
-﻿import pandas as pd
+import pandas as pd
 from pathlib import Path
 from foton_system.modules.shared.infrastructure.config.config import Config
 from foton_system.modules.shared.infrastructure.config.logger import setup_logger
@@ -7,6 +7,11 @@ from foton_system.modules.documents.application.use_cases.document_service impor
 logger = setup_logger()
 
 class SyncService:
+    """[DEPRECATED] Legado de sincronização unidirecional.
+
+    Substituído por `foton_system.modules.clients.application.use_cases.pipeline_sync.pipeline_sincronizacao`.
+    Mantido para compatibilidade regressiva de testes legados.
+    """
     def sync_dashboard(self) -> int:
         """Lê todas as pastas de clientes e atualiza o baseDados.xlsx.
 

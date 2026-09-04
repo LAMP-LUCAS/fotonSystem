@@ -135,9 +135,9 @@ class TestOperationTracker(unittest.TestCase):
                            "timestamp": "now", "sucesso": True, "duracao_ms": 1.0,
                            "metadados": {}}) + "\n"
         target_size = 11 * 1024 * 1024
-        with open(log_file, "a", encoding="utf-8") as f:
-            while log_file.stat().st_size < target_size:
-                f.write(line)
+        line_bytes = len(line.encode("utf-8"))
+        repeat_count = (target_size // line_bytes) + 10
+        log_file.write_text(line * repeat_count, encoding="utf-8")
         size_before = log_file.stat().st_size
         self.assertGreaterEqual(size_before, 10 * 1024 * 1024)
 
@@ -152,7 +152,6 @@ class TestOperationTracker(unittest.TestCase):
         trimmed_size = log_file.stat().st_size - last_line_len
         self.assertLessEqual(trimmed_size, 8 * 1024 * 1024)
         last = json.loads(lines_after[-1])
-        last = json.loads(lines_after[-1])
         self.assertEqual(last["operacao"], "op_rotacao")
 
     @patch("foton_system.core.ops.operation_tracker.BootstrapService")
@@ -165,9 +164,10 @@ class TestOperationTracker(unittest.TestCase):
         line = json.dumps({"operacao": "x", "session_id": "s", "interface": "TUI",
                            "timestamp": "now", "sucesso": True, "duracao_ms": 1.0,
                            "metadados": {}}) + "\n"
-        with open(log_file, "a", encoding="utf-8") as f:
-            while log_file.stat().st_size < 10.5 * 1024 * 1024:
-                f.write(line)
+        target_size = int(10.5 * 1024 * 1024)
+        line_bytes = len(line.encode("utf-8"))
+        repeat_count = (target_size // line_bytes) + 10
+        log_file.write_text(line * repeat_count, encoding="utf-8")
 
         @track_operation("op_segura")
         def func():

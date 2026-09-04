@@ -6,7 +6,7 @@ import logging
 import re
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Any
-from foton_system.core.ops.formula_engine import FormulaEngine
+from foton_system.modules.shared.domain.services.formula_engine import FormulaEngine
 
 # @story: STORY-026 @rule: RULE-DOC-4.3
 log = logging.getLogger(__name__)

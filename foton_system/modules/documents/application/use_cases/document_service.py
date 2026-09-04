@@ -1,4 +1,4 @@
-﻿import re
+import re
 import json
 import time
 from pathlib import Path
@@ -14,7 +14,7 @@ from foton_system.modules.shared.domain.exceptions import (
     TemplateNotFoundError,
     DocumentGenerationError
 )
-from foton_system.core.ops.formula_engine import FormulaEngine
+from foton_system.modules.shared.domain.services.formula_engine import FormulaEngine
 
 logger = setup_logger()
 

@@ -75,15 +75,26 @@ class Config:
 
     @property
     def base_pasta_clientes(self) -> Path:
-        return Path(self.get('caminho_pastaClientes'))
+        val = self.get('caminho_pastaClientes')
+        if val:
+            return Path(val)
+        from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+        return PathManager.get_user_projects_dir()
 
     @property
     def base_dados(self) -> Path:
-        return Path(self.get('caminho_baseDados'))
+        val = self.get('caminho_baseDados')
+        if val:
+            return Path(val)
+        from foton_system.modules.shared.infrastructure.services.path_manager import PathManager
+        return PathManager.get_app_data_dir() / "baseDados.xlsx"
 
     @property
     def templates_path(self) -> Path:
-        return Path(self.get('caminho_templates'))
+        val = self.get('caminho_templates')
+        if val:
+            return Path(val)
+        return Path.home() / "Documents" / "FotonTemplates"
 
     @property
     def ignored_folders(self) -> List[str]:

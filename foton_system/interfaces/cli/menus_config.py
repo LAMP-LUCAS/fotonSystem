@@ -32,9 +32,12 @@ class MenuConfigHandler:
         TUILayout.clear()
         TUILayout.print_header("CONFIGURAÇÕES")
         self.menu.print_breadcrumb(["Configurações"])
-        TUILayout.print_menu_option("1", f"Pasta Clientes: {os.path.basename(config.get('caminho_pastaClientes'))}")
-        TUILayout.print_menu_option("2", f"Pasta Templates: {os.path.basename(config.get('caminho_templates'))}")
-        TUILayout.print_menu_option("3", f"Base de Dados: {os.path.basename(config.get('caminho_baseDados'))}")
+        pasta_clientes = config.get('caminho_pastaClientes')
+        pasta_templates = config.get('caminho_templates')
+        base_dados = config.get('caminho_baseDados')
+        TUILayout.print_menu_option("1", f"Pasta Clientes: {os.path.basename(pasta_clientes) if pasta_clientes else 'Não configurado'}")
+        TUILayout.print_menu_option("2", f"Pasta Templates: {os.path.basename(pasta_templates) if pasta_templates else 'Não configurado'}")
+        TUILayout.print_menu_option("3", f"Base de Dados: {os.path.basename(base_dados) if base_dados else 'Não configurado'}")
         TUILayout.print_menu_option("---", "Ferramentas")
         TUILayout.print_menu_option("4", "Ferramentas Administrativas")
         TUILayout.print_menu_option("5", "Abrir Pasta do Sistema (Workspace)")
@@ -331,8 +334,9 @@ class MenuConfigHandler:
 
     def handle_admin_tools(self):
         try:
-            from foton_system.scripts.admin_launcher import main_menu
-            main_menu()
+            import importlib
+            launcher_mod = importlib.import_module("foton_system.scripts.admin_launcher")
+            launcher_mod.main_menu()
         except Exception as e:
             self.menu.print_error(f"Erro: {format_error_with_suggestion(e)}")
 

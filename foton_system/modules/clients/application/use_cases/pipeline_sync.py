@@ -57,15 +57,15 @@ class SyncReport:
         lines.append(f"  Duracao:   {self.duracao_segundos}s")
         lines.append("")
         if self.clientes_novos:
-            lines.append(f"  Clientes novos: {', '.join(self.clientes_novos)}")
+            lines.append(f"  Clientes novos: {', '.join(str(c) for c in self.clientes_novos)}")
         if self.clientes_atualizados:
-            lines.append(f"  Clientes atualizados: {', '.join(self.clientes_atualizados)}")
+            lines.append(f"  Clientes atualizados: {', '.join(str(c) for c in self.clientes_atualizados)}")
         if self.clientes_deletados:
-            lines.append(f"  Clientes deletados: {', '.join(self.clientes_deletados)}")
+            lines.append(f"  Clientes deletados: {', '.join(str(c) for c in self.clientes_deletados)}")
         if self.servicos_novos:
-            lines.append(f"  Servicos novos: {', '.join(self.servicos_novos)}")
+            lines.append(f"  Servicos novos: {', '.join(str(s) for s in self.servicos_novos)}")
         if self.servicos_atualizados:
-            lines.append(f"  Servicos atualizados: {', '.join(self.servicos_atualizados)}")
+            lines.append(f"  Servicos atualizados: {', '.join(str(s) for s in self.servicos_atualizados)}")
         if self.conflitos:
             lines.append(f"  Conflitos: {len(self.conflitos)}")
         if self.erros:
