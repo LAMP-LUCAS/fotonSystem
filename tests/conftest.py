@@ -17,6 +17,24 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
+def pytest_configure(config):
+    """Ensure pytest temp directory is writable, falling back if default is locked."""
+    import tempfile
+    import getpass
+    if not config.option.basetemp:
+        try:
+            default_temp = Path(tempfile.gettempdir()) / f"pytest-of-{getpass.getuser()}"
+            default_temp.mkdir(parents=True, exist_ok=True)
+            # Test writability
+            test_probe = default_temp / ".write_probe"
+            test_probe.touch()
+            test_probe.unlink()
+        except (PermissionError, OSError):
+            fallback = Path(tempfile.gettempdir()) / "pytest_foton_temp"
+            fallback.mkdir(parents=True, exist_ok=True)
+            config.option.basetemp = str(fallback)
+
+
 @pytest.fixture
 def fake_client_repository():
     """In-memory ClientRepositoryPort implementation for fast unit tests.

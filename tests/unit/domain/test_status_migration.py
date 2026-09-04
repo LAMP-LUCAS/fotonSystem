@@ -80,18 +80,12 @@ class TestEnsureDatabaseExists:
         from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import (
             ExcelClientRepository,
         )
-        from foton_system.modules.shared.infrastructure.config.config import Config
 
-        cfg = Config()
-        cfg.set('caminho_baseDados', str(mock_config.base_dados))
-        cfg.set('caminho_pastaClientes', str(mock_config.base_pasta_clientes))
-        cfg.save()
-
-        repo = ExcelClientRepository()
+        repo = ExcelClientRepository(config=mock_config)
         repo._ensure_database_exists()
 
-        df_clients = pd.read_excel(cfg.base_dados, sheet_name='baseClientes')
-        df_services = pd.read_excel(cfg.base_dados, sheet_name='baseServicos')
+        df_clients = pd.read_excel(mock_config.base_dados, sheet_name='baseClientes')
+        df_services = pd.read_excel(mock_config.base_dados, sheet_name='baseServicos')
 
         assert 'Status' in df_clients.columns
         assert 'Status' in df_services.columns
@@ -101,17 +95,11 @@ class TestEnsureDatabaseExists:
         from foton_system.modules.clients.infrastructure.repositories.excel_client_repository import (
             ExcelClientRepository,
         )
-        from foton_system.modules.shared.infrastructure.config.config import Config
 
-        cfg = Config()
-        cfg.set('caminho_baseDados', str(mock_config.base_dados))
-        cfg.set('caminho_pastaClientes', str(mock_config.base_pasta_clientes))
-        cfg.save()
-
-        repo = ExcelClientRepository()
+        repo = ExcelClientRepository(config=mock_config)
         repo._ensure_database_exists()
 
-        df_clients = pd.read_excel(cfg.base_dados, sheet_name='baseClientes')
+        df_clients = pd.read_excel(mock_config.base_dados, sheet_name='baseClientes')
         assert 'CodCliente' in df_clients.columns
 
 

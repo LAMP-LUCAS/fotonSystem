@@ -19,11 +19,11 @@ Este documento define a sequência tática de execução das melhorias de engenh
 ## 2. Checklist Operacional
 
 ### Momento 1: Higiene Imediata
-- [ ] Limpeza do arquivo `settings.json` (apontar para pastas reais de produção)
-- [ ] Atualização do `AGENTS.md` (47 tools catalogadas, 1.061 testes)
-- [ ] Remoção de resíduos de debug da raiz (`_debug_bisect.py`, `check_paths.py`, etc.)
-- [ ] Remoção de `foton_system/__init__-lampbook.py` e restauração de `foton_system/__init__.py`
-- [ ] Execução da suite de testes para validação de zero regressão
+- [x] Limpeza do arquivo `settings.json` (apontar para pastas reais de produção)
+- [x] Atualização do `AGENTS.md` (47 tools catalogadas, 1.061 testes)
+- [x] Remoção de resíduos de debug da raiz (`_debug_bisect.py`, `check_paths.py`, etc.)
+- [x] Remoção de `foton_system/__init__-lampbook.py` e restauração de `foton_system/__init__.py`
+- [x] Execução da suite de testes para validação de zero regressão (com isolamento de basetemp e mock_config)
 
 ### Momento 2: Sprint de Hardening (Técnica)
 - [ ] Story HARD-01: Desacoplar `tui_form_filler_use_case` via `FormInterfacePort` (eliminar dependência da TUI)

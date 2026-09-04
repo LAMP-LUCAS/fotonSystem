@@ -127,9 +127,9 @@ foton_system/
 
 ---
 
-## 43 Ferramentas MCP (v1.4.0)
+## 47 Ferramentas MCP (v1.4.0)
 
-### 📂 Clientes (6)
+### 📂 Clientes e Serviços (11)
 | Ferramenta | Descrição |
 |---|---|
 | `listar_clientes` | Lista projetos (ignora pastas de sistema) |
@@ -138,6 +138,11 @@ foton_system/
 | `atualizar_ficha_cliente` | Adiciona notas de reunião (com .bak) |
 | `listar_servicos_cliente` | Lista sub-projetos |
 | `criar_estrutura_servico` | Cria estrutura DOC/ADM/OP |
+| `remover_cliente` | Soft delete do cliente no DB (muda status para DELETADO) |
+| `restaurar_cliente` | Restaura cliente deletado para ATIVO |
+| `remover_servico` | Soft delete do serviço no DB |
+| `restaurar_servico` | Restaura serviço deletado para ATIVO |
+| `atualizar_servico` | Atualiza metadados do serviço no DB |
 
 ### 💵 Financeiro (3)
 | Ferramenta | Descrição |
@@ -178,11 +183,12 @@ foton_system/
 | `consultar_conhecimento` | Busca semântica em projetos passados |
 | `diagnostico_conhecimento` | Diagnóstico do índice (chunks, status CB, última indexação) |
 
-### 🚀 Pipelines (2)
+### 🚀 Pipelines (3)
 | Ferramenta | Descrição |
 |---|---|
 | `pipeline_novo_cliente` | Duplicate check + criação + verificação |
 | `pipeline_emitir_documento` | Pré-vôo completo antes de gerar |
+| `pipeline_sincronizacao` | Executa pipeline unificado de sincronização (bidir, pastas_to_db, db_to_pastas) |
 
 ### 🏗️ Infraestrutura (5)
 | Ferramenta | Descrição |
@@ -272,10 +278,22 @@ indexar_conhecimento → consultar_conhecimento
 
 ```bash
 cd fotonSystem
-python -m pytest           # 452 testes, zero regressão
+python -m pytest           # 1.061 testes, zero regressão
 python -m pytest -v -k "path_traversal"  # Testes de segurança
 python -m pytest -v -k "circuit_breaker" # Testes de resiliência
 ```
+
+---
+
+## Roadmap e Hardening (3 Momentos)
+
+O repositório segue o plano estruturado de evolução e remediação técnica:
+- **Diretiva:** `docs/01_PROJECTS/AuditoriaSet2026_PlanoHardening.md`
+- **Tática:** `.opencode/plans/ROADMAP_HARDENING_E_EVOLUCAO.md`
+
+1. **Momento 1: Higiene Imediata** — Limpeza de `settings.json`, eliminação de drift e remoção de arquivos temporários.
+2. **Momento 2: Sprint de Hardening** — Quebra dos 5 ciclos de dependência entre módulos, inversão de dependência em `tui_form_filler_use_case`, expurgo do legado `sync_service.py` e fatiamento modular de `foton_mcp.py`.
+3. **Momento 3: Marcos Estratégicos** — Conclusão da Sprint 9 (RAG v2.0), EPIC-006 (Financeiro v2), EPIC-013 (TUI Modal Vim+tmux) e Migração para SQLite.
 
 ---
 
